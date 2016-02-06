@@ -4,16 +4,17 @@
   xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
   version="2.5">
   <servlet>
-    <servlet-name>invmanage2</servlet-name>
-    <servlet-class>com.bwing.invmanage2.invmanage2servlet</servlet-class>
+      <servlet-name>sign</servlet-name>
+    <servlet-class>com.bwing.invmanage2.SignGuestbookServlet</servlet-class>
   </servlet>
   <servlet-mapping>
-    <servlet-name>invmanage2</servlet-name>
-    <url-pattern>/invmanage2</url-pattern>
+      <servlet-name>sign</servlet-name>
+      <url-pattern>/sign</url-pattern>
   </servlet-mapping>
   <welcome-file-list>
     <welcome-file>start.jsp</welcome-file>
   </welcome-file-list>
+<!-- [START Objectify] -->
 <filter>
   <filter-name>ObjectifyFilter</filter-name>
   <filter-class>com.googlecode.objectify.ObjectifyFilter</filter-class>
@@ -24,4 +25,6 @@
 </filter-mapping>
 <listener>
   <listener-class>com.bwing.invmanage2.OfyHelper</listener-class>
-</listener></web-app>
+</listener>
+<!-- [END Objectify] -->
+</web-app>

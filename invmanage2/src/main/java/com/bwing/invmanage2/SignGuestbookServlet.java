@@ -47,6 +47,6 @@ public class SignGuestbookServlet extends HttpServlet {
     // will immediately get a new page using redirect and we want the data to be present.
     ObjectifyService.ofy().save().entity(greeting).now();
 
-    resp.sendRedirect("/guestbook.jsp?guestbookName=" + guestbookName);
+    resp.sendRedirect("/start.jsp?guestbookName=" + guestbookName);
   }
 }

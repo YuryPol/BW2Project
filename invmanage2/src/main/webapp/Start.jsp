@@ -17,11 +17,11 @@
 <body>
 
 <%
-    String inventoryName = request.getParameter("inventoryName");
-    if (inventoryName == null) {
-        inventoryName = "default";
+    String guestbookName = request.getParameter("guestbookName");
+    if (guestbookName == null) {
+        guestbookName = "default";
     }
-    pageContext.setAttribute("inventoryName", inventoryName);
+    pageContext.setAttribute("guestbookName", guestbookName);
     UserService userService = UserServiceFactory.getUserService();
     User user = userService.getCurrentUser();
     if (user != null) {
@@ -43,7 +43,7 @@
 
 <%
     // Create the correct Ancestor key
-      Key<Guestbook> theBook = Key.create(Guestbook.class, inventoryName);
+      Key<Guestbook> theBook = Key.create(Guestbook.class, guestbookName);
 
     // Run an ancestor query to ensure we see the most up-to-date
     // view of the Greetings belonging to the selected Guestbook.
@@ -92,7 +92,7 @@
 </form>
 
 <form action="/start.jsp" method="get">
-    <div><input type="text" name="inventoryName" value="${fn:escapeXml(inventoryName)}"/></div>
+    <div><input type="text" name="guestbookName" value="${fn:escapeXml(guestbookName)}"/></div>
     <div><input type="submit" value="Switch Inventory"/></div>
 </form>
 
