@@ -1,6 +1,7 @@
 <%@ page import="com.bwing.invmanage2.Greeting" %>
 <%@ page import="com.bwing.invmanage2.Guestbook" %>
 <%@ page import="com.googlecode.objectify.Key" %>
+<%@ page import="com.bwing.invmanage2.InventoryUser" %>
 <%@ page import="com.googlecode.objectify.ObjectifyService" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="com.google.appengine.api.users.User" %>
@@ -17,11 +18,7 @@
 <body>
 
 <%
-    String guestbookName = request.getParameter("guestbookName");
-    if (guestbookName == null) {
-        guestbookName = "default";
-    }
-    pageContext.setAttribute("guestbookName", guestbookName);
+    String guestbookName = "";
     UserService userService = UserServiceFactory.getUserService();
     User user = userService.getCurrentUser();
     if (user != null) {
@@ -31,7 +28,7 @@
 <p>Hello, ${fn:escapeXml(user.nickname)}! (You can
     <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a>.)</p>
 <%
-} else {
+    } else {
 %>
 <p>You can 
     <a href="<%= userService.createLoginURL(request.getRequestURI()) %>">sign in</a>
@@ -42,6 +39,19 @@
 
 
 <%
+    // Create inventory user if necessary
+      List<InventoryUser> users = ObjectifyService.ofy()
+      .load()
+      .type(InventoryUser.class) // We want only Users
+//       .ancestor(theCustomer)    // Anyone for this customer
+      .order("-date")       // Most recent first - date is indexed.
+      .list();
+
+    if (users.contains(user)) {
+    	
+    }
+
+      
     // Create the correct Ancestor key
       Key<Guestbook> theBook = Key.create(Guestbook.class, guestbookName);
 
