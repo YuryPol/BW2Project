@@ -8,6 +8,7 @@
 <%@ page import="com.google.appengine.api.users.UserService" %>
 <%@ page import="com.google.appengine.api.users.UserServiceFactory" %>
 <%@ page import="java.util.List" %>
+<%@ page import="java.util.Iterator" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
 <html>
@@ -18,11 +19,24 @@
 <body>
 
 <%
-    String guestbookName = "";
+	String guestbookName = "";
     UserService userService = UserServiceFactory.getUserService();
-    User user = userService.getCurrentUser();
-    if (user != null) {
-        pageContext.setAttribute("user", user);
+    User theUser = userService.getCurrentUser();
+	if (theUser != null) {
+		pageContext.setAttribute("user", theUser);
+		// Create inventory user if necessary
+		List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
+				//       .ancestor(theCustomer)    // Anyone for this customer
+				.order("-date") // Most recent first - date is indexed.
+				.list();
+		for (Iterator<InventoryUser> iter = users.iterator(); iter.hasNext();) {
+			if (iter.next().user.equals(theUser)) {
+				// Get customer
+				break;
+			} else {
+				// Create InventoryUser and Customer
+			}
+		}
 %>
 
 <p>Hello, ${fn:escapeXml(user.nickname)}! (You can
@@ -39,19 +53,6 @@
 
 
 <%
-    // Create inventory user if necessary
-      List<InventoryUser> users = ObjectifyService.ofy()
-      .load()
-      .type(InventoryUser.class) // We want only Users
-//       .ancestor(theCustomer)    // Anyone for this customer
-      .order("-date")       // Most recent first - date is indexed.
-      .list();
-
-    if (users.contains(user)) {
-    	
-    }
-
-      
     // Create the correct Ancestor key
       Key<Guestbook> theBook = Key.create(Guestbook.class, guestbookName);
 
@@ -82,7 +83,7 @@
             } else {
                 author = greeting.author_email;
                 String author_id = greeting.author_id;
-                if (user != null && user.getUserId().equals(author_id)) {
+                if (theUser != null && theUser.getUserId().equals(author_id)) {
                     author += " (You)";
                 }
             }
