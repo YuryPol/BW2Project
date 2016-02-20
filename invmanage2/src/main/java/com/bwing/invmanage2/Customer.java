@@ -18,10 +18,10 @@ public class Customer {
   /**
    * Simple constructor just sets the date and the entity founder
    **/
-  public Customer(InventoryUser user) {
+/*  public Customer(InventoryUser user) {
     date = new Date();
     founder = user;
   }
-
+*/
 
 }

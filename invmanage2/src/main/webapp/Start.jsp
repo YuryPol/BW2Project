@@ -23,26 +23,30 @@
     UserService userService = UserServiceFactory.getUserService();
     User theUser = userService.getCurrentUser();
 	if (theUser != null) {
-		pageContext.setAttribute("user", theUser);
+		pageContext.setAttribute("theuser", theUser);
 		// Create inventory user if necessary
 		List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
-				//       .ancestor(theCustomer)    // Anyone for this customer
-				.order("-date") // Most recent first - date is indexed.
+				.filter("user", theUser)
 				.list();
-		for (Iterator<InventoryUser> iter = users.iterator(); iter.hasNext();) {
-			if (iter.next().user.equals(theUser)) {
-				// Get customer
-				break;
-			} else {
+		if (users.isEmpty()) {
 				// Create InventoryUser and Customer
-			}
-		}
-%>
+			%>
 
-<p>Hello, ${fn:escapeXml(user.nickname)}! (You can
-    <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a>.)</p>
-<%
-    } else {
+			<p>Hello, ${fn:escapeXml(theuser.nickname)}! (You can
+			    <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a>.)</p>
+			    <p>or enter your data</p>
+			<%
+		}
+		else {
+			if (users.get(0).user != theUser)
+				// shouldn't ever happen
+				;
+			else
+		        pageContext.setAttribute("inventoryuser", users.get(0));			
+		}
+    } 
+	else 
+	{
 %>
 <p>You can 
     <a href="<%= userService.createLoginURL(request.getRequestURI()) %>">sign in</a>
@@ -51,56 +55,6 @@
     }
 %>
 
-
-<%
-    // Create the correct Ancestor key
-      Key<Guestbook> theBook = Key.create(Guestbook.class, guestbookName);
-
-    // Run an ancestor query to ensure we see the most up-to-date
-    // view of the Greetings belonging to the selected Guestbook.
-      List<Greeting> greetings = ObjectifyService.ofy()
-          .load()
-          .type(Greeting.class) // We want only Greetings
-          .ancestor(theBook)    // Anyone in this book
-          .order("-date")       // Most recent first - date is indexed.
-          .limit(5)             // Only show 5 of them.
-          .list();
-
-    if (greetings.isEmpty()) {
-%>
-<p>Guestbook '${fn:escapeXml(guestbookName)}' has no messages.</p>
-<%
-    } else {
-%>
-<p>Messages in Guestbook '${fn:escapeXml(guestbookName)}'.</p>
-<%
-      // Look at all of our greetings
-        for (Greeting greeting : greetings) {
-            pageContext.setAttribute("greeting_content", greeting.content);
-            String author;
-            if (greeting.author_email == null) {
-                author = "An anonymous person";
-            } else {
-                author = greeting.author_email;
-                String author_id = greeting.author_id;
-                if (theUser != null && theUser.getUserId().equals(author_id)) {
-                    author += " (You)";
-                }
-            }
-            pageContext.setAttribute("greeting_user", author);
-%>
-<p><b>${fn:escapeXml(greeting_user)}</b> wrote:</p>
-<blockquote>${fn:escapeXml(greeting_content)}</blockquote>
-<%
-        }
-    }
-%>
-
-<form action="/sign" method="post">
-    <div><textarea name="content" rows="3" cols="60"></textarea></div>
-    <div><input type="submit" value="Post Greeting"/></div>
-    <input type="hidden" name="guestbookName" value="${fn:escapeXml(guestbookName)}"/>
-</form>
 
 <form action="/start.jsp" method="get">
     <div><input type="text" name="guestbookName" value="${fn:escapeXml(guestbookName)}"/></div>
