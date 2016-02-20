@@ -19,7 +19,7 @@
 <body>
 
 <%
-	String guestbookName = "";
+	String customer = "";
     UserService userService = UserServiceFactory.getUserService();
     User theUser = userService.getCurrentUser();
 	if (theUser != null) {
@@ -57,7 +57,7 @@
 
 
 <form action="/start.jsp" method="get">
-    <div><input type="text" name="guestbookName" value="${fn:escapeXml(guestbookName)}"/></div>
+    <div><input type="text" name="customer" value="${fn:escapeXml(customer)}"/></div>
     <div><input type="submit" value="Switch Inventory"/></div>
 </form>
 
