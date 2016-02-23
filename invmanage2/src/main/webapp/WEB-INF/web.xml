@@ -5,7 +5,7 @@
   version="2.5">
   <servlet>
       <servlet-name>sign</servlet-name>
-    <servlet-class>com.bwing.invmanage2.SignGuestbookServlet</servlet-class>
+    <servlet-class>com.bwing.invmanage2.SignUserServlet</servlet-class>
   </servlet>
   <servlet-mapping>
       <servlet-name>sign</servlet-name>

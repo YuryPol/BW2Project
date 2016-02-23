@@ -12,7 +12,7 @@ import java.util.Date;
 @Entity
 public class Customer {
   @Id public String customer;
-  InventoryUser founder;
+  public InventoryUser founder;
   public Date date;
 
   /**
