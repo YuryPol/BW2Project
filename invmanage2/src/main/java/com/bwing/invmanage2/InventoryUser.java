@@ -32,6 +32,20 @@ public class InventoryUser {
 	  public User user;
 	  public String user_first_name;
 	  public String user_last_name;
-	  public PhoneNumber phone;
-	  @Index public Date start_date;
+	  public PhoneNumber user_phone;
+	  @Index public Date date;
+	  
+	  public InventoryUser()
+	  {
+		  date = new Date();
+	  }
+	  
+	  public InventoryUser(Key<Customer> company, String first_name, String last_name, PhoneNumber phone)
+	  {
+		  this();
+		  theCustomer = company;
+		  user_first_name = first_name;
+		  user_last_name = last_name;
+		  user_phone = phone;
+	  }
 }

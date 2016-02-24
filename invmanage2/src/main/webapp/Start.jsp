@@ -1,4 +1,4 @@
-<%@ page import="com.bwing.invmanage2.Greeting" %>
+<%@ page import="com.bwing.invmanage2.InventoryUser" %>
 <%@ page import="com.bwing.invmanage2.Guestbook" %>
 <%@ page import="com.googlecode.objectify.Key" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
@@ -8,6 +8,7 @@
 <%@ page import="com.google.appengine.api.users.User" %>
 <%@ page import="com.google.appengine.api.users.UserService" %>
 <%@ page import="com.google.appengine.api.users.UserServiceFactory" %>
+<%@ page import="com.google.appengine.api.datastore.PhoneNumber" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.Iterator" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
@@ -59,12 +60,15 @@
 		            if (!customers.isEmpty())
 		            {
 		            	// Customer already exists.
-		            	message = "Your company already has an account. Contact the owner " + customers.get(0).founder.user.getEmail()
-		            	+ ". If you don't recognise the owner modify your company name to proceed and send us email so we can ";
+		            	message = "Your company already has an account. Contact the owner " + customers.get(0).founder.getEmail()
+		            	+ ". If you don't recognise the owner and want to proceed modify your company name (for now) and email us so we can clarify the conflict with imposter";
 		            }
 		            else
 		            {
+		            	// Create Customer
+		            	Customer customer = new Customer(company, theUser);
 		            	// Fill user properties
+		            	InventoryUser iuser = new InventoryUser(customer..company, first_name, last_name, new PhoneNumber(phone));
 		            }
 		        }
 		    }
@@ -84,6 +88,7 @@
 			}
 			else 
 			{
+				// known user, let her chose/create inventory
 		        pageContext.setAttribute("inventoryuser", users.get(0));
 		        %>
 		        <form action="/start.jsp" method="get">
