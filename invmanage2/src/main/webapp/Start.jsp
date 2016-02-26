@@ -9,6 +9,7 @@
 <%@ page import="com.google.appengine.api.users.UserService" %>
 <%@ page import="com.google.appengine.api.users.UserServiceFactory" %>
 <%@ page import="com.google.appengine.api.datastore.PhoneNumber" %>
+<%@ page import="com.googlecode.objectify.Ref" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.Iterator" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
@@ -68,7 +69,7 @@
 		            	// Create Customer
 		            	Customer customer = new Customer(company, theUser);
 		            	// Fill user properties
-		            	InventoryUser iuser = new InventoryUser(customer..company, first_name, last_name, new PhoneNumber(phone));
+		            	InventoryUser iuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone));
 		            }
 		        }
 		    }

@@ -8,6 +8,8 @@ import com.google.appengine.api.datastore.Email;
 import com.google.appengine.api.datastore.PhoneNumber;
 import com.google.appengine.api.users.User;
 import com.googlecode.objectify.Key;
+import com.googlecode.objectify.Ref;
+
 
 import java.lang.String;
 import java.util.Date;
@@ -26,7 +28,7 @@ import java.util.List;
  **/
 @Entity
 public class InventoryUser {
-	  @Parent Key<Customer> theCustomer;
+	  @Parent Ref<Customer> theCustomer;
 	  @Id public Long id;
 
 	  public User user;
@@ -40,7 +42,7 @@ public class InventoryUser {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Key<Customer> company, String first_name, String last_name, PhoneNumber phone)
+	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone)
 	  {
 		  this();
 		  theCustomer = company;
