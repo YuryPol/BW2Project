@@ -29,9 +29,9 @@
 		pageContext.setAttribute("theuser", theUser);
 		// Create inventory user if necessary
 		List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
-				.filter("user_email", theUser.getEmail())
+				// .filter("user_email", theUser.getEmail())
 				.list();
-		if (users.isEmpty()) {
+		if (users.isEmpty() || InventoryUser.ContainedIn(users, theUser)) {
 			// Create InventoryUser and Customer
 		    String user_data_submited = request.getParameter("user_data_submited");
 		    if (user_data_submited != null) 
@@ -70,7 +70,7 @@
 		            	Customer customer = new Customer(company, theUser);
 		            	// Fill user properties
 		            	InventoryUser iuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone), theUser.getEmail());
-		            	ObjectifyService.ofy().save().entity(iuser).now();
+		            	// ObjectifyService.ofy().save().entity(iuser).now();
 		            }
 		        }
 		    }

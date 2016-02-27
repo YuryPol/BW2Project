@@ -52,4 +52,16 @@ public class InventoryUser {
 		  user_phone = phone;
 		  user_email = email;
 	  }
+	  
+	  static public boolean ContainedIn(List<InventoryUser> users, User user)
+	  {
+		  if (users.isEmpty())
+			  return false;
+		  while (users.iterator().hasNext())
+		  {
+			  if (users.iterator().next().user.getEmail().toString() == user.getEmail().toString())
+				  return true;
+		  }
+		  return false;
+	  }
 }
