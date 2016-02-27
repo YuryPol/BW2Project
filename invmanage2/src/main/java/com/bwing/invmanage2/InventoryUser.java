@@ -35,6 +35,7 @@ public class InventoryUser {
 	  public String user_first_name;
 	  public String user_last_name;
 	  public PhoneNumber user_phone;
+	  public String user_email;
 	  @Index public Date date;
 	  
 	  public InventoryUser()
@@ -42,12 +43,13 @@ public class InventoryUser {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone)
+	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone, String email)
 	  {
 		  this();
 		  theCustomer = company;
 		  user_first_name = first_name;
 		  user_last_name = last_name;
 		  user_phone = phone;
+		  user_email = email;
 	  }
 }

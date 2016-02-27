@@ -29,7 +29,7 @@
 		pageContext.setAttribute("theuser", theUser);
 		// Create inventory user if necessary
 		List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
-				.filter("user", theUser)
+				.filter("user_email", theUser.getEmail())
 				.list();
 		if (users.isEmpty()) {
 			// Create InventoryUser and Customer
@@ -69,7 +69,8 @@
 		            	// Create Customer
 		            	Customer customer = new Customer(company, theUser);
 		            	// Fill user properties
-		            	InventoryUser iuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone));
+		            	InventoryUser iuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone), theUser.getEmail());
+		            	ObjectifyService.ofy().save().entity(iuser).now();
 		            }
 		        }
 		    }
@@ -78,6 +79,19 @@
 		    	// User didn't submit data yet
 		    	message = "Please enter your information";
 		    }
+            %>
+            <p>${fn:escapeXml(theuser.nickname)}!, <% out.println(message); %></p>
+            <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
+            <p>or enter your data</p>
+            <form action="/start.jsp" method="get">
+                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}"/></div>
+                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}"/></div>
+                <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}"/></div>
+                <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}"/></div>
+                <input type="hidden" name="user_data_submited" value="user_data_submited"/>
+                <div><input type="submit" value="Submit your data"/></div>
+            </form>
+            <%
 		}
 		else {
 			if (users.get(0).user != theUser) 
@@ -99,19 +113,6 @@
 		        <%
 			}
 		}
-		%>
-		<p>${fn:escapeXml(theuser.nickname)}!, "please enter missing data"</p>
-		<p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
-		<p>or enter your data</p>
-		<form action="/start.jsp" method="get">
-		    <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}"/></div>
-		    <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}"/></div>
-		    <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}"/></div>
-		    <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}"/></div>
-		    <input type="hidden" name="user_data_submited" value="user_data_submited"/>
-		    <div><input type="submit" value="Submit your data"/></div>
-		</form>
-		<%
     } 
 	else 
 	{
