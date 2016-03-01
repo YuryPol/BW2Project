@@ -31,7 +31,7 @@
 		List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
 				// .filter("user_email", theUser.getEmail())
 				.list();
-		if (users.isEmpty() || InventoryUser.ContainedIn(users, theUser)) {
+		if (users.isEmpty() || !InventoryUser.ContainedIn(users, theUser)) {
 			// Create InventoryUser and Customer
 		    String user_data_submited = request.getParameter("user_data_submited");
 		    if (user_data_submited != null) 
@@ -56,9 +56,9 @@
 		            Key<Customer> theCustomer = Key.create(Customer.class, company);
 		            // Run an ancestor query to ensure that this company isn't recorded yet in our datastore.
 		            List<Customer> customers = ObjectifyService.ofy().load().type(Customer.class) // We want only Customers
-		                .filter("customer=", theCustomer)
+		                // .filter("customer=", theCustomer)
 		                .list();
-		            if (!customers.isEmpty())
+		            if (!customers.isEmpty() && Customer.findCustomer(customers, company) != null)
 		            {
 		            	// Customer already exists.
 		            	message = "Your company already has an account. Contact the owner " + customers.get(0).founder.getEmail()
@@ -68,9 +68,10 @@
 		            {
 		            	// Create Customer
 		            	Customer customer = new Customer(company, theUser);
-		            	// Fill user properties
-		            	InventoryUser iuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone), theUser.getEmail());
-		            	// ObjectifyService.ofy().save().entity(iuser).now();
+		            	ObjectifyService.ofy().save().entity(customer).now();
+		            	// Add the user and fill his properties
+		            	InventoryUser iuser = new InventoryUser(Ref.create(customer), theUser, first_name, last_name, new PhoneNumber(phone), theUser.getEmail());
+		            	ObjectifyService.ofy().save().entity(iuser).now();
 		            }
 		        }
 		    }
@@ -93,25 +94,18 @@
             </form>
             <%
 		}
-		else {
-			if (users.get(0).user != theUser) 
-			{
-				// shouldn't ever happen
-				%>
-                <p>Wrong user. Please <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out now!</a></p>
-				<%
-			}
-			else 
-			{
-				// known user, let her chose/create inventory
-		        pageContext.setAttribute("inventoryuser", users.get(0));
-		        %>
-		        <form action="/start.jsp" method="get">
-		        <div><input type="text" name="inventory" value="${fn:escapeXml(inventory)}"/></div>
-		        <div><input type="submit" value="Switch Inventory"/></div>
-		        </form>
-		        <%
-			}
+		else 
+		{
+			// known user, let her chose/create inventory
+	        pageContext.setAttribute("inventoryuser", users.get(0));
+	        %>
+            <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
+            <p>work with available inventories or upload a new inventory</p>
+	        <form action="/start.jsp" method="get">
+	        <div><input type="text" name="inventory" value="${fn:escapeXml(inventory)}"/></div>
+	        <div><input type="submit" value="Switch Inventory"/></div>
+	        </form>
+	        <%
 		}
     } 
 	else 

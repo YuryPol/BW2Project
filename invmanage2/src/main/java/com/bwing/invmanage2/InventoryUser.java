@@ -43,10 +43,11 @@ public class InventoryUser {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone, String email)
+	  public InventoryUser(Ref<Customer> company, User theUser, String first_name, String last_name, PhoneNumber phone, String email)
 	  {
 		  this();
 		  theCustomer = company;
+		  user = theUser;
 		  user_first_name = first_name;
 		  user_last_name = last_name;
 		  user_phone = phone;
@@ -56,12 +57,22 @@ public class InventoryUser {
 	  static public boolean ContainedIn(List<InventoryUser> users, User user)
 	  {
 		  if (users.isEmpty())
-			  return false;
-		  while (users.iterator().hasNext())
 		  {
-			  if (users.iterator().next().user.getEmail().toString() == user.getEmail().toString())
-				  return true;
+			  System.out.println("No InventoryUsers exists");
+			  return false;
 		  }
+		  
+		  for (InventoryUser iuser : users)
+		  {
+			  if (iuser == null)
+				  return false;
+			  else if (iuser.user.getEmail().toString().equals(user.getEmail().toString()))
+			  {
+				  System.out.println("User already exists: " + user.getEmail().toString());
+				  return true;
+			  }
+		  }
+		  System.out.println("No such InventoryUser exists: " + user.getEmail().toString());
 		  return false;
 	  }
 }
