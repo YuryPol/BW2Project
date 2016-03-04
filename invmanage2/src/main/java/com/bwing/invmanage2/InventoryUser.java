@@ -54,7 +54,7 @@ public class InventoryUser {
 		  user_email = email;
 	  }
 	  
-	  static public boolean ContainedIn(List<InventoryUser> users, User user)
+/*	  static public boolean ContainedIn(List<InventoryUser> users, User user)
 	  {
 		  if (users.isEmpty())
 		  {
@@ -75,4 +75,25 @@ public class InventoryUser {
 		  System.out.println("No such InventoryUser exists: " + user.getEmail().toString());
 		  return false;
 	  }
+*/	  
+	  static public InventoryUser findInventoryUser(List<InventoryUser> iuserrs, String email)
+	  {
+		  if (iuserrs == null || iuserrs.isEmpty())
+		  {
+			  System.out.println("No Users exist");
+			  return null;
+		  }
+		  
+		  for (InventoryUser iuser : iuserrs)
+		  {
+			  if (iuser.user_email.toString().equals(email))
+			  {
+				  System.out.println("User already exists: " + email);
+				  return iuser;
+			  }
+		  }
+		  System.out.println("No such User exists: " + email);
+		  return null;
+	  }
+
 }
