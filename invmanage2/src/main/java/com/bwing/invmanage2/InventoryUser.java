@@ -15,6 +15,13 @@ import java.lang.String;
 import java.util.Date;
 import java.util.List;
 
+import com.google.appengine.api.users.User;
+import com.google.appengine.api.users.UserService;
+import com.google.appengine.api.users.UserServiceFactory;
+
+import com.googlecode.objectify.ObjectifyService;
+
+
 /**
  * The @Entity tells Objectify about our entity.  We also register it in {@link OfyHelper}
  * Our primary key @Id is set automatically by the Google Datastore for us.
@@ -95,5 +102,18 @@ public class InventoryUser {
 		  System.out.println("No such User exists: " + email);
 		  return null;
 	  }
-
+	  
+	  static public InventoryUser getCurrentUser()
+	  {
+			UserService userService = UserServiceFactory.getUserService();
+			User theUser = userService.getCurrentUser();
+			if (theUser != null) {
+				List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
+						// .filter("user_email", theUser.getEmail())
+						.list();
+				InventoryUser iuser = InventoryUser.findInventoryUser(users, theUser.getEmail());
+				return iuser;
+			}
+			return null;
+	  }
 }
