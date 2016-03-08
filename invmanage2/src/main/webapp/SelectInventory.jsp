@@ -32,12 +32,14 @@
         <div><input type="submit" value="Return"/></div>
         </form>
         <p>work with Test inventory,</p>
-         <form action="/" method="get">
+        <form action="/gcs" method="get">
         <div><input type="submit" value="Test Inventory"/></div>
+        <input type="hidden" name="inventory" value="test"/>
         </form>
         <p>work with Your inventory</p>
-         <form action="/" method="get">
+        <form action="/gcs" method="get">
         <div><input type="submit" value="Your Inventory"/></div>
+        <input type="hidden" name="inventory" value=<% iuser.theCustomer.get().company.toString(); %>/>
         </form>
         <p>or upload a new inventory</p>
         <form action="/" method="get">

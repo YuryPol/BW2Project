@@ -4,12 +4,12 @@
   xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
   version="2.5">
   <servlet>
-      <servlet-name>sign</servlet-name>
-    <servlet-class>com.bwing.invmanage2.SignUserServlet</servlet-class>
+      <servlet-name>gcs</servlet-name>
+    <servlet-class>com.bwing.invmanage2.GcsServlet</servlet-class>
   </servlet>
   <servlet-mapping>
-      <servlet-name>sign</servlet-name>
-      <url-pattern>/sign</url-pattern>
+      <servlet-name>gcs</servlet-name>
+      <url-pattern>/gcs</url-pattern>
   </servlet-mapping>
   <welcome-file-list>
     <welcome-file>start.jsp</welcome-file>

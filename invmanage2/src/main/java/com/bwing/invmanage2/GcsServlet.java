@@ -75,12 +75,26 @@ public class GcsServlet extends HttpServlet {
   }
 
   private GcsFilename getFileName(HttpServletRequest req) {
-    String[] splits = req.getRequestURI().split("/", 4);
+/*    String[] splits = req.getRequestURI().split("/", 4);
     if (!splits[0].equals("") || !splits[1].equals("gcs")) {
       throw new IllegalArgumentException("The URL is not formed as expected. " +
           "Expecting /gcs/<bucket>/<object>");
     }
-    return new GcsFilename(splits[2], splits[3]);
+    return new GcsFilename(splits[2], splits[3]);*/
+	  String inventory = req.getParameter("inventory");
+	  if (inventory == null) 
+	  {
+	      throw new IllegalArgumentException("no inventory specified.");		  
+	  }
+	  switch (inventory) 
+	  {
+		  case "test":
+			  return new GcsFilename("bw2project_data", "TestInventory.json");
+		  case "custom":
+			  return new GcsFilename("bw2project_data", "TestInventory.json");
+		  default:
+		      throw new IllegalArgumentException("wrong inventory. " + inventory.toString());
+	  }
   }
 
   /**

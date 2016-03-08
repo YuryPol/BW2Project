@@ -35,7 +35,7 @@ import com.googlecode.objectify.ObjectifyService;
  **/
 @Entity
 public class InventoryUser {
-	  @Parent Ref<Customer> theCustomer;
+	  @Parent public Ref<Customer> theCustomer;
 	  @Id public Long id;
 
 	  public User user;
