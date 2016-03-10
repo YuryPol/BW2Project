@@ -26,24 +26,29 @@
     else 
     {
         // registered user, let her chose/create inventory
+        System.out.println("Customer: " + iuser.theCustomer.get().company.toString());
         %>
         <p>You can return to starting page,</p>
         <form action="/" method="get">
         <div><input type="submit" value="Return"/></div>
         </form>
-        <p>work with Test inventory,</p>
-        <form action="/gcs" method="get">
-        <div><input type="submit" value="Test Inventory"/></div>
-        <input type="hidden" name="inventory" value="test"/>
+	        <p>work with Test inventory,</p>
+	        <form action="/gcs" method="get">
+	        <div><input type="submit" value="Test Inventory"/></div>
+	        <input type="hidden" name="inventory" value="test"/>
         </form>
         <p>work with Your inventory</p>
         <form action="/gcs" method="get">
-        <div><input type="submit" value="Your Inventory"/></div>
-        <input type="hidden" name="inventory" value=<% iuser.theCustomer.get().company.toString(); %>/>
+	        <div><input type="submit" value="Your Inventory"/></div>
+	        <input type="hidden" name="inventory" value="custom"/>
+	        <input type="hidden" name="customer_name" value=<% iuser.theCustomer.get().company.toString(); %>/>
         </form>
         <p>or upload a new inventory</p>
-        <form action="/" method="get">
-        <div><input type="submit" value="Upload Inventory"/></div>
+        <form action="/gcs" method="post">
+	        <div><input type="submit" value="Upload Inventory"/></div>
+	        <input type="hidden" name="inventory" value="upload"/>
+	        <input type="hidden" name="customer_name" value=<% iuser.theCustomer.get().company.toString(); %>/>
+	        <input type="text" name="filepath" value="" maxlength="200" />
         </form>
         <%
     }

@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.io.FileInputStream;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -63,15 +64,37 @@ public class GcsServlet extends HttpServlet {
   }
 
   /**
-   * Writes the payload of the incoming post as the contents of a file to GCS.
+   * Writes local file specified in the incoming post as the contents of a file to GCS.
    * If the request path is /gcs/Foo/Bar this will be interpreted as
    * a request to create a GCS file named Bar in bucket Foo.
    */
   @Override
-  public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+  public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException 
+  {
     GcsOutputChannel outputChannel =
         gcsService.createOrReplace(getFileName(req), GcsFileOptions.getDefaultInstance());
-    copy(req.getInputStream(), Channels.newOutputStream(outputChannel));
+//    Writes the payload of the incoming post as the contents of a file to GCS.
+//    copy(req.getInputStream(), Channels.newOutputStream(outputChannel));
+    InputStream is = null;
+    try
+    {
+    	String file_path = req.getParameter("filepath");
+    	is = new FileInputStream(file_path
+//    			"C://test.txt"
+    			);
+    	copy(is, Channels.newOutputStream(outputChannel));
+    }
+    catch(Exception e)
+    {        
+        // if any I/O error occurs
+        e.printStackTrace();
+    }
+    finally
+    {        
+        // releases system resources associated with this stream
+        if(is!=null)
+           is.close();
+    }    
   }
 
   private GcsFilename getFileName(HttpServletRequest req) {
@@ -91,7 +114,9 @@ public class GcsServlet extends HttpServlet {
 		  case "test":
 			  return new GcsFilename("bw2project_data", "TestInventory.json");
 		  case "custom":
-			  return new GcsFilename("bw2project_data", "TestInventory.json");
+		  case "upload":
+			  String customer_name = req.getParameter("customer_name");
+			  return new GcsFilename("bw2project_data", customer_name + ".json");			  
 		  default:
 		      throw new IllegalArgumentException("wrong inventory. " + inventory.toString());
 	  }

@@ -48,7 +48,7 @@
                 pageContext.setAttribute("phone", phone);
                 String company = request.getParameter("company");
                 pageContext.setAttribute("company", company);
-                if (first_name == "" || last_name == "" || phone == "" || company == "")
+                if (first_name == "" || last_name == "" || phone == "" || company == "") // TODO: add more checks
                 {
                     message = "please enter missing data";
                 }
