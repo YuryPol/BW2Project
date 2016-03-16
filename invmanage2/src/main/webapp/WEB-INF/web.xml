@@ -5,7 +5,7 @@
   version="2.5">
   <servlet>
       <servlet-name>gcs</servlet-name>
-    <servlet-class>com.bwing.invmanage2.GcsServlet</servlet-class>
+      <servlet-class>com.bwing.invmanage2.GcsServlet</servlet-class>
   </servlet>
   <servlet-mapping>
       <servlet-name>gcs</servlet-name>
