@@ -113,8 +113,8 @@ public class GcsServlet extends HttpServlet {
 	  {
 		  case "test":
 			  return new GcsFilename("bw2project_data", "TestInventory.json");
-		  case "custom":
 		  case "upload":
+		  case "custom":
 			  String customer_name = req.getParameter("customer_name");
 			  return new GcsFilename("bw2project_data", customer_name + ".json");			  
 		  default:
