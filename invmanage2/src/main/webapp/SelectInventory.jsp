@@ -2,6 +2,8 @@
 <%@ page import="com.bwing.invmanage2.Customer" %>
 <%@ page import="com.googlecode.objectify.ObjectifyService" %>
 <%@ page import="com.googlecode.objectify.Key" %>
+<%@ page import="com.google.appengine.api.blobstore.BlobstoreServiceFactory" %>
+<%@ page import="com.google.appengine.api.blobstore.BlobstoreService" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
@@ -30,6 +32,7 @@
         String customer_name = iuser.theCustomer.get().company;
         System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
+        BlobstoreService blobstoreService = BlobstoreServiceFactory.getBlobstoreService();
         %>
         <p>You can return to starting page,</p>
         <form action="/" method="get">
@@ -52,6 +55,16 @@
 	        <input type="hidden" name="inventory" value="upload"/>
 	        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
 	        <input type="text" name="filepath" value="" maxlength="200" />
+        </form>
+	    <form action="/gcs" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="inventory" value="upload"/>
+            <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+	        <input type="file" name="myFile">
+	        <input type="submit" value="Upload Inventory to ${fn:escapeXml(customer_name)} file">
+	    </form>
+        <form action="<%= blobstoreService.createUploadUrl("/upload") %>" method="post" enctype="multipart/form-data">
+            <input type="file" name="myFile">
+            <input type="submit" value="Upload Inventory to ${fn:escapeXml(customer_name)} blob">
         </form>
         <%
     }

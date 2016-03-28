@@ -1,5 +1,4 @@
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
-<%@ page import="com.bwing.invmanage2.Guestbook" %>
 <%@ page import="com.googlecode.objectify.Key" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
 <%@ page import="com.bwing.invmanage2.Customer" %>

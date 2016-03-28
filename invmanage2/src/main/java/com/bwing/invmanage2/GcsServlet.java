@@ -107,7 +107,8 @@ public class GcsServlet extends HttpServlet {
 	  String inventory = req.getParameter("inventory");
 	  if (inventory == null) 
 	  {
-	      throw new IllegalArgumentException("no inventory specified.");		  
+	      // throw new IllegalArgumentException("no inventory specified.");		  
+		  return new GcsFilename("bw2project_data", "test.json");			  
 	  }
 	  switch (inventory) 
 	  {
