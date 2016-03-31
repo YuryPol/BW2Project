@@ -59,7 +59,7 @@
 	    <form action="/gcs" method="post" enctype="multipart/form-data">
             <input type="hidden" name="inventory" value="upload"/>
             <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-	        <input type="file" name="myFile">
+	        <input type="file" name="${fn:escapeXml(customer_name)}">
 	        <input type="submit" value="Upload Inventory to ${fn:escapeXml(customer_name)} file">
 	    </form>
         <form action="<%= blobstoreService.createUploadUrl("/upload") %>" method="post" enctype="multipart/form-data">
