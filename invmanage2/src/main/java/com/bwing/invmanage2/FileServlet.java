@@ -2,9 +2,7 @@ package com.bwing.invmanage2;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.nio.channels.Channels;
-import java.util.Enumeration;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -18,6 +16,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 import com.google.appengine.tools.cloudstorage.GcsFileOptions;
 import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
 import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
@@ -40,7 +39,7 @@ public class FileServlet extends HttpServlet {
 
     // @SuppressWarnings("unchecked")
     @Override
-    public void doPost(HttpServletRequest req, HttpServletResponse res)
+    public void doPost(HttpServletRequest req, HttpServletResponse response)
             throws ServletException, IOException {
 
         String sctype = null;
@@ -48,13 +47,15 @@ public class FileServlet extends HttpServlet {
         FileItemIterator iterator;
         FileItemStream item;
         InputStream stream = null;
-        try {
+        try 
+        {
         	String customer_name = req.getParameter("customer_name");
             upload = new ServletFileUpload();
-            res.setContentType("text/plain");
+            response.setContentType("text/plain");
 
             iterator = upload.getItemIterator(req);
-            while (iterator.hasNext()) {
+            while (iterator.hasNext()) 
+            {
                 item = iterator.next();
                 stream = item.openStream();
 
@@ -63,9 +64,12 @@ public class FileServlet extends HttpServlet {
 
                 sctype = item.getContentType();
 
-                if (item.isFormField()) {
+                if (item.isFormField()) 
+                {
                     log.warning("Got a form field: " + item.getFieldName());
-                } else {
+                } 
+                else 
+                {
                     log.warning("Got an uploaded file: " + item.getFieldName() +
                             ", name = " + item.getName());
 
@@ -81,7 +85,7 @@ public class FileServlet extends HttpServlet {
 
                     copy(stream, Channels.newOutputStream(outputChannel));
 
-                    res.sendRedirect("/");
+                    response.sendRedirect("/"); // redirect to LoadInventory 
                     
                     break; // We don't want to upload multiple files for now
                 }
@@ -90,6 +94,35 @@ public class FileServlet extends HttpServlet {
             throw new ServletException(ex);
         }
     }
+
+    @Override
+    public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
+    {
+        String customer_name = request.getParameter("customer_name");
+
+        String fileName = customer_name + ".json";
+
+        // You must tell the browser the file type you are going to send
+        // for example application/pdf, text/plain, text/html, image/jpg
+        response.setContentType("text/plain");
+
+        // Make sure to show the download dialog
+        response.setHeader("Content-disposition","attachment; filename=" + customer_name + ".json");
+
+        try 
+        {
+        	// This should send the file to browser
+            GcsFilename gcsfileName = new GcsFilename(bucketName, customer_name);
+            GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
+            copy(Channels.newInputStream(readChannel), response.getOutputStream());
+            
+//            response.sendRedirect("/");
+        } 
+        catch (Exception ex) 
+        {
+            throw new ServletException(ex);
+        }
+   }
 
     private void copy(InputStream input, OutputStream output) throws IOException {
         try {
