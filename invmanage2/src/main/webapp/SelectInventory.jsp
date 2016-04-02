@@ -32,7 +32,6 @@
         String customer_name = iuser.theCustomer.get().company;
         System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
-        BlobstoreService blobstoreService = BlobstoreServiceFactory.getBlobstoreService();
         %>
         <p>You can return to starting page,</p>
         <form action="/" method="get">
@@ -49,22 +48,15 @@
 	        <input type="hidden" name="inventory" value="custom"/>
 	        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
         </form>
-        <p>or upload a new inventory</p>
-        <form action="/gcs" method="post">
-	        <div><input type="submit" value="Upload Inventory ${fn:escapeXml(customer_name)}"/></div>
-	        <input type="hidden" name="inventory" value="upload"/>
-	        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-	        <input type="text" name="filepath" value="" maxlength="200" />
-        </form>
+        <p>Upload a new inventory and work with it</p>
 	    <form action="/gcs" method="post" enctype="multipart/form-data">
-            <input type="hidden" name="inventory" value="upload"/>
-            <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
 	        <input type="file" name="${fn:escapeXml(customer_name)}">
-	        <input type="submit" value="Upload Inventory to ${fn:escapeXml(customer_name)} file">
+	        <input type="submit" value="Upload file to your ${fn:escapeXml(customer_name)} Inventory">
 	    </form>
-        <form action="<%= blobstoreService.createUploadUrl("/upload") %>" method="post" enctype="multipart/form-data">
-            <input type="file" name="myFile">
-            <input type="submit" value="Upload Inventory to ${fn:escapeXml(customer_name)} blob">
+        <p>Or just download your inventory as a file</p>
+        <form action="/gcs" method="get">
+            <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+            <input type="submit" value="Download your ${fn:escapeXml(customer_name)} Inventory">
         </form>
         <%
     }
