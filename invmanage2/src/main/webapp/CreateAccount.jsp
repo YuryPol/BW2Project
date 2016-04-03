@@ -75,9 +75,10 @@
                         // Add the user and fill his properties
                         InventoryUser newuser = new InventoryUser(Ref.create(customer), theUser, first_name, last_name, new PhoneNumber(phone), theUser.getEmail());
                         ObjectifyService.ofy().save().entity(newuser).now();
-                    }
+                       	response.sendRedirect(request.getContextPath() + "start.jsp");
+                   }
                 }
-            }
+             }
             else
             {
                 // User didn't submit data yet
@@ -113,7 +114,7 @@
     else
     {
     	// Return to Start.jsp
-    	response.sendRedirect(request.getContextPath() + "/Start.jsp");
+    	response.sendRedirect(request.getContextPath() + "/start.jsp");
 //         String redirectURL = "/Start.jsp";
 //         response.sendRedirect(redirectURL);
 //            <c:redirect url="/Start.jsp"/>
