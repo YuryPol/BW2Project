@@ -1,4 +1,3 @@
-<%@ page import="com.bwing.invmanage2.InventoryUser" %>
 <%@ page import="com.googlecode.objectify.Key" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
 <%@ page import="com.bwing.invmanage2.Customer" %>
@@ -92,8 +91,8 @@
                         <p>Thank you for registering</p>
                         <p>Now you can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
                         <p>or work with available inventories, or upload a new inventory</p>
-                        <form action="/SelectInventory.jsp" method="get">
-                        <div><input type="submit" value="Get Inventory"/></div>
+                        <form action="/" method="get">
+                        <div><input type="submit" value="Return"/></div>
                         </form>
                         <%
                    }
