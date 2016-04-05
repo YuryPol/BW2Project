@@ -87,14 +87,7 @@
                         // Add the user and fill his properties
                         InventoryUser newuser = new InventoryUser(Ref.create(customer), theUser, first_name, last_name, new PhoneNumber(phone), theUser.getEmail());
                         ObjectifyService.ofy().save().entity(newuser).now();
-                        %>
-                        <p>Thank you for registering</p>
-                        <p>Now you can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
-                        <p>or work with available inventories, or upload a new inventory</p>
-                        <form action="/" method="get">
-                        <div><input type="submit" value="Return"/></div>
-                        </form>
-                        <%
+                        response.sendRedirect("/ConfirmAccount.jsp"); 
                    }
                 }
              }
