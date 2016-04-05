@@ -10,7 +10,16 @@
   <servlet-mapping>
       <servlet-name>gcs</servlet-name>
       <url-pattern>/gcs</url-pattern>
+  </servlet-mapping>  
+  <servlet>
+      <servlet-name>load</servlet-name>
+      <servlet-class>com.bwing.invmanage2.LoadInventory</servlet-class>
+  </servlet>
+  <servlet-mapping>
+      <servlet-name>load</servlet-name>
+      <url-pattern>/load</url-pattern>
   </servlet-mapping>
+  
   <welcome-file-list>
     <welcome-file>start.jsp</welcome-file>
   </welcome-file-list>
