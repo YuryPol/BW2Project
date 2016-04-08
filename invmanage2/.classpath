@@ -34,5 +34,6 @@
 			<attribute name="owner.project.facets" value="jpt.jpa"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="target/invmanage2-1.0-SNAPSHOT/WEB-INF/lib/mysql-connector-java-5.1.38-bin.jar"/>
 	<classpathentry kind="output" path="target/invmanage2-1.0-SNAPSHOT/WEB-INF/classes"/>
 </classpath>
