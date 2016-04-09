@@ -100,8 +100,6 @@ public class FileServlet extends HttpServlet {
     {
         String customer_name = request.getParameter("customer_name");
 
-        String fileName = customer_name + ".json";
-
         // You must tell the browser the file type you are going to send
         // for example application/pdf, text/plain, text/html, image/jpg
         response.setContentType("text/plain");

@@ -46,7 +46,6 @@ public class LoadInventory extends HttpServlet
 		    .totalRetryPeriodMillis(15000)
 		    .build());
    private static ObjectMapper mapper = new ObjectMapper();
-   private static JsonFactory factory = mapper.getFactory();
 
     @Override
     public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
@@ -85,29 +84,20 @@ public class LoadInventory extends HttpServlet
             	if (gcsService.getMetadata(gcsfileName) == null)
             	{
             		// No file, request upload
-                    response.sendRedirect("/"); // redirect to LoadInventory                     
-                    return; // We don't want to upload multiple files for now
+            		response.getWriter().println("You are missing the file with your Inventory Data. Upload it or work with Test Inventory");
+                    response.sendRedirect("/SelectInventory.jsp");                     
+                    return;
             	}
 				GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 	
-				//convert json input to object
+				//convert json input to InventroryData object
 				InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 	
-	//	        InputStream in = null;
-	//	        JsonParser parser = null;
-	//			parser = factory.createParser(in);
-	//			parser.nextToken();// JsonToken.START_OBJECT
-	//			JsonToken token = null;
-	//			while ((token = parser.nextToken()) == JsonToken.FIELD_NAME) {
-	//				String name = parser.getText();
-	//				parser.nextToken(); // JsonToken.START_OBJECT
-	//				results.add(parser.readValueAs(classMap.get(name)));
-	//			}
-				
 				// Create all tables
 				
 				// Populate all tables
-            }			
+            }
+            // go to allocation page
 		}
 		catch (Exception ex) 
         {
