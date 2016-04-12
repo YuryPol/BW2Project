@@ -55,6 +55,7 @@ public class LoadInventory extends HttpServlet
 
 		try 
 		{
+			Class.forName("com.mysql.jdbc.Driver");
 			// Connect to DB
 			if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
 			{

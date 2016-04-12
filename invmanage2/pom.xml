@@ -26,7 +26,6 @@
         <dependency>
             <groupId>com.google.appengine</groupId>
             <artifactId>appengine-api-1.0-sdk</artifactId>
-            <version>${appengine.version}</version>
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -172,4 +171,13 @@
         </plugins>
         </pluginManagement>
     </build>
+    <dependencyManagement>
+    	<dependencies>
+    		<dependency>
+    			<groupId>com.google.appengine</groupId>
+    			<artifactId>appengine-api-1.0-sdk</artifactId>
+    			<version>${appengine.version}</version>
+    		</dependency>
+    	</dependencies>
+    </dependencyManagement>
 </project>
