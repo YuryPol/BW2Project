@@ -53,3 +53,4 @@ target
 *.jar
 *.war
 *.project
+invmanage2/.classpath
