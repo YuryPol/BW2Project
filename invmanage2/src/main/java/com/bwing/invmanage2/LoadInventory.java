@@ -55,19 +55,18 @@ public class LoadInventory extends HttpServlet
 
 		try 
 		{
-			Class.forName("com.mysql.jdbc.Driver");
 			// Connect to DB
 			if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
 			{
 				// Load the class that provides the new "jdbc:google:mysql://"
 				// prefix.
-//				Class.forName("com.mysql.jdbc.GoogleDriver");
+				Class.forName("com.mysql.jdbc.GoogleDriver");
 				url = "jdbc:google:mysql://<your-project-id>:<your-instance-name>/<your-database-name>?user=root";
 			} 
 			else 
 			{
 				// Local MySQL instance to use during development.
-//				Class.forName("com.mysql.jdbc.Driver"); // can't find the class
+				Class.forName("com.mysql.jdbc.Driver"); // can't find the class
 				url = "jdbc:mysql://localhost:3306/demo?user=root&password=IraAnna12";
 			}
 	        Connection con = null;
