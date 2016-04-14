@@ -99,6 +99,7 @@ public class LoadInventory extends HttpServlet
 				// Populate all tables
             }
             // go to allocation page
+            response.sendRedirect("/Allocate.jsp?customer=" + customer_name);                     
 		}
 		catch (Exception ex) 
         {

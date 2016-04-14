@@ -35,7 +35,21 @@
         <p>You can return to starting page,</p>
         <form action="/" method="get">
         <div><input type="submit" value="Return"/></div>
+        <p>Or work with your inventory</p>
+        <table border="1">
+		<tr>
+		<th>availability</th><th>Submit request</th>
+		</tr>
         <%
+        // build availabilities forms
+        for (int ind = 0; ind < 10; ind++)
+        {
+        	%>
+			<tr>
+			<td><%=ind%></td><td><form action="/" method="get"><input type="submit" value="Submit"/></td>
+			</tr>
+        	<%
+        }
      }
     %>
 
