@@ -54,3 +54,4 @@ target
 *.war
 *.project
 invmanage2/.classpath
+*.classpath
