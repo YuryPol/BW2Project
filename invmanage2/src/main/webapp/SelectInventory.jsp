@@ -37,21 +37,25 @@
         <form action="/" method="get">
         <div><input type="submit" value="Return"/></div>
         </form>
+        
         <p>work with Test inventory,</p>
 	    <form action="/load" method="get">
 	        <div><input type="submit" value="Test Inventory"/></div>
             <input type="hidden" name="customer_name" value="TestInventory"/>
         </form>
+        
         <p>work with Your inventory</p>
         <form action="/load" method="get">
 	        <div><input type="submit" value="Your Inventory"/></div>
 	        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
         </form>
+        
         <p>Upload a new inventory and work with it</p>
 	    <form action="/gcs" method="post" enctype="multipart/form-data">
 	        <input type="file" name="${fn:escapeXml(customer_name)}">
 	        <input type="submit" value="Upload file to your ${fn:escapeXml(customer_name)} Inventory">
 	    </form>
+	    
         <p>Or just download your inventory as a file</p>
         <form action="/gcs" method="get">
             <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
