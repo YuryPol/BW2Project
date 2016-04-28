@@ -47,47 +47,47 @@ public class Customer {
 	  account = company_name + "@'%'";
 	  Connection con = null;
 	  Statement st = null;
-	  try
-	  {
-		  // Connect to DB
-		  if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
-		  {
-			  // Load the class that provides the new "jdbc:google:mysql://"
-			  // prefix.
-			  Class.forName("com.mysql.jdbc.GoogleDriver");
-			  url = "jdbc:google:mysql://<your-project-id>:<your-instance-name>/<your-database-name>?user=root";
-		  } 
-		  else 
-		  {
-			  // Local MySQL instance to use during development.
-			  Class.forName("com.mysql.jdbc.Driver");
-			  url = "jdbc:mysql://localhost:3306/demo?user=root&password=IraAnna12";
-		  }
-		  con = DriverManager.getConnection(url);
-		  st = con.createStatement();
-		  st.executeUpdate("CREATE USER " + account + " IDENTIFIED BY " + account + "_pass WITH MAX_USER_CONNECTIONS 1");
-	  } 
-	  catch (SQLException ex) {
-		  Logger lgr = Logger.getLogger(Customer.class.getName());
-		  lgr.log(Level.SEVERE, ex.getMessage(), ex);
-
-	  } 
-	  finally 
-	  {
-		  try 
-		  {
-			  if (st != null) {
-				  st.close();
-			  }
-			  if (con != null) {
-				  con.close();
-			  }
-		  } catch (SQLException ex) {
-			  Logger lgr = Logger.getLogger(Customer.class.getName());
-			  lgr.log(Level.WARNING, ex.getMessage(), ex);
-			  throw ex;
-		  }
-	  }
+//	  try
+//	  {
+//		  // Connect to DB
+//		  if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
+//		  {
+//			  // Load the class that provides the new "jdbc:google:mysql://"
+//			  // prefix.
+//			  Class.forName("com.mysql.jdbc.GoogleDriver");
+//			  url = "jdbc:google:mysql://<your-project-id>:<your-instance-name>/<your-database-name>?user=root";
+//		  } 
+//		  else 
+//		  {
+//			  // Local MySQL instance to use during development.
+//			  Class.forName("com.mysql.jdbc.Driver");
+//			  url = "jdbc:mysql://localhost:3306/demo?user=root&password=IraAnna12";
+//		  }
+//		  con = DriverManager.getConnection(url);
+//		  st = con.createStatement();
+//		  st.executeUpdate("CREATE USER " + account + " IDENTIFIED BY " + account + "_pass WITH MAX_USER_CONNECTIONS 1");
+//	  } 
+//	  catch (SQLException ex) {
+//		  Logger lgr = Logger.getLogger(Customer.class.getName());
+//		  lgr.log(Level.SEVERE, ex.getMessage(), ex);
+//
+//	  } 
+//	  finally 
+//	  {
+//		  try 
+//		  {
+//			  if (st != null) {
+//				  st.close();
+//			  }
+//			  if (con != null) {
+//				  con.close();
+//			  }
+//		  } catch (SQLException ex) {
+//			  Logger lgr = Logger.getLogger(Customer.class.getName());
+//			  lgr.log(Level.WARNING, ex.getMessage(), ex);
+//			  throw ex;
+//		  }
+//	  }
 
   }
   

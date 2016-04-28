@@ -12,6 +12,7 @@ import com.googlecode.objectify.Ref;
 
 
 import java.lang.String;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 
@@ -50,7 +51,7 @@ public class InventoryUser {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Ref<Customer> company, User theUser, String first_name, String last_name, PhoneNumber phone, String email)
+	  public InventoryUser(Ref<Customer> company, User theUser, String first_name, String last_name, PhoneNumber phone, String email) throws ClassNotFoundException, SQLException
 	  {
 		  this();
 		  theCustomer = company;
@@ -59,6 +60,10 @@ public class InventoryUser {
 		  user_last_name = last_name;
 		  user_phone = phone;
 		  user_email = email;
+		  
+		  InventoryState invState = new InventoryState(theCustomer.getKey().getName().toString());
+		  invState.Init();
+		  invState.close();
 	  }
 	  
 /*	  static public boolean ContainedIn(List<InventoryUser> users, User user)

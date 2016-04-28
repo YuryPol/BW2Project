@@ -22,8 +22,13 @@ public class InventoryState implements AutoCloseable
     Connection con;
     Statement st;
     CallableStatement cs;
-    PreparedStatement insertStatement;
+    PreparedStatement prepStatement;
     private static ObjectMapper mapper = new ObjectMapper();
+    
+    // Tables
+    public static final String raw_inventory_ex = "_raw_inventory_ex";
+    public static final String structured_data_inc ="_structured_data_inc";
+    public static final String structured_data_base = "_structured_data_base";
     
     public InventoryState(String name) throws ClassNotFoundException, SQLException
 	{
@@ -45,10 +50,39 @@ public class InventoryState implements AutoCloseable
     	con = DriverManager.getConnection(url);		
 	}
     
+    public void Init() throws SQLException
+    {
+    	// Create tables 
+    	prepStatement = con.prepareStatement(
+    	"USE DEMO;"
+    		+ "CREATE TABLE ? ("
+		    + "set_key_is BIGINT DEFAULT NULL,"
+		    + "set_key BIGINT DEFAULT NULL,"
+		    + "set_name VARCHAR(20) DEFAULT NULL,"
+		    + "capacity INT DEFAULT NULL, "
+		    + "availability INT DEFAULT NULL," 
+		    + "goal INT DEFAULT 0,"
+		    + "criteria VARCHAR(200) DEFAULT NULL,"
+		    + "PRIMARY KEY(set_key_is));");
+    	prepStatement.setString(1, customer_name + structured_data_base);
+    	prepStatement.execute();
+    }
+    
+    public void Clean() throws SQLException
+    {
+    	// Truncate all tables
+    	prepStatement = con.prepareStatement("USE DEMO; TRUNCATE ?");
+    	prepStatement.setString(1, customer_name + structured_data_base);
+    	prepStatement.execute();
+    }
+    
     public boolean isLoaded() throws SQLException
     {
-		// Does the tables exist?
-        java.sql.ResultSet rs = con.getMetaData().getTables(null, null, customer_name + "_raw_inventory_ex", null);
+		// Do the tables exist?
+    	prepStatement = con.prepareStatement("USE DEMO; SELECT 1 FROM ? LIMIT 1");
+    	prepStatement.setString(1, customer_name + structured_data_base);
+    	java.sql.ResultSet rs = prepStatement.executeQuery();
+//    	java.sql.ResultSet rs = con.getMetaData().getTables(null, null, customer_name + "_raw_inventory_ex", null);
         if (!rs.next())
         	return false;
         else
@@ -59,11 +93,7 @@ public class InventoryState implements AutoCloseable
     {
 		//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
-
-		// Create all tables
-		
-		// Populate all tables
-    	
+		// Populate all tables 	
     }
     
     public void close() throws SQLException
