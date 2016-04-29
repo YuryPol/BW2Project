@@ -13,6 +13,7 @@ import com.googlecode.objectify.Ref;
 
 import java.lang.String;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Date;
 import java.util.List;
 
@@ -61,9 +62,10 @@ public class InventoryUser {
 		  user_phone = phone;
 		  user_email = email;
 		  
-		  InventoryState invState = new InventoryState(theCustomer.getKey().getName().toString());
-		  invState.Init();
-		  invState.close();
+		  try (InventoryState invState = new InventoryState(theCustomer.getKey().getName().toString()))
+		  {
+			  invState.Init();
+		  }
 	  }
 	  
 /*	  static public boolean ContainedIn(List<InventoryUser> users, User user)
