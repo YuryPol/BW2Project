@@ -11,17 +11,6 @@ USE Demo;
 -- setting up stored procs
 --
 
-DROP PROCEDURE IF EXISTS test1;
-DELIMITER //
-CREATE  PROCEDURE test1(IN tab_name VARCHAR(40) )
-BEGIN
- SET @t1 = CONCAT('SELECT * FROM ',tab_name );
- PREPARE stmt3 FROM @t1;
- EXECUTE stmt3;
- DEALLOCATE PREPARE stmt3;
-END //
-DELIMITER ;
-
 -- adds capacities, availabilities
 DROP PROCEDURE IF EXISTS PopulateRankWithNumbers;
 DELIMITER //
@@ -52,54 +41,73 @@ BEGIN
 END //
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS test1;
+DELIMITER //
+CREATE  PROCEDURE test1(IN tab_name VARCHAR(40) )
+BEGIN
+ SET @t1 = CONCAT('SELECT * FROM ',tab_name );
+ PREPARE stmt3 FROM @t1;
+ EXECUTE stmt3;
+ DEALLOCATE PREPARE stmt3;
+END //
+DELIMITER ;
+
 -- adds unions of higher ranks for all nodes
 DROP PROCEDURE IF EXISTS AddUnions;
 DELIMITER //
-CREATE PROCEDURE AddUnions()
+CREATE PROCEDURE AddUnions(IN structured_data_inc VARCHAR(40)
+    , unions_last_rank VARCHAR(40)
+    , unions_next_rank VARCHAR(40)
+    , raw_inventory VARCHAR(40)
+    , structured_data_base VARCHAR(40))
 BEGIN
-    DECLARE cnt INT;   
+ SET @t1 = CONCAT('DECLARE cnt INT;   
     DECLARE cnt_updated INT;
     REPEAT 
-    SELECT count(*) INTO cnt FROM structured_data_inc;
+    SELECT count(*) INTO cnt FROM ', structured_data_inc, '; 
     -- save rank table created in previous itteration
-    TRUNCATE unions_last_rank;
-    INSERT INTO unions_last_rank
-	   SELECT * FROM unions_next_rank;
-	TRUNCATE unions_next_rank;
+    TRUNCATE ', unions_last_rank, ' ;
+    INSERT INTO ', unions_last_rank, 
+	  ' SELECT * FROM ', unions_next_rank, ' ;
+	TRUNCATE ', unions_next_rank, ' ;
 	-- build next rank
-	INSERT /*IGNORE*/ INTO unions_next_rank
+	INSERT /*IGNORE*/ INTO ', unions_next_rank, ' 
        SELECT sb.set_key_is | lr.set_key, NULL, NULL, NULL, 0
-	   FROM unions_last_rank lr
-       JOIN structured_data_base sb
-	   JOIN raw_inventory ri
+	   FROM ', unions_last_rank, ' lr
+       JOIN ', structured_data_base, ' sb
+	   JOIN ', raw_inventory, ' ri
            ON  (sb.set_key_is & ri.basesets != 0)
            AND (lr.set_key & ri.basesets) != 0
            AND (sb.set_key_is | lr.set_key) != lr.set_key
        GROUP BY sb.set_key_is | lr.set_key;
-    CALL PopulateRankWithNumbers;
+    CALL PopulateRankWithNumbers(' , unions_next_rank, ', ', raw_inventory, ');
     -- delete fully included sets of lower rank
-    DELETE FROM structured_data_inc
+    DELETE FROM ', structured_data_inc, ' 
     WHERE EXISTS (
         SELECT *
-        FROM unions_next_rank nr
-        WHERE (structured_data_inc.set_key & nr.set_key) = structured_data_inc.set_key
+        FROM ', unions_next_rank, ' nr
+        WHERE (', structured_data_inc, '.set_key & nr.set_key) = ', structured_data_inc, '.set_key
         -- AND structured_data_inc.set_key != nr.set_key
-        AND structured_data_inc.capacity = nr.capacity);    
+        AND ', structured_data_inc,'.capacity = nr.capacity);    
     -- add temp table to sturctured data
-    INSERT /*IGNORE*/ INTO structured_data_inc
-    SELECT * FROM unions_next_rank;
+    INSERT /*IGNORE*/ INTO ', structured_data_inc, ' 
+    SELECT * FROM ', unions_next_rank, ';
      -- Continue adding unions of higher ranks
-    SELECT count(*) INTO cnt_updated FROM structured_data_inc; 
+    SELECT count(*) INTO cnt_updated FROM ', structured_data_inc, '; 
     UNTIL  (cnt = cnt_updated) 
     END REPEAT;
     -- delete empty sets ???? Not here.
-    DELETE FROM structured_data_inc
+    DELETE FROM ', structured_data_inc, ' 
     WHERE capacity IS NULL;    
     -- link from structured_data_base
-    UPDATE structured_data_base, structured_data_inc
-    SET structured_data_base.set_key = structured_data_inc.set_key
-    WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is
-    AND structured_data_base.capacity = structured_data_inc.capacity;
+    UPDATE ', structured_data_base, ', ', structured_data_inc, ' 
+    SET ', structured_data_base, '.set_key = ', structured_data_inc, '.set_key
+    WHERE ', structured_data_base, '.set_key_is & ', structured_data_inc, '.set_key = ', structured_data_base, '.set_key_is
+    AND ', structured_data_base, '.capacity = ', structured_data_inc, '.capacity;')
+ ;
+ PREPARE stmt3 FROM @t1;
+ EXECUTE stmt3;
+ DEALLOCATE PREPARE stmt3;
 END //
 DELIMITER ;
 
