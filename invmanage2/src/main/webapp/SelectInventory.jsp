@@ -1,4 +1,6 @@
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
+<%@ page import="com.bwing.invmanage2.InventoryState" %>
+<%@ page import="com.bwing.invmanage2.InventoryFile" %>
 <%@ page import="com.bwing.invmanage2.Customer" %>
 <%@ page import="com.googlecode.objectify.ObjectifyService" %>
 <%@ page import="com.googlecode.objectify.Key" %>
@@ -38,19 +40,42 @@
         <div><input type="submit" value="Return"/></div>
         </form>
         
-        <p>work with Test inventory,</p>
+        <% 
+        try (InventoryState invState = new InventoryState(customer_name))
+        {
+        	if (invState.isLoaded())
+        	{
+        		%>
+		        <p>Allocate items in your inventory,</p>
+		        <form action="/Allocate.jsp" method="get">
+		        <div><input type="submit" value="Allocate"/></div>
+		        </form>
+        		<%
+        	}
+        }
+        %>
+        
+        <p>Initialize inventory with test data</p>
 	    <form action="/load" method="get">
 	        <div><input type="submit" value="Test Inventory"/></div>
             <input type="hidden" name="customer_name" value="TestInventory"/>
         </form>
         
-        <p>work with Your inventory</p>
-        <form action="/load" method="get">
-	        <div><input type="submit" value="Your Inventory"/></div>
-	        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-        </form>
+        <%
+        InventoryFile invFile = new InventoryFile(customer_name);
+        if (invFile.isLoaded()) 
+        {        
+        %>
+	        <p>Initialize  inventory with your data</p>
+	        <form action="/load" method="get">
+		        <div><input type="submit" value="Your Inventory"/></div>
+		        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+	        </form>
+	    <% 
+	    }
+	    %>
         
-        <p>Upload a new inventory and work with it</p>
+        <p>Upload a new inventory file</p>
 	    <form action="/gcs" method="post" enctype="multipart/form-data">
 	        <input type="file" name="${fn:escapeXml(customer_name)}">
 	        <input type="submit" value="Upload file to your ${fn:escapeXml(customer_name)} Inventory">

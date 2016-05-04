@@ -75,7 +75,7 @@ public class FileServlet extends HttpServlet {
 
                     sctype = item.getContentType();
 
-                    GcsFilename gcsfileName = new GcsFilename(bucketName, sfieldname);
+                    GcsFilename gcsfileName = new GcsFilename(bucketName, customer_name);
 
                     GcsFileOptions options = new GcsFileOptions.Builder()
                     .acl("public-read").mimeType(sctype).build();
