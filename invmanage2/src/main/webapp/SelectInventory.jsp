@@ -41,7 +41,7 @@
         </form>
         
         <% 
-        try (InventoryState invState = new InventoryState(customer_name))
+        InventoryState invState = new InventoryState(customer_name);
         {
         	if (invState.isLoaded())
         	{
@@ -50,43 +50,65 @@
 		        <form action="/Allocate.jsp" method="get">
 		        <div><input type="submit" value="Allocate"/></div>
 		        </form>
+		        <p>Or you can start over and re-initialize your inventory</p>
         		<%
         	}
         }
-        %>
-        
-        <p>Initialize inventory with test data</p>
-	    <form action="/load" method="get">
-	        <div><input type="submit" value="Test Inventory"/></div>
-            <input type="hidden" name="customer_name" value="TestInventory"/>
-        </form>
-        
+        InventoryFile testFile = new InventoryFile("TestInventory");
+        if (testFile.isLoaded())
+        {
+        %>        
+	        <p>Initialize inventory with test data</p>
+		    <form action="/load" method="get">
+		        <div><input type="submit" value="Test Inventory"/></div>
+	            <input type="hidden" name="customer_name" value="TestInventory"/>
+	        </form>        
         <%
+        }
+        else
+        {
+            System.out.println("ERROR: Test inventory file was not found");
+        %>
+        	<p>ERROR: Test inventory file was not found</p>
+        <%
+        }
         InventoryFile invFile = new InventoryFile(customer_name);
         if (invFile.isLoaded()) 
         {        
         %>
-	        <p>Initialize  inventory with your data</p>
+	        <p>Initialize inventory with data you uploaded</p>
 	        <form action="/load" method="get">
 		        <div><input type="submit" value="Your Inventory"/></div>
 		        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
 	        </form>
+            <p>or upload new data</p>
 	    <% 
 	    }
-	    %>
-        
-        <p>Upload a new inventory file</p>
+	    %>        
+        <p>Upload a new inventory data file</p>
 	    <form action="/gcs" method="post" enctype="multipart/form-data">
-	        <input type="file" name="${fn:escapeXml(customer_name)}">
+ 	        <input type="file" name="${fn:escapeXml(customer_name)}">
 	        <input type="submit" value="Upload file to your ${fn:escapeXml(customer_name)} Inventory">
-	    </form>
-	    
-        <p>Or just download your inventory as a file</p>
+        </form>	    
+        <%
+        if (invFile.isLoaded()) 
+        {        
+        %>
+        <p>Also you can download your previously uploaded inventory as a file</p>
         <form action="/gcs" method="get">
             <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
             <input type="submit" value="Download your ${fn:escapeXml(customer_name)} Inventory">
         </form>
+        <p>or</p>
         <%
+        }
+        %>
+        <p>download test data as a file</p>
+        <form action="/gcs" method="get">
+            <input type="hidden" name="customer_name" value="TestInventory"/>
+            <input type="submit" value="Download Test Inventory">
+        </form>
+        <%        
     }
 %>
 </body>

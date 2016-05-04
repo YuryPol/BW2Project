@@ -20,7 +20,8 @@ public class InventoryFile
 
     private final GcsService gcsService = GcsServiceFactory.createGcsService(new RetryParams.Builder()
     .initialRetryDelayMillis(10)
-    .retryMaxAttempts(2)
+    .retryMinAttempts(1)
+    .retryMaxAttempts(3)
     .totalRetryPeriodMillis(5000)
     .build());
 

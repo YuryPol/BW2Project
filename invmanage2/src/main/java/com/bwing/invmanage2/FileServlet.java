@@ -49,7 +49,6 @@ public class FileServlet extends HttpServlet {
         InputStream stream = null;
         try 
         {
-        	String customer_name = req.getParameter("customer_name");
             upload = new ServletFileUpload();
             response.setContentType("text/plain");
 
@@ -75,7 +74,7 @@ public class FileServlet extends HttpServlet {
 
                     sctype = item.getContentType();
 
-                    GcsFilename gcsfileName = new GcsFilename(bucketName, customer_name);
+                    GcsFilename gcsfileName = new GcsFilename(bucketName, sfieldname);
 
                     GcsFileOptions options = new GcsFileOptions.Builder()
                     .acl("public-read").mimeType(sctype).build();
