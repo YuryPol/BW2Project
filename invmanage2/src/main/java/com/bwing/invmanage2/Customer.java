@@ -61,7 +61,7 @@ public class Customer {
 //		  {
 //			  // Local MySQL instance to use during development.
 //			  Class.forName("com.mysql.jdbc.Driver");
-//			  url = "jdbc:mysql://localhost:3306/demo?user=root&password=IraAnna12";
+//			  url = "jdbc:mysql://localhost:3306/BWdemo?user=root&password=IraAnna12";
 //		  }
 //		  con = DriverManager.getConnection(url);
 //		  st = con.createStatement();

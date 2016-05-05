@@ -50,12 +50,12 @@ public class InventoryState implements AutoCloseable
 		{
 			// Local MySQL instance to use during development.
 			Class.forName("com.mysql.jdbc.Driver"); // can't find the class
-			url = "jdbc:mysql://localhost:3306/demo?user=root&password=IraAnna12";
+			url = "jdbc:mysql://localhost:3306/BWdemo?user=root&password=IraAnna12";
 		}
     	con = DriverManager.getConnection(url);		
     	try (Statement st = con.createStatement())
     	{
-    		st.execute("USE DEMO");
+    		st.execute("USE BWdemo");
     	}
 	}
     

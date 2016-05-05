@@ -2,7 +2,7 @@
  * Runs at every session
  */
  
-USE Demo;
+USE BWdemo;
 
 -- create temporary table to insert next rank rows
 DROP /*TEMPORARY*/ TABLE IF EXISTS unions_last_rank;

@@ -3,9 +3,9 @@
  * Creates needed stored procs
  */
  
-CREATE DATABASE IF NOT EXISTS Demo;
+CREATE DATABASE IF NOT EXISTS BWdemo;
 
-USE Demo;
+USE BWdemo;
 
 --
 -- setting up stored procs
