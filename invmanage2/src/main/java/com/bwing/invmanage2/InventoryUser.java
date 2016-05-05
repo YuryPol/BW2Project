@@ -64,7 +64,7 @@ public class InventoryUser {
 		  
 		  try (InventoryState invState = new InventoryState(theCustomer.getKey().getName().toString()))
 		  {
-			  invState.Init();
+			  invState.init();
 		  }
 	  }
 	  

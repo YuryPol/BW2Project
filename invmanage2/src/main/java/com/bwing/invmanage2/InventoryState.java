@@ -28,6 +28,7 @@ public class InventoryState implements AutoCloseable
     
     // Tables
     static final String raw_inventory_ex = "_raw_inventory_ex";
+    static final String raw_inventory = "_raw_inventory";
     static final String structured_data_inc ="_structured_data_inc";
     static final String structured_data_base = "_structured_data_base";
     static final String unions_last_rank = "_unions_last_rank";
@@ -59,7 +60,7 @@ public class InventoryState implements AutoCloseable
     	}
 	}
     
-    public void Init() throws SQLException
+    public void init() throws SQLException
     {
     	// Create tables 
         try (Statement st = con.createStatement())
@@ -114,12 +115,13 @@ public class InventoryState implements AutoCloseable
         }
     }
     
-    public void Clean() throws SQLException
+    public void clear() throws SQLException
     {
     	// Truncate all tables
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("TRUNCATE " + customer_name + raw_inventory_ex);
+        	st.executeUpdate("TRUNCATE " + customer_name + raw_inventory);
         	st.executeUpdate("TRUNCATE " + customer_name + structured_data_inc);
         	st.executeUpdate("TRUNCATE " + customer_name + structured_data_base);
         	st.executeUpdate("TRUNCATE " + customer_name + unions_last_rank);
@@ -141,7 +143,7 @@ public class InventoryState implements AutoCloseable
         }
     }
     
-    public void Load(GcsInputChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
+    public void load(GcsInputChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
 		//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
@@ -218,6 +220,63 @@ public class InventoryState implements AutoCloseable
 	            insertStatement.execute();
 	        }
         }
+        
+        // adds up multiple records in raw_inventory_ex with the same key
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + customer_name + raw_inventory
+        		+ " SELECT basesets, sum(count) as count, 0 as weight FROM " + customer_name + raw_inventory_ex 
+        		+ "GROUP BY basesets"))
+        {
+        	insertStatement.execute();
+        } // That shouldn't be necessary as raw_inventory_ex already groups them but verification is needed.
+        
+        // update raw inventory with weights
+        try (PreparedStatement insertStatement = con.prepareStatement("SELECT @n:=0"))
+        {
+        	insertStatement.execute();
+        }
+        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + customer_name + raw_inventory
+        		+ " SET weight = @n := @n + " + customer_name + raw_inventory + ".count"))
+        {
+        	insertStatement.execute();
+        }
+
+        // adds capacities and availabilities to structured data
+        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + structured_data_base + " sdb, "
+        		+ " (SELECT set_key, SUM(ri.count) AS capacity, SUM(ri.count) AS availability "
+        		+ " FROM " + customer_name + structured_data_base
+        		+ " JOIN " + customer_name + raw_inventory + " ri ON set_key & ri.basesets != 0 "
+        		+ " GROUP BY set_key) comp SET sdb.capacity = comp.capacity, "
+        		+ " sdb.availability = comp.availability WHERE sdb.set_key = comp.set_key"))
+        {
+        	insertStatement.execute();        	
+        }
+        
+        // populate inventory sets table
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + customer_name + structured_data_inc
+        		+ " SELECT set_key, set_name, capacity, availability, goal FROM " + customer_name + structured_data_base
+        		+ " WHERE capacity IS NOT NULL"))
+        {       	
+        	insertStatement.execute();        	
+        }
+        
+        // start union_next_rank table
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + customer_name + unions_next_rank
+        		+ " SELECT * FROM " + customer_name + structured_data_inc))
+        {
+        	insertStatement.execute();        	
+        }
+        
+        // adds unions of higher ranks for all nodes to structured_data_inc
+        try (CallableStatement callStatement = con.prepareCall("{call AddUnions(?, ?, ?, ?, ?)}"))
+        {
+           	callStatement.setString(1, customer_name + structured_data_inc);
+           	callStatement.setString(2, customer_name + unions_last_rank);
+           	callStatement.setString(3, customer_name + unions_next_rank);
+           	callStatement.setString(4, customer_name + raw_inventory);
+           	callStatement.setString(5, customer_name + structured_data_base);
+           	callStatement.execute();
+        }
+
     }
     
     @Override
