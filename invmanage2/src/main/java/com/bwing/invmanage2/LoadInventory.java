@@ -53,31 +53,14 @@ public class LoadInventory extends HttpServlet
     	String url;
         String customer_name = request.getParameter("customer_name");
 
-		try 
+		try (InventoryState invState = new InventoryState(customer_name))
 		{
-			// Connect to DB
-			if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
-			{
-				// Load the class that provides the new "jdbc:google:mysql://"
-				// prefix.
-				Class.forName("com.mysql.jdbc.GoogleDriver");
-				url = "jdbc:google:mysql://<your-project-id>:<your-instance-name>/<your-database-name>?user=root";
-			} 
-			else 
-			{
-				// Local MySQL instance to use during development.
-				Class.forName("com.mysql.jdbc.Driver"); // can't find the class
-				url = "jdbc:mysql://localhost:3306/demo?user=root&password=IraAnna12";
-			}
-	        Connection con = null;
 	        Statement st = null;
 	        CallableStatement cs = null;
 	        PreparedStatement insertStatement = null;
-            con = DriverManager.getConnection(url);
 			
 			// Does the tables exist?
-            java.sql.ResultSet rs = con.getMetaData().getTables(null, null, customer_name + "_raw_inventory_ex", null);
-            if (!rs.next())
+            if (invState.isLoaded())
             {
 				// Process the file
 				GcsFilename gcsfileName = new GcsFilename(bucketName, customer_name);
@@ -90,12 +73,7 @@ public class LoadInventory extends HttpServlet
             	}
 				GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 	
-				//convert json input to InventroryData object
-				InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
-	
-				// Create all tables
-				
-				// Populate all tables
+				invState.Load(readChannel);
             }
             // go to allocation page
             response.sendRedirect("/Allocate.jsp?customer=" + customer_name);                     
