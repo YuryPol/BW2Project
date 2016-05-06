@@ -134,9 +134,10 @@ public class InventoryState implements AutoCloseable
 		// Do the tables exist?
         try (Statement st = con.createStatement())
         {
-        	java.sql.ResultSet rs = st.executeQuery("SELECT 1 FROM " + customer_name + structured_data_base + " LIMIT 1");
+        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + customer_name + structured_data_base);
+    //    	java.sql.ResultSet rs = st.executeQuery("SELECT 1 FROM " + customer_name + structured_data_base + " LIMIT 1");
 	//    	java.sql.ResultSet rs = con.getMetaData().getTables(null, null, customer_name + "_raw_inventory_ex", null);
-	        if (!rs.next())
+	        if (rs.next() || rs.getLong(1) == 0)
 	        	return false;
 	        else
 	        	return true;

@@ -59,7 +59,7 @@ public class LoadInventory extends HttpServlet
 	        CallableStatement cs = null;
 	        PreparedStatement insertStatement = null;
 			
-			// Does the tables exist?
+			// Does the tables have data?
             if (invState.isLoaded())
             {
 				// Process the file
