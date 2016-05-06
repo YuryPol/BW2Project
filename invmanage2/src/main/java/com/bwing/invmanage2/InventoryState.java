@@ -72,6 +72,13 @@ public class InventoryState implements AutoCloseable
             + "count INT NOT NULL, "
             + "criteria VARCHAR(200) DEFAULT NULL)");
 
+        	// create raw_inventory table to fill it from raw_inventory_ex with compacted and weighted data
+        	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + raw_inventory);
+        	st.executeUpdate("CREATE TABLE " + customer_name + raw_inventory 
+        	+ " (basesets BIGINT NOT NULL, "
+            + "count INT NOT NULL, "
+            + "weight BIGINT DEFAULT 0)");
+
         	// create structured data table
         	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + structured_data_inc);
         	st.executeUpdate("CREATE TABLE " + customer_name +  structured_data_inc
@@ -137,7 +144,7 @@ public class InventoryState implements AutoCloseable
         	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + customer_name + structured_data_base);
     //    	java.sql.ResultSet rs = st.executeQuery("SELECT 1 FROM " + customer_name + structured_data_base + " LIMIT 1");
 	//    	java.sql.ResultSet rs = con.getMetaData().getTables(null, null, customer_name + "_raw_inventory_ex", null);
-	        if (rs.next() || rs.getLong(1) == 0)
+	        if (!rs.next() || rs.getLong(1) == 0)
 	        	return false;
 	        else
 	        	return true;
@@ -225,7 +232,7 @@ public class InventoryState implements AutoCloseable
         // adds up multiple records in raw_inventory_ex with the same key
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + customer_name + raw_inventory
         		+ " SELECT basesets, sum(count) as count, 0 as weight FROM " + customer_name + raw_inventory_ex 
-        		+ "GROUP BY basesets"))
+        		+ " GROUP BY basesets"))
         {
         	insertStatement.execute();
         } // That shouldn't be necessary as raw_inventory_ex already groups them but verification is needed.
@@ -242,7 +249,7 @@ public class InventoryState implements AutoCloseable
         }
 
         // adds capacities and availabilities to structured data
-        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + structured_data_base + " sdb, "
+        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + customer_name + structured_data_base + " sdb, "
         		+ " (SELECT set_key, SUM(ri.count) AS capacity, SUM(ri.count) AS availability "
         		+ " FROM " + customer_name + structured_data_base
         		+ " JOIN " + customer_name + raw_inventory + " ri ON set_key & ri.basesets != 0 "

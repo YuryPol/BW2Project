@@ -60,7 +60,7 @@ public class LoadInventory extends HttpServlet
 	        PreparedStatement insertStatement = null;
 			
 			// Does the tables have data?
-            if (invState.isLoaded())
+//            if (!invState.isLoaded())
             {
 				// Process the file
 				GcsFilename gcsfileName = new GcsFilename(bucketName, customer_name);
