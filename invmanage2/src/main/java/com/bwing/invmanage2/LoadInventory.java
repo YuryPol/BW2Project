@@ -73,6 +73,7 @@ public class LoadInventory extends HttpServlet
             	}
 				GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 	
+				invState.clear();
 				invState.load(readChannel);
             }
             // go to allocation page
