@@ -57,10 +57,6 @@ public class InventoryState implements AutoCloseable
 			url = "jdbc:mysql://localhost:3306/BWdemo?user=root&password=IraAnna12";
 		}
     	con = DriverManager.getConnection(url);		
-    	try (Statement st = con.createStatement())
-    	{
-    		st.execute("USE BWdemo");
-    	}
 	}
     
     public void init() throws SQLException
@@ -71,9 +67,17 @@ public class InventoryState implements AutoCloseable
         	// Create the database and start using it
         	st.executeUpdate("DROP DATABASE IF EXISTS " + BWdb + customer_name);
         	st.executeUpdate("CREATE DATABASE " + BWdb + customer_name);        	
-        	st.execute("USE " + BWdb + customer_name);      	
+        	st.execute("USE " + BWdb + customer_name);
+        }
+    	
+        try (Statement st = con.createStatement())
+    	{
+    		st.execute("USE " + BWdb + customer_name);
+    	}
         	
-        	// create raw_inventory_ex table to fill up by impressions' counts
+        try (Statement st = con.createStatement())
+    	{
+       	// create raw_inventory_ex table to fill up by impressions' counts
         	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory_ex);
         	st.executeUpdate("CREATE TABLE " + raw_inventory_ex 
         	+ " (basesets BIGINT NOT NULL, "
@@ -150,6 +154,48 @@ public class InventoryState implements AutoCloseable
         			+ " WHERE nr0.set_key = comp.set_key; "
         			+ " END "
         			);
+        	
+        	st.executeUpdate("DROP PROCEDURE IF EXISTS AddUnions");
+        	st.executeUpdate("CREATE PROCEDURE AddUnions() "
+        			+ "BEGIN "
+        			+ "    DECLARE cnt INT;"
+        			+ "    DECLARE cnt_updated INT;"
+        			+ "    REPEAT "
+        			+ "    SELECT count(*) INTO cnt FROM structured_data_inc;"
+        			+ "    TRUNCATE unions_last_rank;"
+        			+ "    INSERT INTO unions_last_rank "
+        			+ "	   SELECT * FROM unions_next_rank;"
+        			+ "	TRUNCATE unions_next_rank;"
+        			+ "	INSERT /*IGNORE*/ INTO unions_next_rank "
+        			+ "    SELECT sb.set_key_is | lr.set_key, NULL, NULL, NULL, 0 "
+        			+ "	   FROM unions_last_rank lr "
+        			+ "    JOIN structured_data_base sb "
+        			+ "	   JOIN raw_inventory ri "
+        			+ "    ON  (sb.set_key_is & ri.basesets != 0) "
+        			+ "        AND (lr.set_key & ri.basesets) != 0 "
+        			+ "        AND (sb.set_key_is | lr.set_key) != lr.set_key "
+        			+ "    GROUP BY sb.set_key_is | lr.set_key; "
+        			+ "    CALL PopulateRankWithNumbers; "
+        			+ "    DELETE FROM structured_data_inc "
+        			+ "    WHERE EXISTS ("
+        			+ "        SELECT * "
+        			+ "        FROM unions_next_rank nr "
+        			+ "        WHERE (structured_data_inc.set_key & nr.set_key) = structured_data_inc.set_key "
+        			+ "        AND structured_data_inc.capacity = nr.capacity); "
+        			+ "    INSERT /*IGNORE*/ INTO structured_data_inc "
+        			+ "    SELECT * FROM unions_next_rank; "
+        			+ "    SELECT count(*) INTO cnt_updated FROM structured_data_inc; " 
+        			+ "    UNTIL  (cnt = cnt_updated) "
+        			+ "    END REPEAT; "
+        			+ "    DELETE FROM structured_data_inc "
+        			+ "    WHERE capacity IS NULL; "
+        			+ "    UPDATE structured_data_base, structured_data_inc "
+        			+ "    SET structured_data_base.set_key = structured_data_inc.set_key "
+        			+ "    WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is "
+        			+ "    AND structured_data_base.capacity = structured_data_inc.capacity; "
+        			+ "END "
+        			);
+
         }
     }
     
@@ -313,7 +359,7 @@ public class InventoryState implements AutoCloseable
         }
         
         // adds unions of higher ranks for all nodes to structured_data_inc
-        try (CallableStatement callStatement = con.prepareCall("{call AddUnions()}"))
+        try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".AddUnions()}"))
         {
            	callStatement.execute();
         }
