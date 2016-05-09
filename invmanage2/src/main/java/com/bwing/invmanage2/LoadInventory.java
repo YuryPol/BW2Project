@@ -52,6 +52,7 @@ public class LoadInventory extends HttpServlet
     {
     	String url;
         String customer_name = request.getParameter("customer_name");
+        String file_name = request.getParameter("file_name");
 
 		try (InventoryState invState = new InventoryState(customer_name))
 		{
@@ -63,7 +64,7 @@ public class LoadInventory extends HttpServlet
 //            if (!invState.isLoaded())
             {
 				// Process the file
-				GcsFilename gcsfileName = new GcsFilename(bucketName, customer_name);
+				GcsFilename gcsfileName = new GcsFilename(bucketName, file_name);
             	if (gcsService.getMetadata(gcsfileName) == null)
             	{
             		// No file, request upload

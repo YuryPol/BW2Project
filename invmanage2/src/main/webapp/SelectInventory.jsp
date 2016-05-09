@@ -61,7 +61,8 @@
 	        <p>Initialize inventory with test data</p>
 		    <form action="/load" method="get">
 		        <div><input type="submit" value="Test Inventory"/></div>
-	            <input type="hidden" name="customer_name" value="TestInventory"/>
+	            <input type="hidden" name="file_name" value="TestInventory"/>
+                <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
 	        </form>        
         <%
         }
@@ -79,6 +80,7 @@
 	        <p>Initialize inventory with data you uploaded</p>
 	        <form action="/load" method="get">
 		        <div><input type="submit" value="Your Inventory"/></div>
+                <input type="hidden" name="file_name" value="${fn:escapeXml(customer_name)}"/>
 		        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
 	        </form>
             <p>or upload new data</p>
