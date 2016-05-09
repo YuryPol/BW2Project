@@ -26,13 +26,16 @@ public class InventoryState implements AutoCloseable
     private static ObjectMapper mapper = new ObjectMapper();
     private static final Logger log = Logger.getLogger(InventoryState.class.getName());
     
+    // DB prefix
+    static final String BWdb = "BWing_";
+    
     // Tables
-    static final String raw_inventory_ex = "_raw_inventory_ex";
-    static final String raw_inventory = "_raw_inventory";
-    static final String structured_data_inc ="_structured_data_inc";
-    static final String structured_data_base = "_structured_data_base";
-    static final String unions_last_rank = "_unions_last_rank";
-    static final String unions_next_rank = "_unions_next_rank";
+    static final String raw_inventory_ex = "raw_inventory_ex";
+    static final String raw_inventory = "raw_inventory";
+    static final String structured_data_inc ="structured_data_inc";
+    static final String structured_data_base = "structured_data_base";
+    static final String unions_last_rank = "unions_last_rank";
+    static final String unions_next_rank = "unions_next_rank";
  
 	static final int BITMAP_SIZE = 64;
     
@@ -62,26 +65,31 @@ public class InventoryState implements AutoCloseable
     
     public void init() throws SQLException
     {
-    	// Create tables 
+    	// Create tables, stored procedures and functions 
         try (Statement st = con.createStatement())
         {
-        	// create raw_inventory_ex table to fill up by impressons' counts
-        	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + raw_inventory_ex);
-        	st.executeUpdate("CREATE TABLE " + customer_name + raw_inventory_ex 
+        	// Create the database and start using it
+        	st.executeUpdate("DROP DATABASE IF EXISTS " + BWdb + customer_name);
+        	st.executeUpdate("CREATE DATABASE " + BWdb + customer_name);        	
+        	st.execute("USE " + BWdb + customer_name);      	
+        	
+        	// create raw_inventory_ex table to fill up by impressions' counts
+        	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory_ex);
+        	st.executeUpdate("CREATE TABLE " + raw_inventory_ex 
         	+ " (basesets BIGINT NOT NULL, "
             + "count INT NOT NULL, "
             + "criteria VARCHAR(200) DEFAULT NULL)");
 
         	// create raw_inventory table to fill it from raw_inventory_ex with compacted and weighted data
-        	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + raw_inventory);
-        	st.executeUpdate("CREATE TABLE " + customer_name + raw_inventory 
+        	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory);
+        	st.executeUpdate("CREATE TABLE " + raw_inventory 
         	+ " (basesets BIGINT NOT NULL, "
             + "count INT NOT NULL, "
             + "weight BIGINT DEFAULT 0)");
 
         	// create structured data table
-        	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + structured_data_inc);
-        	st.executeUpdate("CREATE TABLE " + customer_name +  structured_data_inc
+        	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_inc);
+        	st.executeUpdate("CREATE TABLE " +  structured_data_inc
     	    + " (set_key BIGINT DEFAULT NULL, "
     	    + "set_name VARCHAR(20) DEFAULT NULL, "
     	    + "capacity INT DEFAULT NULL, " 
@@ -90,8 +98,8 @@ public class InventoryState implements AutoCloseable
     	    + "PRIMARY KEY(set_key))");        	
         	
         	// create inventory sets table
-        	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + structured_data_base);
-        	st.executeUpdate("CREATE TABLE " + customer_name + structured_data_base 
+        	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_base);
+        	st.executeUpdate("CREATE TABLE " + structured_data_base 
         	+ " (set_key_is BIGINT DEFAULT NULL, "
 		    + "set_key BIGINT DEFAULT NULL, "
 		    + "set_name VARCHAR(20) DEFAULT NULL, "
@@ -102,8 +110,8 @@ public class InventoryState implements AutoCloseable
 		    + "PRIMARY KEY(set_key_is))");
 
         	// create temporary table to insert next rank rows
-        	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + unions_last_rank);
-        	st.executeUpdate("CREATE TABLE " + customer_name +  unions_last_rank
+        	st.executeUpdate("DROP TABLE IF EXISTS " + unions_last_rank);
+        	st.executeUpdate("CREATE TABLE " +  unions_last_rank
     	    + " (set_key BIGINT DEFAULT NULL, "
     	    + "set_name VARCHAR(20) DEFAULT NULL, "
     	    + "capacity INT DEFAULT NULL, " 
@@ -111,14 +119,37 @@ public class InventoryState implements AutoCloseable
     	    + "goal INT DEFAULT 0, "
     	    + "PRIMARY KEY(set_key))");
         	
-        	st.executeUpdate("DROP TABLE IF EXISTS " + customer_name + unions_next_rank);
-        	st.executeUpdate("CREATE TABLE " + customer_name + unions_next_rank
+        	st.executeUpdate("DROP TABLE IF EXISTS " + unions_next_rank);
+        	st.executeUpdate("CREATE TABLE " + unions_next_rank
     	    + " (set_key BIGINT DEFAULT NULL, "
     	    + "set_name VARCHAR(20) DEFAULT NULL, "
     	    + "capacity INT DEFAULT NULL, " 
     	    + "availability INT DEFAULT NULL, " 
     	    + "goal INT DEFAULT 0, "
     	    + "PRIMARY KEY(set_key))");
+        	
+        	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
+        	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
+        			+ "BEGIN "
+        			+ " UPDATE unions_next_rank nr0, "
+        			+ " (SELECT "
+        			+ "    set_key, "
+        			+ "    SUM(capacity) as capacity, "
+        			+ "    SUM(availability) as availability "
+        			+ "  FROM ("
+        			+ "   SELECT nr.set_key, ri.count as capacity, ri.count as availability "
+        			+ "    FROM unions_next_rank nr "
+        			+ "    JOIN raw_inventory ri "
+        			+ "    ON nr.set_key & ri.basesets != 0 "
+        			+ "    WHERE nr.capacity is NULL "
+        			+ "    ) blownUp "
+        			+ "  GROUP BY set_key"
+        			+ " ) comp "
+        			+ " SET nr0.capacity = comp.capacity,"
+        			+ "     nr0.availability = comp.availability "
+        			+ " WHERE nr0.set_key = comp.set_key; "
+        			+ " END "
+        			);
         }
     }
     
@@ -127,12 +158,13 @@ public class InventoryState implements AutoCloseable
     	// Truncate all tables
         try (Statement st = con.createStatement())
         {
-        	st.executeUpdate("TRUNCATE " + customer_name + raw_inventory_ex);
-        	st.executeUpdate("TRUNCATE " + customer_name + raw_inventory);
-        	st.executeUpdate("TRUNCATE " + customer_name + structured_data_inc);
-        	st.executeUpdate("TRUNCATE " + customer_name + structured_data_base);
-        	st.executeUpdate("TRUNCATE " + customer_name + unions_last_rank);
-        	st.executeUpdate("TRUNCATE " + customer_name + unions_next_rank);
+        	st.execute("USE " + BWdb + customer_name);      	
+        	st.executeUpdate("TRUNCATE " + raw_inventory_ex);
+        	st.executeUpdate("TRUNCATE " + raw_inventory);
+        	st.executeUpdate("TRUNCATE " + structured_data_inc);
+        	st.executeUpdate("TRUNCATE " + structured_data_base);
+        	st.executeUpdate("TRUNCATE " + unions_last_rank);
+        	st.executeUpdate("TRUNCATE " + unions_next_rank);
          }
     }
     
@@ -141,8 +173,9 @@ public class InventoryState implements AutoCloseable
 		// Do the tables exist?
         try (Statement st = con.createStatement())
         {
-        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + customer_name + structured_data_base);
-    //    	java.sql.ResultSet rs = st.executeQuery("SELECT 1 FROM " + customer_name + structured_data_base + " LIMIT 1");
+        	st.execute("USE " + BWdb + customer_name);      	
+        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
+    //    	java.sql.ResultSet rs = st.executeQuery("SELECT 1 FROM " + structured_data_base + " LIMIT 1");
 	//    	java.sql.ResultSet rs = con.getMetaData().getTables(null, null, customer_name + "_raw_inventory_ex", null);
 	        if (!rs.next() || rs.getLong(1) == 0)
 	        	return false;
@@ -205,7 +238,12 @@ public class InventoryState implements AutoCloseable
 		// Populate all tables 
 		//
         // populate structured data with inventory sets
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT IGNORE INTO "  + customer_name + structured_data_base 
+        try (Statement st = con.createStatement())
+        {
+        	st.execute("USE " + BWdb + customer_name);
+        }
+        
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT IGNORE INTO "  + structured_data_base 
         		+ " SET set_key = ?, set_name = ?, set_key_is = ?, criteria = ?"))
         {
 	        for (BaseSet bs1 : base_sets.values()) {
@@ -218,7 +256,7 @@ public class InventoryState implements AutoCloseable
         }
         
         // populate raw data with inventory sets' bitmaps
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + customer_name + raw_inventory_ex 
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory_ex 
         		+ " SET basesets = ?, count = ?, criteria = ?"))
         {
 	        for (BaseSegement bs1 : base_segments.values()) {
@@ -230,8 +268,8 @@ public class InventoryState implements AutoCloseable
         }
         
         // adds up multiple records in raw_inventory_ex with the same key
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + customer_name + raw_inventory
-        		+ " SELECT basesets, sum(count) as count, 0 as weight FROM " + customer_name + raw_inventory_ex 
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + raw_inventory
+        		+ " SELECT basesets, sum(count) as count, 0 as weight FROM " + raw_inventory_ex 
         		+ " GROUP BY basesets"))
         {
         	insertStatement.execute();
@@ -242,17 +280,17 @@ public class InventoryState implements AutoCloseable
         {
         	insertStatement.execute();
         }
-        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + customer_name + raw_inventory
-        		+ " SET weight = @n := @n + " + customer_name + raw_inventory + ".count"))
+        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + raw_inventory
+        		+ " SET weight = @n := @n + " + raw_inventory + ".count"))
         {
         	insertStatement.execute();
         }
 
         // adds capacities and availabilities to structured data
-        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + customer_name + structured_data_base + " sdb, "
+        try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + structured_data_base + " sdb, "
         		+ " (SELECT set_key, SUM(ri.count) AS capacity, SUM(ri.count) AS availability "
-        		+ " FROM " + customer_name + structured_data_base
-        		+ " JOIN " + customer_name + raw_inventory + " ri ON set_key & ri.basesets != 0 "
+        		+ " FROM " + structured_data_base
+        		+ " JOIN " + raw_inventory + " ri ON set_key & ri.basesets != 0 "
         		+ " GROUP BY set_key) comp SET sdb.capacity = comp.capacity, "
         		+ " sdb.availability = comp.availability WHERE sdb.set_key = comp.set_key"))
         {
@@ -260,28 +298,23 @@ public class InventoryState implements AutoCloseable
         }
         
         // populate inventory sets table
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + customer_name + structured_data_inc
-        		+ " SELECT set_key, set_name, capacity, availability, goal FROM " + customer_name + structured_data_base
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + structured_data_inc
+        		+ " SELECT set_key, set_name, capacity, availability, goal FROM " + structured_data_base
         		+ " WHERE capacity IS NOT NULL"))
         {       	
         	insertStatement.execute();        	
         }
         
         // start union_next_rank table
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + customer_name + unions_next_rank
-        		+ " SELECT * FROM " + customer_name + structured_data_inc))
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + unions_next_rank
+        		+ " SELECT * FROM " + structured_data_inc))
         {
         	insertStatement.execute();        	
         }
         
         // adds unions of higher ranks for all nodes to structured_data_inc
-        try (CallableStatement callStatement = con.prepareCall("{call AddUnions(?, ?, ?, ?, ?)}"))
+        try (CallableStatement callStatement = con.prepareCall("{call AddUnions()}"))
         {
-           	callStatement.setString(1, customer_name + structured_data_inc);
-           	callStatement.setString(2, customer_name + unions_last_rank);
-           	callStatement.setString(3, customer_name + unions_next_rank);
-           	callStatement.setString(4, customer_name + raw_inventory);
-           	callStatement.setString(5, customer_name + structured_data_base);
            	callStatement.execute();
         }
 
