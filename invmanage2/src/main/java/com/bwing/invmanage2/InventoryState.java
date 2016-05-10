@@ -195,7 +195,52 @@ public class InventoryState implements AutoCloseable
         			+ "    AND structured_data_base.capacity = structured_data_inc.capacity; "
         			+ "END "
         			);
-
+        	
+        	st.executeUpdate("DROP FUNCTION IF EXISTS BookItemsFromIS");
+        	st.executeUpdate("CREATE FUNCTION BookItemsFromIS(iset BIGINT, amount INT) "
+        			+ "RETURNS BOOLEAN "
+        			+ "DETERMINISTIC "
+        			+ "READS SQL DATA "
+        			+ "BEGIN "
+        			+ "    DECLARE cnt INT; "
+        			+ "    SELECT availability INTO cnt FROM structured_data_base WHERE set_key_is = iset; "
+        			+ "    IF cnt >= amount AND amount > 0 "
+        			+ "    THEN "
+        			+ "     UPDATE structured_data_base "
+        			+ "     SET availability=availability-amount, goal=goal+amount "
+        			+ "     WHERE set_key_is = iset; "
+        			+ "     RETURN TRUE; "
+        			+ "    ELSE "
+        			+ "     RETURN FALSE; "
+        			+ "    END IF; "
+        			+ "END "
+        			);
+        	
+        	st.executeUpdate("DROP PROCEDURE IF EXISTS GetItemsFromSD");
+        	st.executeUpdate("CREATE PROCEDURE GetItemsFromSD(IN iset BIGINT, IN amount INT) "
+        			+ "BEGIN "
+        			+ "IF BookItemsFromIS(iset, amount) "
+        			+ "   THEN "
+        			+ "     UPDATE structured_data_inc "
+        			+ "        SET availability = availability - amount "
+        			+ "        WHERE (set_key & iset) = iset; "
+        			+ "       DELETE FROM structured_data_inc WHERE set_key = ANY ( "
+        			+ "       SELECT set_key FROM ( "
+        			+ "          SELECT sd1.set_key "
+        			+ "          FROM structured_data_inc sd1 JOIN structured_data_inc sd2 "
+        			+ "          ON sd2.set_key > sd1.set_key "
+        			+ "          AND sd2.set_key & sd1.set_key = sd1.set_key "
+        			+ "          AND sd1.availability >= sd2.availability) AS stmp "
+        			+ "       ); "
+        			+ "     UPDATE structured_data_base sb, structured_data_inc sd "
+        			+ "     SET sb.availability = LEAST(sb.availability, sd.availability) "
+        			+ "     WHERE sd.set_key & sb.set_key_is = sb.set_key_is; "
+        			+ "     SELECT 'passed'; "
+        			+ "   ELSE "
+        			+ "     SELECT 'failed'; "
+        			+ "   END IF; "
+        			+ "END "
+        			);
         }
     }
     
