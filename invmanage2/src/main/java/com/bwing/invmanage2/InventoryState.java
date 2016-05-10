@@ -17,6 +17,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.tools.cloudstorage.GcsInputChannel;
+import java.sql.ResultSet;
+;
 
 public class InventoryState implements AutoCloseable
 {
@@ -27,7 +29,7 @@ public class InventoryState implements AutoCloseable
     private static final Logger log = Logger.getLogger(InventoryState.class.getName());
     
     // DB prefix
-    static final String BWdb = "BWing_";
+    public static final String BWdb = "BWing_";
     
     // Tables
     static final String raw_inventory_ex = "raw_inventory_ex";
@@ -58,6 +60,11 @@ public class InventoryState implements AutoCloseable
 		}
     	con = DriverManager.getConnection(url);		
 	}
+    
+    public Connection getConnection()
+    {
+    	return con;
+    }
     
     public void init() throws SQLException
     {
@@ -409,6 +416,20 @@ public class InventoryState implements AutoCloseable
            	callStatement.execute();
         }
 
+    }
+    
+    public ResultSet getResult() throws SQLException
+    {
+        try (Statement st = con.createStatement())
+    	{
+    		st.execute("USE " + BWdb + customer_name);
+    	}
+        	
+        try (Statement st = con.createStatement())
+        {
+        	ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
+        	return rs;
+        }
     }
     
     @Override
