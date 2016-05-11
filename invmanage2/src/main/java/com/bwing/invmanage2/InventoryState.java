@@ -56,13 +56,14 @@ public class InventoryState implements AutoCloseable
 		{
 			// Local MySQL instance to use during development.
 			Class.forName("com.mysql.jdbc.Driver"); // can't find the class
-			url = "jdbc:mysql://localhost:3306/BWdemo?user=root&password=IraAnna12";
+			url = "jdbc:mysql://localhost:3306?user=root&password=IraAnna12";
 		}
     	con = DriverManager.getConnection(url);		
 	}
     
-    public Connection getConnection()
+    public Connection getConnection() throws SQLException
     {
+    	con.setCatalog(BWdb + customer_name);
     	return con;
     }
     
@@ -76,6 +77,7 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("CREATE DATABASE " + BWdb + customer_name);        	
         	st.execute("USE " + BWdb + customer_name);
         }
+    	con.setCatalog(BWdb + customer_name);
     	
         try (Statement st = con.createStatement())
     	{
@@ -253,6 +255,8 @@ public class InventoryState implements AutoCloseable
     
     public void clear() throws SQLException
     {
+    	con.setCatalog(BWdb + customer_name);
+
     	// Truncate all tables
         try (Statement st = con.createStatement())
         {
@@ -268,6 +272,8 @@ public class InventoryState implements AutoCloseable
     
     public boolean isLoaded() throws SQLException
     {
+    	con.setCatalog(BWdb + customer_name);
+
 		// Do the tables exist?
         try (Statement st = con.createStatement())
         {
@@ -336,6 +342,8 @@ public class InventoryState implements AutoCloseable
 		// Populate all tables 
 		//
         // populate structured data with inventory sets
+    	con.setCatalog(BWdb + customer_name);
+
         try (Statement st = con.createStatement())
         {
         	st.execute("USE " + BWdb + customer_name);
@@ -418,19 +426,6 @@ public class InventoryState implements AutoCloseable
 
     }
     
-    public ResultSet getResult() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-    	{
-    		st.execute("USE " + BWdb + customer_name);
-    	}
-        	
-        try (Statement st = con.createStatement())
-        {
-        	ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
-        	return rs;
-        }
-    }
     
     @Override
     public void close() throws SQLException
