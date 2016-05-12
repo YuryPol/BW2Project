@@ -42,7 +42,7 @@
         <p>Or work with your inventory</p>
         <table border="1">
 		<tr>
-		<th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>allocate</th><th>Submit</th>
+		<th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>allocate</th>
 		</tr>
         <%
         InventoryState invState = new InventoryState(customer_name);
@@ -52,23 +52,21 @@
         ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
         while (rs.next())
         {
+            String set_name = rs.getString(1);
+            int capacity = rs.getInt(2);
+            int goal = rs.getInt(3);
+            int availability = rs.getInt(4);
         	%>
 			<tr>
-			<td><%=
-			rs.getString(1)
-			%></td>
-            <td><%=
-            rs.getInt(2)
-            %></td>
-            <td><%=
-            rs.getInt(3)
-            %></td>
-            <td><%=
-            rs.getInt(4)
-            %></td>
+			<td><%=set_name%></td>
+            <td><%=capacity%></td>
+            <td><%=goal%></td>
+            <td><%=availability%></td>
 			<td>
 				<form action="/" method="get">
-				<input type="text" name="alloc"/>
+                <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+				<input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
+                <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(capacity)}" required/>
 				<input type="submit" value="Submit"/>
 				</form>
 			</td>

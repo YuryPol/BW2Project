@@ -45,40 +45,29 @@ public class LoadInventory extends HttpServlet
 		    .retryMaxAttempts(10)
 		    .totalRetryPeriodMillis(15000)
 		    .build());
-   private static ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
     {
-    	String url;
         String customer_name = request.getParameter("customer_name");
         String file_name = request.getParameter("file_name");
 
-		try (InventoryState invState = new InventoryState(customer_name))
-		{
-	        Statement st = null;
-	        CallableStatement cs = null;
-	        PreparedStatement insertStatement = null;
-			
-			// Does the tables have data?
-//            if (!invState.isLoaded())
-            {
-				// Process the file
-				GcsFilename gcsfileName = new GcsFilename(bucketName, file_name);
-            	if (gcsService.getMetadata(gcsfileName) == null)
-            	{
-            		// No file, request upload
-            		response.getWriter().println("You are missing the file with your Inventory Data. Upload it or work with Test Inventory");
-                    response.sendRedirect("/SelectInventory.jsp");                     
-                    return;
-            	}
-				GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
-	
-				invState.clear();
-				invState.load(readChannel);
-            }
-            // go to allocation page
-            response.sendRedirect("/Allocate.jsp?customer=" + customer_name);                     
+		try (InventoryState invState = new InventoryState(customer_name)) {
+			// Process the file
+			GcsFilename gcsfileName = new GcsFilename(bucketName, file_name);
+			if (gcsService.getMetadata(gcsfileName) == null) {
+				// No file, request upload
+				response.getWriter().println(
+						"You are missing the file with your Inventory Data. Upload it or work with Test Inventory");
+				response.sendRedirect("/SelectInventory.jsp");
+				return;
+			}
+			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
+
+			invState.clear();
+			invState.load(readChannel);
+			// go to allocation page
+			response.sendRedirect("/Allocate.jsp?customer=" + customer_name);
 		}
 		catch (Exception ex) 
         {
