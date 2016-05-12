@@ -426,6 +426,26 @@ public class InventoryState implements AutoCloseable
 
     }
     
+    void GetItems(String set_name, int amount) throws SQLException
+    {
+    	long set_key_is = 0;
+    	con.setCatalog(BWdb + customer_name);
+    	
+    	try (PreparedStatement prepStatement = con.prepareStatement(
+    			"SELECT set_key_is FROM structured_data_base WHERE set_name = " + set_name))
+    	{
+    		ResultSet rs = prepStatement.executeQuery();
+    		rs.next();
+    		set_key_is = rs.getLong(1);
+    	}
+    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?)}"))
+    	{
+    		callStatement.setLong(1, set_key_is);
+    		callStatement.setInt(2, amount);
+    		callStatement.execute();
+    	}    			
+    }
+    
     
     @Override
     public void close() throws SQLException

@@ -12,12 +12,12 @@ public class AllocateSet extends HttpServlet
     @Override
     public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
     {
-        String customer_name = request.getParameter("customer_name");
-        String alloc_Amount = request.getParameter("alloc_Amount");
         String set_name = request.getParameter("set_name");
+        String customer_name = request.getParameter("customer_name");
+        int amount = Integer.parseInt(request.getParameter("alloc_Amount"));
 
 		try (InventoryState invState = new InventoryState(customer_name)) {
-			
+			invState.GetItems(set_name, amount);
 		}
 		catch (Exception ex) 
         {

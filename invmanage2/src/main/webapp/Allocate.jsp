@@ -63,9 +63,9 @@
             <td><%=goal%></td>
             <td><%=availability%></td>
 			<td>
-				<form action="/" method="get">
+				<form action="/alloc" method="get">
+                <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
                 <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-				<input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
                 <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(capacity)}" required/>
 				<input type="submit" value="Submit"/>
 				</form>

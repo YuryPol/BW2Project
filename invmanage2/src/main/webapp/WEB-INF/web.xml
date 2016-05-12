@@ -20,6 +20,16 @@
       <url-pattern>/load</url-pattern>
   </servlet-mapping>
   
+  <servlet>
+      <servlet-name>alloc</servlet-name>
+      <servlet-class>com.bwing.invmanage2.AllocateSet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+      <servlet-name>alloc</servlet-name>
+      <url-pattern>/alloc</url-pattern>
+  </servlet-mapping>  
+  
+  
   <welcome-file-list>
     <welcome-file>start.jsp</welcome-file>
   </welcome-file-list>
