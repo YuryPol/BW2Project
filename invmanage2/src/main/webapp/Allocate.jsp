@@ -32,6 +32,7 @@
     else 
     {
         // registered user, let her chose/create inventory
+        String set_name;
         String customer_name = iuser.theCustomer.get().company;
         System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
@@ -52,10 +53,12 @@
         ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
         while (rs.next())
         {
-            String set_name = rs.getString(1);
+            set_name = rs.getString(1);
+            pageContext.setAttribute("set_name", set_name);
             int capacity = rs.getInt(2);
             int goal = rs.getInt(3);
             int availability = rs.getInt(4);
+            pageContext.setAttribute("availability", availability);
         	%>
 			<tr>
 			<td><%=set_name%></td>
@@ -66,7 +69,7 @@
 				<form action="/alloc" method="get">
                 <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
                 <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-                <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(capacity)}" required/>
+                <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(availability)}" required/>
 				<input type="submit" value="Submit"/>
 				</form>
 			</td>
