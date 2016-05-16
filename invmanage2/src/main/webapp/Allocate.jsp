@@ -37,14 +37,15 @@
         int alloc_Amount = 0;
         if (request.getParameter("alloc_Amount") != null)
         {
-        	alloc_Amount = Integer.parseInt(request.getParameter("alloc_Amount"));
+        	alloc_Amount = Integer.parseInt(request.getParameter("alloc_Amount").trim());
         }
         System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
         %>
         <p>You can return to starting page,</p>
-        <form action="/" method="get"></form>
+        <form action="/" method="get">
         <div><input type="submit" value="Return"/></div>
+        </form>
         <p>Or work with your inventory</p>
         <table border="1">
 		<tr>
