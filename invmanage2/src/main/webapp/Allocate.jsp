@@ -31,9 +31,14 @@
     }
     else 
     {
-        // registered user, let her chose/create inventory
-        String set_name;
+        // registered user, let her chose/create inventory        
+        String set_name = request.getParameter("set_name");
         String customer_name = iuser.theCustomer.get().company;
+        int alloc_Amount = 0;
+        if (request.getParameter("alloc_Amount") != null)
+        {
+        	alloc_Amount = Integer.parseInt(request.getParameter("alloc_Amount"));
+        }
         System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
         %>
@@ -49,6 +54,10 @@
         InventoryState invState = new InventoryState(customer_name);
         Statement st = invState.getConnection().createStatement();
         st.execute("USE " + InventoryState.BWdb + customer_name);
+        if (alloc_Amount > 0 && set_name.length() > 0)
+        {
+            invState.GetItems(set_name, alloc_Amount);
+        }
         // build availabilities forms
         ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
         while (rs.next())
@@ -66,7 +75,7 @@
             <td><%=goal%></td>
             <td><%=availability%></td>
 			<td>
-				<form action="/alloc" method="get">
+				<form>
                 <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
                 <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
                 <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(availability)}" required/>

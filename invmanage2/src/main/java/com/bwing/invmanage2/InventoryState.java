@@ -426,15 +426,20 @@ public class InventoryState implements AutoCloseable
 
     }
     
-    void GetItems(String set_name, int amount) throws SQLException
+    public void GetItems(String set_name, int amount) throws SQLException
     {
+    	if (amount <= 0)
+    	{
+			log.warning("wrong allocation = " + amount);
+			return;
+    	}
     	long set_key_is = 0;
     	con.setCatalog(BWdb + customer_name);
     	
-    	try (PreparedStatement prepStatement = con.prepareStatement(
-    			"SELECT set_key_is FROM structured_data_base WHERE set_name = " + set_name))
+    	String query = "SELECT set_key_is FROM structured_data_base WHERE set_name = '" + set_name + "'";
+    	try (Statement statement = con.createStatement())
     	{
-    		ResultSet rs = prepStatement.executeQuery();
+    		ResultSet rs = statement.executeQuery(query);
     		rs.next();
     		set_key_is = rs.getLong(1);
     	}
