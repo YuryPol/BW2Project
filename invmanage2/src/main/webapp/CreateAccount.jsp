@@ -7,6 +7,7 @@
 <%@ page import="com.google.appengine.api.users.UserService" %>
 <%@ page import="com.google.appengine.api.users.UserServiceFactory" %>
 <%@ page import="com.google.appengine.api.datastore.PhoneNumber" %>
+<%@ page import="com.google.appengine.api.datastore.Email" %>
 <%@ page import="com.googlecode.objectify.Ref" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.Iterator" %>
@@ -31,28 +32,46 @@
                 // .filter("user_email", theUser.getEmail())
                 .list();
         InventoryUser iuser = InventoryUser.findInventoryUser(users, theUser.getEmail());
-        if (iuser == null)
-        {
+        // if (iuser == null)
             // Create InventoryUser and Customer
             String user_data_submited = request.getParameter("user_data_submited");
             if (user_data_submited != null) 
             {
                 // user just submited here info
+                String email = "";
+                if (iuser != null)
+                {
+                	// Creating account for another user
+                	email = request.getParameter("email");
+                }
                 String first_name = request.getParameter("first_name");
                 pageContext.setAttribute("first_name", first_name);
                 String last_name = request.getParameter("last_name");
                 pageContext.setAttribute("last_name", last_name);
                 String phone = request.getParameter("phone");
                 pageContext.setAttribute("phone", phone);
-                String company = request.getParameter("company");
+                String company;
+                if (iuser == null) 
+               	{
+                    // Creating primary account
+                	company = request.getParameter("company");
+               	}
+                else
+                {
+                    // Creating account for another user
+                	company = iuser.theCustomer.get().company;
+                    email = request.getParameter("email");
+                }
                 pageContext.setAttribute("company", company);
+                pageContext.setAttribute("email", email);
+                
                 if (first_name == "" || last_name == "" || phone == "" || company == "") // TODO: add more checks
                 {
                     message = "please enter missing data";
                 }
-                else
+                else if (iuser == null)
                 {
-                    // Create primary owner
+                    // Create primary user (owner)
                     // Create the correct Ancestor key
                     Key<Customer> theCustomer = Key.create(Customer.class, company);
                     // Run an ancestor query to ensure that this company isn't recorded yet in our datastore.
@@ -62,66 +81,66 @@
                     if (!customers.isEmpty() && Customer.findCustomer(customers, company) != null)
                     {
                         // Customer already exists.
-                        message = "Your company already has an account. Contact the owner " + customers.get(0).founder.getEmail()
-                        + ". If you don't recognise the owner and want to proceed modify your company name (for now) and email us so we can clarify the conflict with imposter";
-        	            %>
-        	            <p>${fn:escapeXml(theuser.nickname)}!, <% out.println(message); %></p>
-        	            <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
-        	            <p>or correct your data</p>
-        	            <form action="/CreateAccount.jsp" method="get">
-        	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}"/></div>
-        	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}"/></div>
-        	                <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}"/></div>
-        	                <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}"/></div>
-        	                <input type="hidden" name="user_data_submited" value="user_data_submited"/>
-        	                <div><input type="submit" value="Submit your data"/></div>
-        	            </form>
-        	            <%
+                        message = "Your company already has a service with us. Contact " 
+                        + customers.get(0).founder.getEmail()
+                        + " so s/he can add your user account."
+                        + " If you don't recognise the owner and still want to proceed modify your company name (for now)"
+                        + " and email us at admin@baterflywing.com so we can clarify the conflict.";
                     }
                     else
                     {
-                        // Create Customer 
+                        // Create Customer and primary user
                         // TODO: make it into transacton 
                         Customer customer = new Customer(company, theUser);
                         ObjectifyService.ofy().save().entity(customer).now();
                         // Add the user and fill his properties
-                        InventoryUser newuser = new InventoryUser(Ref.create(customer), theUser, first_name, last_name, new PhoneNumber(phone), theUser.getEmail());
+                        InventoryUser newuser = new InventoryUser(Ref.create(customer), theUser, first_name, last_name, new PhoneNumber(phone), new Email(theUser.getEmail()));
                         ObjectifyService.ofy().save().entity(newuser).now();
                         response.sendRedirect("/ConfirmAccount.jsp"); 
                    }
                 }
-             }
+                else
+                {
+                	// Create secondary user
+                    // Add the user and fill his properties
+                    message = "Add a new user with whom you will share your company data";
+                    Key<Customer> customerKey = iuser.getCurrentUser().getCustomerKey();
+                    InventoryUser newuser = new InventoryUser(Ref.create(customerKey), theUser, first_name, last_name, new PhoneNumber(phone), new Email(email));
+                    ObjectifyService.ofy().save().entity(newuser).now();
+                    response.sendRedirect("/ConfirmAccount.jsp"); 
+                }
+            }
             else
             {
                 // User didn't submit data yet
-                message = "Please enter your information";
-	            %>
-	            <p>${fn:escapeXml(theuser.nickname)}!, <% out.println(message); %></p>
-	            <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
-	            <p>or enter your data</p>
-	            <form action="/CreateAccount.jsp" method="get">
-	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}"/></div>
-	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}"/></div>
-	                <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}"/></div>
-	                <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}"/></div>
-	                <input type="hidden" name="user_data_submited" value="user_data_submited"/>
-	                <div><input type="submit" value="Submit your data"/></div>
-	            </form>
-	            <%
+                message = "Please enter the user's information";
             }
-        }
-        else 
-        {
-            // registered user, let her chose/create inventory
             %>
-            <p>You are registered user</p>
-            <p>Now you can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
-            <p>or work with available inventories, or upload a new inventory</p>
-            <form action="/SelectInventory.jsp" method="get">
-            <div><input type="submit" value="Get Inventory"/></div>
+            <p>${fn:escapeXml(theuser.nickname)}!, <% out.println(message); %></p>
+            <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
+            <p>or enter identifying information</p>
+            <form>
+                <%
+                if (iuser != null) {
+                %>
+                <div>email<input type="text" name="email" value="${fn:escapeXml(email)}"/></div>
+                <%
+                }
+                %>
+                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}"/></div>
+                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}"/></div>
+                <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}"/></div>
+                <%
+                if (iuser == null) {
+                %>
+                <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}"/></div>
+                <%
+                }
+                %>
+                <input type="hidden" name="user_data_submited" value="user_data_submited"/>
+                <div><input type="submit" value="Submit"/></div>
             </form>
             <%
-        }
     }
     else
     {

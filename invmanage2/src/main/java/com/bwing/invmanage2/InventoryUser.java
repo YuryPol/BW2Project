@@ -44,7 +44,7 @@ public class InventoryUser {
 	  public String user_first_name;
 	  public String user_last_name;
 	  public PhoneNumber user_phone;
-	  public String user_email;
+	  public Email user_email;
 	  @Index public Date date;
 	  
 	  public InventoryUser()
@@ -52,7 +52,7 @@ public class InventoryUser {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Ref<Customer> company, User theUser, String first_name, String last_name, PhoneNumber phone, String email) throws ClassNotFoundException, SQLException
+	  public InventoryUser(Ref<Customer> company, User theUser, String first_name, String last_name, PhoneNumber phone, Email email) throws ClassNotFoundException, SQLException
 	  {
 		  this();
 		  theCustomer = company;
@@ -100,7 +100,7 @@ public class InventoryUser {
 		  
 		  for (InventoryUser iuser : iuserrs)
 		  {
-			  if (iuser.user_email.toString().equals(email))
+			  if (iuser.user_email.getEmail().equals(email))
 			  {
 				  System.out.println("User already exists: " + email);
 				  return iuser;
@@ -122,5 +122,10 @@ public class InventoryUser {
 				return iuser;
 			}
 			return null;
+	  }
+	  
+	  public Key<Customer> getCustomerKey()
+	  {
+		  return theCustomer.getKey();
 	  }
 }

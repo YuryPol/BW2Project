@@ -28,8 +28,7 @@ public class Customer {
   @Id public String company;
   public User founder;
   public Date date;
-  public String account;
-  
+   
   public Customer()
   {
 	  date = new Date();
@@ -44,7 +43,6 @@ public class Customer {
 	  String url;
 	  company = company_name;
 	  founder = user;
-	  account = company_name + "@'%'";
 	  Connection con = null;
 	  Statement st = null;
 //	  try

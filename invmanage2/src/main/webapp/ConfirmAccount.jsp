@@ -5,11 +5,11 @@
 
 <html>
 <head>
-    <title>Confirm created account</title>
+    <title>Confirm created user account</title>
     <link type="text/css" rel="stylesheet" href="/stylesheets/main.css"/>
 </head>
 <body>
-    <p>Thank you for registering</p>
+    <p>Thank you for creating user account</p>
     <%
     UserService userService = UserServiceFactory.getUserService();
     %>

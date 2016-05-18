@@ -36,9 +36,9 @@
 			%>
             <p>Hi ${fn:escapeXml(theuser.nickname)}!</p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
-            <p>or create an account with us</p>
+            <p>or create a user account</p>
             <form action="/CreateAccount.jsp" method="get">
-            <div><input type="submit" value="Create account"/></div>
+            <input type="submit" value="Create account"/>
             </form>
             <%
 		}
@@ -48,7 +48,11 @@
 	        %>
 	        <p>Hi <%= iuser.user_first_name + " " + iuser.user_last_name %></p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
-            <p>or work with available inventories, or upload a new inventory</p>
+            <p>or add another user account for your company</p>
+            <form action="/CreateAccount.jsp" method="get">
+            <input type="submit" value="Add another user"/>
+            </form>            
+            <p>or you can work with available inventories, or upload a new inventory</p>
 	        <form action="/SelectInventory.jsp" method="get">
 	        <div><input type="submit" value="Get Inventory"/></div>
 	        </form>
@@ -58,7 +62,7 @@
 	else 
 	{
 %>
-<p>You can <a href="<%= userService.createLoginURL(request.getRequestURI()) %>">sign in</a> with your Google account.</p>
+<p>You can <a href="<%= userService.createLoginURL(request.getRequestURI()) %>">sign in</a> with your Google email.</p>
 <%
     }
 %>
