@@ -26,24 +26,17 @@
     UserService userService = UserServiceFactory.getUserService();
     User theUser = userService.getCurrentUser();
     if (theUser != null) {
-        pageContext.setAttribute("theuser", theUser);
         // Create inventory user if necessary
         List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
                 // .filter("user_email", theUser.getEmail())
                 .list();
         InventoryUser iuser = InventoryUser.findInventoryUser(users, theUser.getEmail());
-        // if (iuser == null)
             // Create InventoryUser and Customer
             String user_data_submited = request.getParameter("user_data_submited");
             if (user_data_submited != null) 
             {
-                // user just submited here info
+                // user just submited her info
                 String email = "";
-                if (iuser != null)
-                {
-                	// Creating account for another user
-                	email = request.getParameter("email");
-                }
                 String first_name = request.getParameter("first_name");
                 pageContext.setAttribute("first_name", first_name);
                 String last_name = request.getParameter("last_name");
@@ -62,8 +55,6 @@
                 	company = iuser.theCustomer.get().company;
                     email = request.getParameter("email");
                 }
-                pageContext.setAttribute("company", company);
-                pageContext.setAttribute("email", email);
                 
                 if (first_name == "" || last_name == "" || phone == "" || company == "") // TODO: add more checks
                 {
@@ -94,7 +85,7 @@
                         Customer customer = new Customer(company, theUser);
                         ObjectifyService.ofy().save().entity(customer).now();
                         // Add the user and fill his properties
-                        InventoryUser newuser = new InventoryUser(Ref.create(customer), theUser, first_name, last_name, new PhoneNumber(phone), new Email(theUser.getEmail()));
+                        InventoryUser newuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone), new Email(theUser.getEmail()));
                         ObjectifyService.ofy().save().entity(newuser).now();
                         response.sendRedirect("/ConfirmAccount.jsp"); 
                    }
@@ -104,8 +95,8 @@
                 	// Create secondary user
                     // Add the user and fill his properties
                     message = "Add a new user with whom you will share your company data";
-                    Key<Customer> customerKey = iuser.getCurrentUser().getCustomerKey();
-                    InventoryUser newuser = new InventoryUser(Ref.create(customerKey), theUser, first_name, last_name, new PhoneNumber(phone), new Email(email));
+                    Key<Customer> customerKey = InventoryUser.getCurrentUser().getCustomerKey();
+                    InventoryUser newuser = new InventoryUser(Ref.create(customerKey), first_name, last_name, new PhoneNumber(phone), new Email(email));
                     ObjectifyService.ofy().save().entity(newuser).now();
                     response.sendRedirect("/ConfirmAccount.jsp"); 
                 }
@@ -113,27 +104,27 @@
             else
             {
                 // User didn't submit data yet
-                message = "Please enter the user's information";
+                message = "Please enter the new user's information";
             }
             %>
-            <p>${fn:escapeXml(theuser.nickname)}!, <% out.println(message); %></p>
+            <p>${fn:escapeXml(theUser.email)}!, <% out.println(message); %></p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
             <p>or enter identifying information</p>
             <form>
                 <%
                 if (iuser != null) {
                 %>
-                <div>email<input type="text" name="email" value="${fn:escapeXml(email)}"/></div>
+                <div>email<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
                 <%
                 }
                 %>
-                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}"/></div>
-                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}"/></div>
-                <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}"/></div>
+                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
+                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
+                <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}" required/></div>
                 <%
                 if (iuser == null) {
                 %>
-                <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}"/></div>
+                <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
                 <%
                 }
                 %>
@@ -146,9 +137,6 @@
     {
     	// Return to Start.jsp
     	response.sendRedirect(request.getContextPath() + "/start.jsp");
-//         String redirectURL = "/Start.jsp";
-//         response.sendRedirect(redirectURL);
-//            <c:redirect url="/Start.jsp"/>
     }
     %>
 
