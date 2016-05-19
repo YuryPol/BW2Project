@@ -3,19 +3,11 @@ package com.bwing.invmanage2;
 import com.googlecode.objectify.annotation.Entity;
 import com.googlecode.objectify.annotation.Id;
 
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Date;
 import java.util.List;
 
 import com.google.appengine.api.users.User;
-import com.google.appengine.api.utils.SystemProperty;
-
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**

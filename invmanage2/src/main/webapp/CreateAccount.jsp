@@ -107,7 +107,7 @@
                 message = "Please enter the new user's information";
             }
             %>
-            <p>${fn:escapeXml(theUser.email)}!, <% out.println(message); %></p>
+            <p><%out.print(theUser.getEmail());%>! <% out.println(message); %></p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
             <p>or enter identifying information</p>
             <form>
@@ -131,6 +131,10 @@
                 <input type="hidden" name="user_data_submited" value="user_data_submited"/>
                 <div><input type="submit" value="Submit"/></div>
             </form>
+	        <p>or return to starting page,</p>
+	        <form action="/" method="get">
+    	        <div><input type="submit" value="Return"/></div>
+	        </form>
             <%
     }
     else

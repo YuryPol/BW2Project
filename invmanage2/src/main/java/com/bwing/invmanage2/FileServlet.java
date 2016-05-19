@@ -22,6 +22,7 @@ import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
 import com.google.appengine.tools.cloudstorage.RetryParams;
 
+@SuppressWarnings("serial")
 public class FileServlet extends HttpServlet {
 
     private static final Logger log = Logger.getLogger(FileServlet.class.getName());
@@ -59,8 +60,7 @@ public class FileServlet extends HttpServlet {
                 stream = item.openStream();
 
                 String sfieldname = item.getFieldName();
-                String sname = item.getName();
-
+ 
                 sctype = item.getContentType();
 
                 if (item.isFormField()) 

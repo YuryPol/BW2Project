@@ -4,7 +4,6 @@ import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 

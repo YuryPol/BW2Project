@@ -13,12 +13,10 @@ import com.googlecode.objectify.Ref;
 
 import java.lang.String;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
 
-import com.google.appengine.api.users.User;
 import com.google.appengine.api.users.UserService;
 import com.google.appengine.api.users.UserServiceFactory;
 

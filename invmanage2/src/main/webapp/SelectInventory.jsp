@@ -32,7 +32,6 @@
     {
         // registered user, let her chose/create inventory
         String customer_name = iuser.theCustomer.get().company;
-        System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
         %>
         <p>You can return to starting page,</p>
@@ -68,7 +67,6 @@
         }
         else
         {
-            System.out.println("ERROR: Test inventory file was not found");
         %>
         	<p>ERROR: Test inventory file was not found</p>
         <%
@@ -110,7 +108,8 @@
             <input type="hidden" name="customer_name" value="TestInventory"/>
             <input type="submit" value="Download Test Inventory">
         </form>
-        <%        
+        <%
+        invState.close();
     }
 %>
 </body>
