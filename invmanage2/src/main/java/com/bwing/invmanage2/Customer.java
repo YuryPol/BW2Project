@@ -28,6 +28,7 @@ public class Customer {
   @Id public String company;
   public User founder;
   public Date date;
+  private static final Logger log = Logger.getLogger(Customer.class.getName());
    
   public Customer()
   {
@@ -40,60 +41,15 @@ public class Customer {
   public Customer(String company_name, User user) throws ClassNotFoundException, SQLException
   {
 	  this();
-	  String url;
 	  company = company_name;
 	  founder = user;
-	  Connection con = null;
-	  Statement st = null;
-//	  try
-//	  {
-//		  // Connect to DB
-//		  if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
-//		  {
-//			  // Load the class that provides the new "jdbc:google:mysql://"
-//			  // prefix.
-//			  Class.forName("com.mysql.jdbc.GoogleDriver");
-//			  url = "jdbc:google:mysql://<your-project-id>:<your-instance-name>/<your-database-name>?user=root";
-//		  } 
-//		  else 
-//		  {
-//			  // Local MySQL instance to use during development.
-//			  Class.forName("com.mysql.jdbc.Driver");
-//			  url = "jdbc:mysql://localhost:3306/BWdemo?user=root&password=IraAnna12";
-//		  }
-//		  con = DriverManager.getConnection(url);
-//		  st = con.createStatement();
-//		  st.executeUpdate("CREATE USER " + account + " IDENTIFIED BY " + account + "_pass WITH MAX_USER_CONNECTIONS 1");
-//	  } 
-//	  catch (SQLException ex) {
-//		  Logger lgr = Logger.getLogger(Customer.class.getName());
-//		  lgr.log(Level.SEVERE, ex.getMessage(), ex);
-//
-//	  } 
-//	  finally 
-//	  {
-//		  try 
-//		  {
-//			  if (st != null) {
-//				  st.close();
-//			  }
-//			  if (con != null) {
-//				  con.close();
-//			  }
-//		  } catch (SQLException ex) {
-//			  Logger lgr = Logger.getLogger(Customer.class.getName());
-//			  lgr.log(Level.WARNING, ex.getMessage(), ex);
-//			  throw ex;
-//		  }
-//	  }
-
   }
   
   static public Customer findCustomer(List<Customer> customers, String theCompany)
   {
 	  if (customers.isEmpty())
 	  {
-		  System.out.println("No Customers already exist");
+		  System.out.println("No Customers exist");
 		  return null;
 	  }
 	  
@@ -101,11 +57,11 @@ public class Customer {
 	  {
 		  if (icustomer.company.toString().equals(theCompany))
 		  {
-			  System.out.println("Customer already exists: " + theCompany);
+			  log.warning("Customer already exists: " + theCompany);
 			  return icustomer;
 		  }
 	  }
-	  System.out.println("No such Customer exists: " + theCompany);
+	  log.warning("No such Customer exists: " + theCompany);
 	  return null;
   }
 

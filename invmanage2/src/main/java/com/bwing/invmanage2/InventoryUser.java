@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 
 import com.google.appengine.api.users.User;
 import com.google.appengine.api.users.UserService;
@@ -40,23 +41,22 @@ public class InventoryUser {
 	  @Parent public Ref<Customer> theCustomer;
 	  @Id public Long id;
 
-	  public User user;
 	  public String user_first_name;
 	  public String user_last_name;
 	  public PhoneNumber user_phone;
 	  public Email user_email;
 	  @Index public Date date;
-	  
+	  private static final Logger log = Logger.getLogger(InventoryUser.class.getName());
+
 	  public InventoryUser()
 	  {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Ref<Customer> company, User theUser, String first_name, String last_name, PhoneNumber phone, Email email) throws ClassNotFoundException, SQLException
+	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone, Email email) throws ClassNotFoundException, SQLException
 	  {
 		  this();
 		  theCustomer = company;
-		  user = theUser;
 		  user_first_name = first_name;
 		  user_last_name = last_name;
 		  user_phone = phone;
@@ -68,33 +68,11 @@ public class InventoryUser {
 		  }
 	  }
 	  
-/*	  static public boolean ContainedIn(List<InventoryUser> users, User user)
-	  {
-		  if (users.isEmpty())
-		  {
-			  System.out.println("No InventoryUsers exists");
-			  return false;
-		  }
-		  
-		  for (InventoryUser iuser : users)
-		  {
-			  if (iuser == null)
-				  return false;
-			  else if (iuser.user.getEmail().toString().equals(user.getEmail().toString()))
-			  {
-				  System.out.println("User already exists: " + user.getEmail().toString());
-				  return true;
-			  }
-		  }
-		  System.out.println("No such InventoryUser exists: " + user.getEmail().toString());
-		  return false;
-	  }
-*/	  
 	  static public InventoryUser findInventoryUser(List<InventoryUser> iuserrs, String email)
 	  {
 		  if (iuserrs == null || iuserrs.isEmpty())
 		  {
-			  System.out.println("No Users exist");
+			  log.warning("No Users exist");
 			  return null;
 		  }
 		  
@@ -102,11 +80,11 @@ public class InventoryUser {
 		  {
 			  if (iuser.user_email.getEmail().equals(email))
 			  {
-				  System.out.println("User already exists: " + email);
+				  log.warning("User already exists: " + email);
 				  return iuser;
 			  }
 		  }
-		  System.out.println("No such User exists: " + email);
+		  log.warning("No such User exists: " + email);
 		  return null;
 	  }
 	  
