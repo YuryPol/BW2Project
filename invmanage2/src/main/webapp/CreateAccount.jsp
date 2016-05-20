@@ -120,7 +120,7 @@
                 %>
                 <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
                 <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
-                <div>Phone number <input type="text" name="phone" value="${fn:escapeXml(phone)}" required/></div>
+                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
                 <%
                 if (iuser == null) {
                 %>
