@@ -19,6 +19,16 @@
       <servlet-name>load</servlet-name>
       <url-pattern>/load</url-pattern>
   </servlet-mapping>
+  
+  <servlet>
+      <servlet-name>loadwork</servlet-name>
+      <servlet-class>com.bwing.invmanage2.Loadworker</servlet-class>
+  </servlet>
+  <servlet-mapping>
+      <servlet-name>loadwork</servlet-name>
+      <url-pattern>/loadwork</url-pattern>
+  </servlet-mapping>  
+  
   <welcome-file-list>
     <welcome-file>start.jsp</welcome-file>
   </welcome-file-list>

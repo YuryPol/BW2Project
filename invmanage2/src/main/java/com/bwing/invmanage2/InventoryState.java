@@ -15,6 +15,10 @@ import java.util.logging.Logger;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.appengine.api.modules.ModulesServiceFactory;
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import java.sql.ResultSet;
@@ -288,9 +292,18 @@ public class InventoryState implements AutoCloseable
         }
     }
     
+    public void load(String file_name)
+    {
+    	Queue queue = QueueFactory.getDefaultQueue();
+    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name)
+    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
+    			);
+    	log.warning(file_name + " processing added to default queue.");
+    }
+    
     public void load(GcsInputChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
-		//convert json input to InventroryData object
+    	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			

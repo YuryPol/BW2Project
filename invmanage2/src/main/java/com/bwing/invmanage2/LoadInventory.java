@@ -19,7 +19,6 @@ public class LoadInventory extends HttpServlet
 {
 	// Read file from the bucket and create tables in DB
    private static final Logger log = Logger.getLogger(LoadInventory.class.getName());
-   private String bucketName = "bw2project_data";
    /**Used below to determine the size of chucks to read in. Should be > 1kb and < 10MB */
    private static final int BUFFER_SIZE = 2 * 1024 * 1024;
    private final GcsService gcsService = GcsServiceFactory.createGcsService(new RetryParams.Builder()
@@ -36,7 +35,7 @@ public class LoadInventory extends HttpServlet
 
 		try (InventoryState invState = new InventoryState(customer_name)) {
 			// Process the file
-			GcsFilename gcsfileName = new GcsFilename(bucketName, file_name);
+			GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, file_name);
 			if (gcsService.getMetadata(gcsfileName) == null) {
 				// No file, request upload
 				response.getWriter().println(
@@ -48,7 +47,8 @@ public class LoadInventory extends HttpServlet
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
 			invState.clear();
-			invState.load(readChannel);
+			// invState.load(readChannel);
+			invState.load(file_name);
 			// go to allocation page
 			response.sendRedirect("/Allocate.jsp?customer=" + customer_name);
 		}

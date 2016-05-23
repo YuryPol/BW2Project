@@ -33,8 +33,6 @@ public class FileServlet extends HttpServlet {
     .totalRetryPeriodMillis(15000)
     .build());
 
-    private String bucketName = "bw2project_data";
-
     /**Used below to determine the size of chucks to read in. Should be > 1kb and < 10MB */
       private static final int BUFFER_SIZE = 2 * 1024 * 1024;
 
@@ -74,7 +72,7 @@ public class FileServlet extends HttpServlet {
 
                     sctype = item.getContentType();
 
-                    GcsFilename gcsfileName = new GcsFilename(bucketName, sfieldname);
+                    GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, sfieldname);
 
                     GcsFileOptions options = new GcsFileOptions.Builder()
                     .acl("public-read").mimeType(sctype).build();
@@ -109,7 +107,7 @@ public class FileServlet extends HttpServlet {
         try 
         {
         	// This should send the file to browser
-            GcsFilename gcsfileName = new GcsFilename(bucketName, customer_name);
+            GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, customer_name);
             GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
             copy(Channels.newInputStream(readChannel), response.getOutputStream());
             
