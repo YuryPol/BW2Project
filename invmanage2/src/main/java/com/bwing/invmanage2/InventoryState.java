@@ -292,10 +292,10 @@ public class InventoryState implements AutoCloseable
         }
     }
     
-    public void load(String file_name)
+    public void load(String file_name, String customer_name)
     {
     	Queue queue = QueueFactory.getDefaultQueue();
-    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name)
+    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
     			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
     			);
     	log.warning(file_name + " processing added to default queue.");

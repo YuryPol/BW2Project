@@ -35,20 +35,7 @@ public class LoadInventory extends HttpServlet
 
 		try (InventoryState invState = new InventoryState(customer_name)) {
 			// Process the file
-			GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, file_name);
-			if (gcsService.getMetadata(gcsfileName) == null) {
-				// No file, request upload
-				response.getWriter().println(
-						"You are missing the file with your Inventory Data. Upload it or work with Test Inventory");
-				response.sendRedirect("/SelectInventory.jsp");
-				log.warning(customer_name + " missing the file with Inventory Data");
-				return;
-			}
-			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
-
-			invState.clear();
-			// invState.load(readChannel);
-			invState.load(file_name);
+			invState.load(file_name, customer_name);
 			// go to allocation page
 			response.sendRedirect("/Allocate.jsp?customer=" + customer_name);
 		}
