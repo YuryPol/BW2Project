@@ -35,6 +35,7 @@ public class LoadInventory extends HttpServlet
 
 		try (InventoryState invState = new InventoryState(customer_name)) {
 			// Process the file
+			invState.clear();
 			invState.load(file_name, customer_name);
 			// go to allocation page
 			response.sendRedirect("/Allocate.jsp?customer=" + customer_name);

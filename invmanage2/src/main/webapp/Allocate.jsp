@@ -87,6 +87,7 @@
         	<%
         }
         invState.close();
+        response.setIntHeader("Refresh",30);
         %>
         </table>
         <%
