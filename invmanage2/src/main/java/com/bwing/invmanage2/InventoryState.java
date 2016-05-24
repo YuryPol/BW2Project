@@ -10,15 +10,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.appengine.api.modules.ModulesServiceFactory;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import java.sql.ResultSet;
@@ -62,7 +59,10 @@ public class InventoryState implements AutoCloseable
 			Class.forName("com.mysql.jdbc.Driver"); // can't find the class
 			url = "jdbc:mysql://localhost:3306?user=root&password=IraAnna12";
 		}
-    	con = DriverManager.getConnection(url);		
+		Properties info = new Properties();
+		info.setProperty("connectTimeout", "0");
+		info.setProperty("socketTimeout", "0");
+    	con = DriverManager.getConnection(url, info);		
 	}
     
     public Connection getConnection() throws SQLException
@@ -291,16 +291,7 @@ public class InventoryState implements AutoCloseable
 	        	return true;
         }
     }
-    
-    public void load(String file_name, String customer_name)
-    {
-    	Queue queue = QueueFactory.getDefaultQueue();
-    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
-    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
-    			);
-    	log.warning(file_name + " processing added to default queue.");
-    }
-    
+       
     public void load(GcsInputChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
     	//convert json input to InventroryData object

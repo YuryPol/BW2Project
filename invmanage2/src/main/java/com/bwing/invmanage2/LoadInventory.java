@@ -8,24 +8,15 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsInputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.RetryParams;
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.TaskOptions;
 
 @SuppressWarnings("serial")
 public class LoadInventory extends HttpServlet 
 {
 	// Read file from the bucket and create tables in DB
    private static final Logger log = Logger.getLogger(LoadInventory.class.getName());
-   /**Used below to determine the size of chucks to read in. Should be > 1kb and < 10MB */
-   private static final int BUFFER_SIZE = 2 * 1024 * 1024;
-   private final GcsService gcsService = GcsServiceFactory.createGcsService(new RetryParams.Builder()
-		    .initialRetryDelayMillis(10)
-		    .retryMaxAttempts(10)
-		    .totalRetryPeriodMillis(15000)
-		    .build());
 
     @Override
     public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
@@ -33,12 +24,15 @@ public class LoadInventory extends HttpServlet
         String customer_name = request.getParameter("customer_name");
         String file_name = request.getParameter("file_name");
 
-		try (InventoryState invState = new InventoryState(customer_name)) {
+		try {
 			// Process the file
-			invState.clear();
-			invState.load(file_name, customer_name);
+	    	Queue queue = QueueFactory.getDefaultQueue();
+	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
+	    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
+	    			);
+	    	log.warning(file_name + " processing added to default queue.");
 			// go to allocation page
-			response.sendRedirect("/Allocate.jsp?customer=" + customer_name);
+			response.sendRedirect("/SelectInventory.jsp");
 		}
 		catch (Exception ex) 
         {

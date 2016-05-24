@@ -14,11 +14,6 @@ import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
 import com.google.appengine.tools.cloudstorage.RetryParams;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsInputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 
 
 @SuppressWarnings("serial")
@@ -31,7 +26,6 @@ public class Loadworker  extends HttpServlet
 			    .retryMaxAttempts(10)
 			    .totalRetryPeriodMillis(15000)
 			    .build());
-
 	
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
 	{
@@ -51,6 +45,7 @@ public class Loadworker  extends HttpServlet
 			}
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
+			invState.clear();
 			invState.load(readChannel);
 		} catch (ClassNotFoundException | SQLException e) {
 			e.printStackTrace();
