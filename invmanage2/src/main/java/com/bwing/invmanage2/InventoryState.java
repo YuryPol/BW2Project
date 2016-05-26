@@ -51,7 +51,7 @@ public class InventoryState implements AutoCloseable
 			// Load the class that provides the new "jdbc:google:mysql://"
 			// prefix.
 			Class.forName("com.mysql.jdbc.GoogleDriver");
-			url = "jdbc:google:mysql://<your-project-id>:<your-instance-name>/<your-database-name>?user=root";
+			url = "jdbc:google:mysql://bw2project:bw2project?user=root&password=IraAnna12";
 		} 
 		else 
 		{
