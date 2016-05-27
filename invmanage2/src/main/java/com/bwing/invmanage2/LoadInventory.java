@@ -24,8 +24,9 @@ public class LoadInventory extends HttpServlet
         String customer_name = request.getParameter("customer_name");
         String file_name = request.getParameter("file_name");
 
-		try {
+		try (InventoryState invState = new InventoryState(customer_name)) {
 			// Process the file
+			invState.clear();
 	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
 	    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));

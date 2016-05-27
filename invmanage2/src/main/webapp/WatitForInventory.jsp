@@ -38,7 +38,7 @@
 		Waiting for	<%=customer_name%> inventory to load
 		<%
 		invState.close();
-		response.setIntHeader("Refresh",10);
+		response.setIntHeader("Refresh", 5);
     }
     %>
 </body>

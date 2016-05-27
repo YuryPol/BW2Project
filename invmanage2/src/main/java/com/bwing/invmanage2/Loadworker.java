@@ -45,7 +45,6 @@ public class Loadworker  extends HttpServlet
 			}
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
-			invState.clear();
 			invState.load(readChannel);
 		} catch (SQLException e) {
 			// TODO: that persistent SQLException must be fixed
