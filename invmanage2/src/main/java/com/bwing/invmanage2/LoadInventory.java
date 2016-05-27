@@ -30,12 +30,13 @@ public class LoadInventory extends HttpServlet
 	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
 	    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
 	    			);
-	    	log.warning(file_name + " processing added to default queue.");
+	    	log.info(file_name + " processing added to default queue.");
 			// go to allocation page
-			response.sendRedirect("/SelectInventory.jsp");
+			response.sendRedirect("/WatitForInventory.jsp");
 		}
 		catch (Exception ex) 
         {
+			log.severe(customer_name + "default queue error " + ex.toString());
             throw new ServletException(ex);
         }
     }

@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.util.logging.Logger;
 import java.io.FileInputStream;
 
 import javax.servlet.http.HttpServlet;
@@ -30,6 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 public class GcsServlet extends HttpServlet {
 
   public static final boolean SERVE_USING_BLOBSTORE_API = false;
+  private static final Logger log = Logger.getLogger(GcsServlet.class.getName());
 
   /**
    * This is where backoff parameters are configured. Here it is aggressively retrying with
@@ -75,26 +77,17 @@ public class GcsServlet extends HttpServlet {
         gcsService.createOrReplace(getFileName(req), GcsFileOptions.getDefaultInstance());
 //    Writes the payload of the incoming post as the contents of a file to GCS.
 //    copy(req.getInputStream(), Channels.newOutputStream(outputChannel));
-    InputStream is = null;
-    try
+
+    String file_path = req.getParameter("filepath");
+    try (FileInputStream is = new FileInputStream(file_path))
     {
-    	String file_path = req.getParameter("filepath");
-    	is = new FileInputStream(file_path
-//    			"C://test.txt"
-    			);
     	copy(is, Channels.newOutputStream(outputChannel));
     }
     catch(Exception e)
     {        
         // if any I/O error occurs
-        e.printStackTrace();
+		log.severe(e.toString());
     }
-    finally
-    {        
-        // releases system resources associated with this stream
-        if(is!=null)
-           is.close();
-    }    
   }
 
   private GcsFilename getFileName(HttpServletRequest req) {

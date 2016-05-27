@@ -47,9 +47,14 @@ public class Loadworker  extends HttpServlet
 
 			invState.clear();
 			invState.load(readChannel);
-		} catch (ClassNotFoundException | SQLException e) {
+		} catch (SQLException e) {
+			// TODO: that persistent SQLException must be fixed
 			e.printStackTrace();
-			log.warning(e.toString());
+			log.severe(customer_name + e.toString());
+		}
+		catch (ClassNotFoundException e) {
+			log.severe(customer_name + e.toString());			
+            throw new ServletException(e);
 		}
 	}
 		

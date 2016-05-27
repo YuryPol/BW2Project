@@ -88,6 +88,7 @@ public class FileServlet extends HttpServlet {
                 }
             }
         } catch (Exception ex) {
+        	log.severe(ex.toString());
             throw new ServletException(ex);
         }
     }
@@ -115,6 +116,7 @@ public class FileServlet extends HttpServlet {
         } 
         catch (Exception ex) 
         {
+        	log.severe(ex.toString());
             throw new ServletException(ex);
         }
    }

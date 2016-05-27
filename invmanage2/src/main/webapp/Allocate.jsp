@@ -8,6 +8,7 @@
 <%@ page import="com.googlecode.objectify.Key" %>
 <%@ page import="com.google.appengine.api.blobstore.BlobstoreServiceFactory" %>
 <%@ page import="com.google.appengine.api.blobstore.BlobstoreService" %>
+<%@ page import="java.util.logging.Logger" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
@@ -17,6 +18,7 @@
 </head>
 <body>
 <%
+    Logger log = Logger.getLogger(this.getClass().getName());
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser == null)
@@ -39,7 +41,7 @@
         {
         	alloc_Amount = Integer.parseInt(request.getParameter("alloc_Amount").trim());
         }
-        System.out.println("Customer: " + customer_name);
+        // System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
         %>
         <p>You can return to starting page,</p>
@@ -58,6 +60,7 @@
         if (alloc_Amount > 0 && set_name.length() > 0)
         {
             invState.GetItems(set_name, alloc_Amount);
+            log.info(set_name + " : " + Integer.toString(alloc_Amount));
         }
         // build availabilities forms
         ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
@@ -68,6 +71,7 @@
             int capacity = rs.getInt(2);
             int goal = rs.getInt(3);
             int availability = rs.getInt(4);
+            log.info(set_name.toString() + ", " + Integer.toString(capacity) + ", " + Integer.toString(goal)  + ", " + Integer.toString(availability));
             pageContext.setAttribute("availability", availability);
         	%>
 			<tr>
@@ -87,7 +91,7 @@
         	<%
         }
         invState.close();
-        response.setIntHeader("Refresh",30);
+        // response.setIntHeader("Refresh",30);
         %>
         </table>
         <%

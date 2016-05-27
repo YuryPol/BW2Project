@@ -78,7 +78,7 @@ public class InventoryUser {
 		  {
 			  if (iuser.user_email.getEmail().equals(email))
 			  {
-				  log.warning("User already exists: " + email);
+				  // log.warning("User already exists: " + email);
 				  return iuser;
 			  }
 		  }
