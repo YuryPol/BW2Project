@@ -31,7 +31,7 @@ public class Loadworker  extends HttpServlet
 	{
 		String file_name = request.getParameter("file");
 		String customer_name = request.getParameter("customer_name");
-		log.warning("Post loading " + file_name);
+		log.info("Post loading " + file_name);
 		try (InventoryState invState = new InventoryState(customer_name)) {
 			// Process the file
 			GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, file_name);

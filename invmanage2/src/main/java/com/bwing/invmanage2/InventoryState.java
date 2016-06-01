@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import org.mortbay.log.Log;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -369,6 +371,7 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory_ex 
         		+ " SET basesets = ?, count = ?, criteria = ?"))
         {
+        	Log.info("INSERT INTO "  + raw_inventory_ex);
 	        for (BaseSegement bs1 : base_segments.values()) {
 	        	insertStatement.setLong(1, bs1.getKeyBin()[0]);
 	        	insertStatement.setInt(2, bs1.getcapacity());
@@ -382,6 +385,7 @@ public class InventoryState implements AutoCloseable
         		+ " SELECT basesets, sum(count) as count, 0 as weight FROM " + raw_inventory_ex 
         		+ " GROUP BY basesets"))
         {
+        	Log.info("INSERT INTO " + raw_inventory);
         	insertStatement.execute();
         } // That shouldn't be necessary as raw_inventory_ex already groups them but verification is needed.
         
@@ -393,6 +397,7 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement insertStatement = con.prepareStatement("UPDATE " + raw_inventory
         		+ " SET weight = @n := @n + " + raw_inventory + ".count"))
         {
+        	Log.info("UPDATE " + raw_inventory);
         	insertStatement.execute();
         }
 
@@ -404,6 +409,7 @@ public class InventoryState implements AutoCloseable
         		+ " GROUP BY set_key) comp SET sdb.capacity = comp.capacity, "
         		+ " sdb.availability = comp.availability WHERE sdb.set_key = comp.set_key"))
         {
+        	Log.info("UPDATE " + structured_data_base);
         	insertStatement.execute();        	
         }
         
@@ -411,7 +417,8 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + structured_data_inc
         		+ " SELECT set_key, set_name, capacity, availability, goal FROM " + structured_data_base
         		+ " WHERE capacity IS NOT NULL"))
-        {       	
+        {
+        	Log.info("INSERT INTO " + structured_data_inc);
         	insertStatement.execute();        	
         }
         
@@ -419,15 +426,17 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + unions_next_rank
         		+ " SELECT * FROM " + structured_data_inc))
         {
+        	Log.info("INSERT INTO " + unions_next_rank);
         	insertStatement.execute();        	
         }
         
         // adds unions of higher ranks for all nodes to structured_data_inc
         try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".AddUnions()}"))
         {
+        	Log.info("{call " + BWdb + customer_name + ".AddUnions()}");
            	callStatement.execute();
         }
-
+        Log.info("Inventory for " + customer_name + " was loaded!");
     }
     
     public void GetItems(String set_name, int amount) throws SQLException
