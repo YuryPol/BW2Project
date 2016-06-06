@@ -13,8 +13,6 @@ import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import org.mortbay.log.Log;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +27,7 @@ public class InventoryState implements AutoCloseable
 	String customer_name;
     Connection con;
     private static ObjectMapper mapper = new ObjectMapper();
-    private static final Logger log = Logger.getLogger(InventoryState.class.getName());
+    private static final Logger Log = Logger.getLogger(InventoryState.class.getName());
     
     // DB prefix
     public static final String BWdb = "BWing_";
@@ -312,7 +310,7 @@ public class InventoryState implements AutoCloseable
 		}
 		if (highBit == 0)
 		{
-			log.warning("no data in inventory sets in " + readChannel.toString());
+			Log.warning("no data in inventory sets in " + readChannel.toString());
 			return;
 		}			
 		
@@ -340,7 +338,7 @@ public class InventoryState implements AutoCloseable
 		}
 		if (base_segments.isEmpty())
 		{
-			log.warning("no data in segments " + readChannel.toString());
+			Log.warning("no data in segments " + readChannel.toString());
 			return;
 		}
 
@@ -443,7 +441,7 @@ public class InventoryState implements AutoCloseable
     {
     	if (amount <= 0)
     	{
-			log.warning("wrong allocation = " + amount);
+			Log.warning("wrong allocation = " + amount);
 			return;
     	}
     	long set_key_is = 0;
