@@ -165,12 +165,17 @@ public class InventoryState implements AutoCloseable
         			+ "BEGIN "
         			+ "    DECLARE cnt INT;"
         			+ "    DECLARE cnt_updated INT;"
+        			
         			+ "    REPEAT "
         			+ "    SELECT count(*) INTO cnt FROM structured_data_inc;"
+        			
         			+ "    TRUNCATE unions_last_rank;"
+        			
         			+ "    INSERT INTO unions_last_rank "
         			+ "	   SELECT * FROM unions_next_rank;"
+        			
         			+ "	TRUNCATE unions_next_rank;"
+        			
         			+ "	INSERT /*IGNORE*/ INTO unions_next_rank "
         			+ "    SELECT sb.set_key_is | lr.set_key, NULL, NULL, NULL, 0 "
         			+ "	   FROM unions_last_rank lr "
@@ -284,23 +289,16 @@ public class InventoryState implements AutoCloseable
     {
         try (Statement st = con.createStatement())
         {
-        	java.sql.ResultSet rs = st.executeQuery("LOCK TABLE "+ raw_inventory_ex + " WRITE, "
+        	st.executeQuery("LOCK TABLE "+ raw_inventory_ex + " WRITE, "
         			+ raw_inventory + " WRITE, "
         			+ structured_data_inc + " WRITE, "
         			+ structured_data_base + " WRITE, "
         			+ unions_last_rank + " WRITE, "
-        			+ unions_next_rank + " WRITE"
+        			+ unions_next_rank + " WRITE, "
+        			+ structured_data_base + " AS sdbW WRITE, " 
+        			+ structured_data_base + " AS sdbR READ, "
+        			+ raw_inventory + " AS ri READ"
         			);
-//	        if (!rs.next())
-//	        {
-//	        	Log.warning("lock databases fails");
-//	        	return false;
-//	        }
-//	        else
-//	        {
-//	        	Log.warning("lock databases succeded");
-//	        	return true;
-//	        }
         }
     }
        
@@ -308,7 +306,7 @@ public class InventoryState implements AutoCloseable
     {
         try (Statement st = con.createStatement())
         {
-        	java.sql.ResultSet rs = st.executeQuery("UNLOCK TABLES");
+        	st.executeQuery("UNLOCK TABLES");
         	Log.warning("databases unlocked");
        }
     }
@@ -450,10 +448,6 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	
-        	st.execute("LOCK TABLE " 
-        			+ structured_data_base + " AS sdbW WRITE, " 
-        			+ structured_data_base + " AS sdbR READ, "
-        			+ raw_inventory+ " AS ri READ");
         	st.executeUpdate("UPDATE "
         			+ structured_data_base + " AS sdbW, "
         			+ " (SELECT set_key, SUM(ri.count) AS capacity, SUM(ri.count) AS availability FROM "
@@ -468,8 +462,6 @@ public class InventoryState implements AutoCloseable
         	Log.info("UPDATE " + structured_data_base);
         	
         	// populate inventory sets table
-        	st.execute("LOCK TABLE " + structured_data_inc + " WRITE, "
-        			+ structured_data_base + " READ");
         	st.executeUpdate("INSERT INTO " 
         			+ structured_data_inc
         			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 

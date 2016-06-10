@@ -37,6 +37,7 @@ public class Loadworker  extends HttpServlet
 		log.info("Post loading " + file_name);
 		try (InventoryState invState = new InventoryState(customer_name)) {
 			invState.lock();
+			invState.clear();
 			// Process the file
 			GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, file_name);
 			if (gcsService.getMetadata(gcsfileName) == null) {
