@@ -9,6 +9,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import com.google.appengine.tools.cloudstorage.GcsService;
@@ -31,8 +32,11 @@ public class Loadworker  extends HttpServlet
 	{
 		String file_name = request.getParameter("file");
 		String customer_name = request.getParameter("customer_name");
+		boolean isOK = true;
+		
 		log.info("Post loading " + file_name);
 		try (InventoryState invState = new InventoryState(customer_name)) {
+			invState.lock();
 			// Process the file
 			GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, file_name);
 			if (gcsService.getMetadata(gcsfileName) == null) {
@@ -46,14 +50,31 @@ public class Loadworker  extends HttpServlet
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
 			invState.load(readChannel);
+		} catch (JsonParseException e) {
+			log.severe(customer_name + e.toString());			
+			e.printStackTrace();
+			isOK = false;
 		} catch (SQLException e) {
 			// TODO: that persistent SQLException must be fixed
 			e.printStackTrace();
-			log.severe(customer_name + e.toString());
+			log.severe("Harmless but should be fixed " + customer_name + e.toString());
+			isOK = true; // it's OK until that persistent SQLException is fixed
 		}
-		catch (ClassNotFoundException e) {
-			log.severe(customer_name + e.toString());			
-            throw new ServletException(e);
+		catch (Exception e) {
+			e.printStackTrace();
+			log.severe(customer_name + e.toString());
+			isOK = false;
+		}
+		if (!isOK)
+		{
+			try (InventoryState invState = new InventoryState(customer_name)) {
+				invState.invalidate();				
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+				log.severe(customer_name + e.toString());
+			}
+
 		}
 	}
 		

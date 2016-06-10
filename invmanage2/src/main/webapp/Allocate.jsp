@@ -63,6 +63,7 @@
             log.info(set_name + " : " + Integer.toString(alloc_Amount));
         }
         // build availabilities forms
+        // TODO: check inventory status first
         ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
         while (rs.next())
         {

@@ -33,12 +33,27 @@
         	invState.close();
             response.sendRedirect("/SelectInventory.jsp");
         }
-        pageContext.setAttribute("customer_name", customer_name);
-	    %>
-		Waiting for	<%=customer_name%> inventory to load
-		<%
-		invState.close();
-		response.setIntHeader("Refresh", 5);
+        else if (!invState.isValid())
+        {
+        	invState.close();
+            %>
+            <p>ERROR! <%=customer_name%> inventory failed to load</p>
+            <p>Return to login page</p>
+            <form action="/" method="get">
+                <div>
+                    <input type="submit" value="Return" />
+                </div>
+            </form>
+            <%
+        }
+        else {
+	        //pageContext.setAttribute("customer_name", customer_name);
+		    %>
+			Waiting for	<%=customer_name%> inventory to load
+			<%
+			invState.close();
+			response.setIntHeader("Refresh", 5);
+        }
     }
     %>
 </body>
