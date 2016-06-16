@@ -19,6 +19,7 @@ import java.nio.channels.Channels;
 import java.util.logging.Logger;
 import java.io.FileInputStream;
 
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -69,24 +70,26 @@ public class GcsServlet extends HttpServlet {
    * Writes local file specified in the incoming post as the contents of a file to GCS.
    * If the request path is /gcs/Foo/Bar this will be interpreted as
    * a request to create a GCS file named Bar in bucket Foo.
+ * @throws ServletException 
    */
   @Override
-  public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException 
+  public void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException 
   {
-    GcsOutputChannel outputChannel =
-        gcsService.createOrReplace(getFileName(req), GcsFileOptions.getDefaultInstance());
 //    Writes the payload of the incoming post as the contents of a file to GCS.
 //    copy(req.getInputStream(), Channels.newOutputStream(outputChannel));
 
     String file_path = req.getParameter("filepath");
     try (FileInputStream is = new FileInputStream(file_path))
     {
+        GcsOutputChannel outputChannel =
+                gcsService.createOrReplace(getFileName(req), GcsFileOptions.getDefaultInstance());
     	copy(is, Channels.newOutputStream(outputChannel));
     }
-    catch(Exception e)
+    catch(Exception ex)
     {        
         // if any I/O error occurs
-		log.severe(e.toString());
+		log.severe(ex.toString());
+		throw new ServletException(ex);
     }
   }
 

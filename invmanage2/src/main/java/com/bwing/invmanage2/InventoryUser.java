@@ -59,11 +59,7 @@ public class InventoryUser {
 		  user_last_name = last_name;
 		  user_phone = phone;
 		  user_email = email;
-		  
-		  try (InventoryState invState = new InventoryState(theCustomer.getKey().getName().toString()))
-		  {
-			  invState.init();
-		  }
+		  InventoryState.init(theCustomer.get().company);
 	  }
 	  
 	  static public InventoryUser findInventoryUser(List<InventoryUser> iuserrs, String email)

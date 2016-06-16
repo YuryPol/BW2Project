@@ -51,29 +51,32 @@ public class Loadworker  extends HttpServlet
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
 			invState.load(readChannel);
-		} catch (JsonParseException e) {
-			log.severe(customer_name + e.toString());			
-			e.printStackTrace();
+		} catch (JsonParseException ex) {
+			log.severe(customer_name + ex.toString());			
+			ex.printStackTrace();
 			isOK = false;
-		} catch (SQLException e) {
+		} catch (SQLException ex) {
 			// TODO: that persistent SQLException must be fixed
-			e.printStackTrace();
-			log.severe("Harmless but should be fixed " + customer_name + e.toString());
-			isOK = true; // it's OK until that persistent SQLException is fixed
+			ex.printStackTrace();
+			log.severe(customer_name + ex.toString());
+			throw new ServletException(ex);
+			//isOK = true; // TODO: until persistent SQLException is fixed
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			log.severe(customer_name + e.toString());
-			isOK = false;
+		catch (Exception ex) {
+			ex.printStackTrace();
+			log.severe(customer_name + ex.toString());
+			throw new ServletException(ex);
+			// isOK = false;
 		}
 		if (!isOK)
 		{
 			try (InventoryState invState = new InventoryState(customer_name)) {
 				invState.invalidate();				
 			}
-			catch (Exception e) {
-				e.printStackTrace();
-				log.severe(customer_name + e.toString());
+			catch (Exception ex) {
+				ex.printStackTrace();
+				log.severe(customer_name + ex.toString());
+				throw new ServletException(ex);
 			}
 
 		}
