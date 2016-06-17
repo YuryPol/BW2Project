@@ -18,6 +18,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.tools.cloudstorage.GcsInputChannel;
+import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
+
 import java.sql.ResultSet;
 ;
 
@@ -498,6 +500,11 @@ public class InventoryState implements AutoCloseable
         	Log.info("{call AddUnions}");
            	callStatement.executeUpdate();
         }
+        catch (CommunicationsException ex)
+        {
+        	// TODO: ignoring it for now until we figure out how to set timeout higher than 5 sec.
+        	Log.severe("AddUnions thrown " + ex.getMessage());
+        }
         catch (Exception ex)
         {
         	Log.severe(ex.getMessage());
@@ -534,7 +541,7 @@ public class InventoryState implements AutoCloseable
     @Override
     public void close() throws SQLException
     {
-    	if(con!=null)
+    	if(con!=null && !con.isClosed())
     	{
     		unlock();
     		con.close();
