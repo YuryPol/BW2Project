@@ -15,6 +15,7 @@ import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
 import com.google.appengine.tools.cloudstorage.RetryParams;
+import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 
 
 @SuppressWarnings("serial")
@@ -32,7 +33,6 @@ public class Loadworker  extends HttpServlet
 	{
 		String file_name = request.getParameter("file");
 		String customer_name = request.getParameter("customer_name");
-		boolean isOK = true;
 		
 		log.info("Post loading " + file_name);
 		try (InventoryState invState = new InventoryState(customer_name)) {
@@ -51,34 +51,28 @@ public class Loadworker  extends HttpServlet
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
 			invState.load(readChannel);
+			log.info(file_name + " was parsed successfuly.");
 		} catch (JsonParseException ex) {
 			log.severe(customer_name + ex.toString());			
 			ex.printStackTrace();
-			isOK = false;
-		} catch (SQLException ex) {
-			// TODO: that persistent SQLException must be fixed
-			ex.printStackTrace();
-			log.severe(customer_name + ex.toString());
-			throw new ServletException(ex);
-			//isOK = true; // TODO: until persistent SQLException is fixed
+			try (InventoryState invState = new InventoryState(customer_name)) {
+				invState.invalidate();				
+			}
+			catch (Exception ex1) {
+				ex.printStackTrace();
+				log.severe(customer_name + ex1.toString());
+				throw new ServletException(ex1);
+			}
 		}
+//		catch (CommunicationsException ex)
+//		{
+//			log.severe(customer_name + ex.toString());			
+//			ex.printStackTrace();			
+//		}
 		catch (Exception ex) {
 			ex.printStackTrace();
 			log.severe(customer_name + ex.toString());
 			throw new ServletException(ex);
-			// isOK = false;
-		}
-		if (!isOK)
-		{
-			try (InventoryState invState = new InventoryState(customer_name)) {
-				invState.invalidate();				
-			}
-			catch (Exception ex) {
-				ex.printStackTrace();
-				log.severe(customer_name + ex.toString());
-				throw new ServletException(ex);
-			}
-
 		}
 	}
 		

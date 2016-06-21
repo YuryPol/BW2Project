@@ -3,8 +3,12 @@
     <application>${app.id}</application>
     <version>1</version>
     <threadsafe>true</threadsafe>
+    <sessions-enabled>true</sessions-enabled>
     
     <system-properties>
         <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
     </system-properties>
+<static-error-handlers>
+  <handler file="errorpage.jsp" />
+</static-error-handlers>
 </appengine-web-app>

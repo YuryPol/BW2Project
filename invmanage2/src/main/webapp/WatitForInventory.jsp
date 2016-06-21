@@ -2,6 +2,7 @@
 <%@ page import="com.bwing.invmanage2.InventoryState" %>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
     pageEncoding="ISO-8859-1"%>
+<%@ page import="java.util.logging.Logger" %>
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
@@ -9,10 +10,12 @@
 </head>
 <body>
 	<%
+    Logger log = Logger.getLogger(this.getClass().getName());
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser == null)
     {
+    log.warning("user was logged out");
     %>
 	<p>ERROR! You were logged out</p>
 	<p>Return to login page</p>
@@ -33,9 +36,10 @@
         	invState.close();
             response.sendRedirect("/SelectInventory.jsp");
         }
-        else if (!invState.isValid())
+        else if (invState.getStatus() == InventoryState.Status.invalid)
         {
         	invState.close();
+        	log.severe(customer_name + " inventory failed to load");
             %>
             <p>ERROR! <%=customer_name%> inventory failed to load</p>
             <p>Return to login page</p>
@@ -53,6 +57,7 @@
 			<%
 			invState.close();
 			response.setIntHeader("Refresh", 5);
+			log.info("Refreshing wait page");
         }
     }
     %>

@@ -25,8 +25,14 @@ public class LoadInventory extends HttpServlet
         String file_name = request.getParameter("file_name");
 
 		try (InventoryState invState = new InventoryState(customer_name)) {
+			if (invState.isLocked())
+			{
+		    	log.warning(customer_name + " inventory is locked");
+				// go to allocation page
+				response.sendRedirect("/SelectInventory.jsp");
+			}
 			// Process the file
-//			invState.clear();
+			invState.clear();
 	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
 	    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
@@ -37,7 +43,7 @@ public class LoadInventory extends HttpServlet
 		}
 		catch (Exception ex) 
         {
-			log.severe(customer_name + "default queue error " + ex.toString());
+			log.severe(customer_name + "error " + ex.toString());
             throw new ServletException(ex);
         }
     }

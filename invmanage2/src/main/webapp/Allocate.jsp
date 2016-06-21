@@ -43,6 +43,19 @@
         }
         // System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
+        InventoryState invState = new InventoryState(customer_name);
+        if (!invState.isLoaded())
+        {
+        	log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
+        	%>
+            <p>The inventory <%=customer_name%> is <%=invState.getStatus().name()%></p>
+            <p>Return to login page</p>
+            <form action="/" method="get">
+            <div><input type="submit" value="Return"/></div>
+            </form>
+            <%
+        }
+        else {
         %>
         <p>You can return to starting page,</p>
         <form action="/" method="get">
@@ -54,7 +67,6 @@
 		<th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>allocate</th>
 		</tr>
         <%
-        InventoryState invState = new InventoryState(customer_name);
         Statement st = invState.getConnection().createStatement();
         st.execute("USE " + InventoryState.BWdb + customer_name);
         if (alloc_Amount > 0 && set_name.length() > 0)
@@ -97,6 +109,7 @@
         </table>
         <%
      }
+    }
     %>
 
 </body>

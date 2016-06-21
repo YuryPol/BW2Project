@@ -25,6 +25,10 @@ import java.sql.ResultSet;
 
 public class InventoryState implements AutoCloseable
 {
+	public enum Status {
+		empty, clean, invalid, loaded
+	}
+
 	String customer_name;
     Connection con;
     private static ObjectMapper mapper = new ObjectMapper();
@@ -40,11 +44,14 @@ public class InventoryState implements AutoCloseable
     static final String structured_data_base = "structured_data_base";
     static final String unions_last_rank = "unions_last_rank";
     static final String unions_next_rank = "unions_next_rank";
+    static final String inventory_status = "inventory_status";
  
 	static final int BITMAP_SIZE = 64;
 	
 	public static Connection connect() throws ClassNotFoundException, SQLException
 	{
+		Log.info(Status.loaded.name());
+		
 		String url;
 		if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
 		{
@@ -92,8 +99,15 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("DROP DATABASE IF EXISTS " + BWdb + customer_name);
         	st.executeUpdate("CREATE DATABASE " + BWdb + customer_name);
         	st.execute("USE " + BWdb + customer_name);
+        	
+        	// create status table 
+        	st.executeUpdate("DROP TABLE IF EXISTS " + inventory_status);
+        	st.executeUpdate("CREATE TABLE " + inventory_status 
+        	+ " (fake_key INT DEFAULT 1, "
+        	+ " status VARCHAR(200) DEFAULT '" + Status.invalid.name()
+        	+ "', PRIMARY KEY(fake_key))");
 
-       	// create raw_inventory_ex table to fill up by impressions' counts
+        	// create raw_inventory_ex table to fill up by impressions' counts
         	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory_ex);
         	st.executeUpdate("CREATE TABLE " + raw_inventory_ex 
         	+ " (basesets BIGINT NOT NULL, "
@@ -272,6 +286,7 @@ public class InventoryState implements AutoCloseable
         			+ "   END IF; "
         			+ "END "
         			);
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
         }
     }
     
@@ -286,6 +301,7 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("TRUNCATE " + structured_data_base);
         	st.executeUpdate("TRUNCATE " + unions_last_rank);
         	st.executeUpdate("TRUNCATE " + unions_next_rank);
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
          }
     }
     
@@ -297,10 +313,34 @@ public class InventoryState implements AutoCloseable
         	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
     //    	java.sql.ResultSet rs = st.executeQuery("SELECT 1 FROM " + structured_data_base + " LIMIT 1");
 	//    	java.sql.ResultSet rs = con.getMetaData().getTables(null, null, customer_name + "_raw_inventory_ex", null);
-	        if (!rs.next() || rs.getLong(1) == 0)
+	        if (!rs.next())
+	        {
 	        	return false;
+	        }
+	        else if (rs.getLong(1) == 0)
+	        {
+	        	return false;
+	        }
 	        else
+	        {
 	        	return true;
+	        }
+        }
+    }
+
+    public Status getStatus() throws SQLException
+    {
+        try (Statement st = con.createStatement())
+        {
+        	ResultSet rs = st.executeQuery("SELECT * FROM " + inventory_status);
+        	if (rs.next())
+        	{
+        		return Status.valueOf(rs.getString(2));
+        	}
+        	else
+        	{
+        		return Status.invalid;
+        	}
         }
     }
     
@@ -317,8 +357,23 @@ public class InventoryState implements AutoCloseable
         			+ unions_next_rank + " WRITE, "
         			+ structured_data_base + " AS sdbW WRITE, " 
         			+ structured_data_base + " AS sdbR READ, "
-        			+ raw_inventory + " AS ri READ "
+        			+ raw_inventory + " AS ri READ, "
+        			+ inventory_status + " WRITE "
       			);
+        }
+    }
+    
+    public boolean isLocked() throws SQLException
+    {
+		// Do the tables exist?
+        try (Statement st = con.createStatement())
+        {
+        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
+        	return true;
+        }
+        catch (SQLException ex)
+        {
+        	return false;
         }
     }
        
@@ -336,27 +391,28 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	clear();
-        	st.executeUpdate("INSERT IGNORE INTO " + structured_data_base + " SET goal = -2147483648");
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.invalid.name() + "')");
         	Log.warning("status invalidated");
         }
     }
+    
        
-    public boolean isValid() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-        {
-        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base 
-        		+ " WHERE goal = -2147483648");
-	        if (!rs.next() || rs.getLong(1) == 0)
-	        {
-	        	return false;
-	        }
-	        else
-	        {
-	        	return true;
-	        }
-        }
-    }
+//    public boolean isValid() throws SQLException
+//    {
+//        try (Statement st = con.createStatement())
+//        {
+//        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base 
+//        		+ " WHERE goal = -2147483648");
+//	        if (!rs.next() || rs.getLong(1) == 0)
+//	        {
+//	        	return false;
+//	        }
+//	        else
+//	        {
+//	        	return true;
+//	        }
+//        }
+//    }
 
     public void load(GcsInputChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
@@ -546,75 +602,5 @@ public class InventoryState implements AutoCloseable
     		unlock();
     		con.close();
     	}
-    }
-
-    // TODO: for debugging only, remove later
-    void addUnions() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-        {
-        	Integer rcnt = st.executeUpdate("DROP PROCEDURE IF EXISTS " + BWdb + customer_name + ".AddUnions");
-        	Log.info(rcnt.toString() + " rows affected");
-        	rcnt = st.executeUpdate("CREATE PROCEDURE " + BWdb + customer_name + ".AddUnions() "
-    			+ "BEGIN "
-    			+ "    DECLARE cnt INT;"
-    			+ "    DECLARE cnt_updated INT;"
-    			
-    			+ "    REPEAT "
-    			
-    			+ "    SELECT count(*) INTO cnt FROM structured_data_inc;"
-    			
-    			+ "    TRUNCATE unions_last_rank;"
-    			
-    			+ "    INSERT INTO unions_last_rank "
-    			+ "	   SELECT * FROM unions_next_rank;"
-    			
-    			+ "	TRUNCATE unions_next_rank;"
-    			
-    			+ "	INSERT /*IGNORE*/ INTO unions_next_rank "
-    			+ "    SELECT sdbR.set_key_is | unions_last_rank.set_key, NULL, NULL, NULL, 0 "
-    			+ "	   FROM unions_last_rank "
-    			+ "    JOIN structured_data_base sdbR "
-    			+ "	   JOIN raw_inventory ri "
-    			+ "    ON  (sdbR.set_key_is & ri.basesets != 0) "
-    			+ "        AND (unions_last_rank.set_key & ri.basesets) != 0 "
-    			+ "        AND (sdbR.set_key_is | unions_last_rank.set_key) != unions_last_rank.set_key "
-    			+ "    GROUP BY sdbR.set_key_is | unions_last_rank.set_key;"
-    			
-    			+ " CALL PopulateRankWithNumbers;"
-    			
-    			+ " DELETE FROM structured_data_inc "
-    			+ "    WHERE EXISTS ("
-    			+ "        SELECT * "
-    			+ "        FROM unions_next_rank "
-    			+ "        WHERE (structured_data_inc.set_key & unions_next_rank.set_key) = structured_data_inc.set_key "
-    			+ "        AND structured_data_inc.capacity = unions_next_rank.capacity); "
-    			
-    			+ " INSERT /*IGNORE*/ INTO structured_data_inc "
-    			+ "    SELECT * FROM unions_next_rank;"
-    			
-    			+ " SELECT count(*) INTO cnt_updated FROM structured_data_inc; "
-    			
-    			+ " UNTIL  (cnt = cnt_updated) "
-    			
-    			+ " END REPEAT; "
-    			
-    			+ " DELETE FROM structured_data_inc "
-    			+ "    WHERE capacity IS NULL; "
-    			
-    			+ " UPDATE structured_data_base, structured_data_inc "
-    			+ "    SET structured_data_base.set_key = structured_data_inc.set_key "
-    			+ "    WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is "
-    			+ "    AND structured_data_base.capacity = structured_data_inc.capacity; "
-    			
-    			+ "END "
-    		);
-        	Log.info(BWdb + customer_name + ".AddUnions stored proc created");
-        }
-        catch (SQLException ex)
-        {
-        	Log.severe(ex.getMessage());
-        	throw ex;
-        }    	
     }
 }

@@ -43,7 +43,9 @@ public class InventoryUser {
 	  public String user_last_name;
 	  public PhoneNumber user_phone;
 	  public Email user_email;
+	  public boolean isPrimary;
 	  @Index public Date date;
+	  
 	  private static final Logger log = Logger.getLogger(InventoryUser.class.getName());
 
 	  public InventoryUser()
@@ -51,7 +53,7 @@ public class InventoryUser {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone, Email email) throws ClassNotFoundException, SQLException
+	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone, Email email, boolean isprimary) throws ClassNotFoundException, SQLException
 	  {
 		  this();
 		  theCustomer = company;
@@ -59,7 +61,11 @@ public class InventoryUser {
 		  user_last_name = last_name;
 		  user_phone = phone;
 		  user_email = email;
-		  InventoryState.init(theCustomer.get().company);
+		  isPrimary = isprimary;
+		  if (isprimary)
+		  {
+			  InventoryState.init(theCustomer.get().company);
+		  }
 	  }
 	  
 	  static public InventoryUser findInventoryUser(List<InventoryUser> iuserrs, String email)

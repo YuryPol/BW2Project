@@ -85,7 +85,7 @@
                         Customer customer = new Customer(company, theUser);
                         ObjectifyService.ofy().save().entity(customer).now();
                         // Add the user and fill his properties
-                        InventoryUser newuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone), new Email(theUser.getEmail()));
+                        InventoryUser newuser = new InventoryUser(Ref.create(customer), first_name, last_name, new PhoneNumber(phone), new Email(theUser.getEmail()), true);
                         ObjectifyService.ofy().save().entity(newuser).now();
                         response.sendRedirect("/ConfirmAccount.jsp"); 
                    }
@@ -96,7 +96,7 @@
                     // Add the user and fill his properties
                     message = "Add a new user with whom you will share your company data";
                     Key<Customer> customerKey = InventoryUser.getCurrentUser().getCustomerKey();
-                    InventoryUser newuser = new InventoryUser(Ref.create(customerKey), first_name, last_name, new PhoneNumber(phone), new Email(email));
+                    InventoryUser newuser = new InventoryUser(Ref.create(customerKey), first_name, last_name, new PhoneNumber(phone), new Email(email), false);
                     ObjectifyService.ofy().save().entity(newuser).now();
                     response.sendRedirect("/ConfirmAccount.jsp"); 
                 }
