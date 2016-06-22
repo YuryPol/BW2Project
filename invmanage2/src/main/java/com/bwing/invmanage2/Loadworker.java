@@ -64,11 +64,11 @@ public class Loadworker  extends HttpServlet
 				throw new ServletException(ex1);
 			}
 		}
-//		catch (CommunicationsException ex)
-//		{
-//			log.severe(customer_name + ex.toString());			
-//			ex.printStackTrace();			
-//		}
+		catch (CommunicationsException ex)
+		{
+			log.severe(customer_name + ex.toString());			
+			ex.printStackTrace();			
+		}
 		catch (Exception ex) {
 			ex.printStackTrace();
 			log.severe(customer_name + ex.toString());

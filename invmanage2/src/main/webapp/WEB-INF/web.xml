@@ -30,24 +30,16 @@
   </servlet-mapping>  
   
 	<error-page>
-	    <error-code>404</error-code>
-	    <location>/errorpage.jsp</location>
-	</error-page>
-	<error-page>
-	    <error-code>403</error-code>
-	    <location>/errorpage.jsp</location>
-	</error-page>	
-	<error-page>
 	    <exception-type>javax.servlet.ServletException</exception-type>
-	    <location>/errorpage.jsp</location>
+	    <location>/errors/errorpage.jsp</location>
 	</error-page>	
 	<error-page>
 	    <exception-type>java.io.IOException</exception-type>
-	    <location>/errorpage.jsp</location>
+	    <location>/errors/errorpage.jsp</location>
 	</error-page>  
     <error-page>
         <exception-type>java.io.SQLException</exception-type>
-        <location>/errorpage.jsp</location>
+        <location>/errors/errorpage.jsp</location>
     </error-page>  
   
   <welcome-file-list>
