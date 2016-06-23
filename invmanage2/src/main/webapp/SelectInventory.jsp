@@ -112,5 +112,6 @@
         invState.close();
     }
 %>
+<p>For instruction on prepearing inventory data <a href="https://docs.google.com/document/d/1ZeFuV26SdLloWcDnlThMhlVhj4IZlalGfmwwo50pilI/pub" target="_blank">read White Paper</a></p>
 </body>
 </html>

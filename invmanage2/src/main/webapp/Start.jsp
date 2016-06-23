@@ -48,7 +48,7 @@
 	        %>
 	        <p>Hi <%= iuser.user_first_name + " " + iuser.user_last_name %></p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
-            <p>or add another user account for your company</p>
+            <p>or add another user account for your organization</p>
             <form action="/CreateAccount.jsp" method="get">
             <input type="submit" value="Add another user"/>
             </form>            
@@ -66,6 +66,6 @@
 <%
     }
 %>
-
+<p><a href="https://docs.google.com/document/d/1ZeFuV26SdLloWcDnlThMhlVhj4IZlalGfmwwo50pilI/pub" target="_blank">Read White Paper</a></p>
 </body>
 </html>

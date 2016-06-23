@@ -43,6 +43,8 @@
                 pageContext.setAttribute("last_name", last_name);
                 String phone = request.getParameter("phone");
                 pageContext.setAttribute("phone", phone);
+                String bis_email = request.getParameter("bis_email");
+                pageContext.setAttribute("bis_email", bis_email);
                 String company;
                 if (iuser == null) 
                	{
@@ -56,7 +58,7 @@
                     email = request.getParameter("email");
                 }
                 
-                if (first_name == "" || last_name == "" || phone == "" || company == "") // TODO: add more checks
+                if (first_name == "" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add more checks
                 {
                     message = "please enter missing data";
                 }
@@ -72,10 +74,10 @@
                     if (!customers.isEmpty() && Customer.findCustomer(customers, company) != null)
                     {
                         // Customer already exists.
-                        message = "Your company already has a service with us. Contact " 
+                        message = "Your organization already has a service with us. Contact " 
                         + customers.get(0).founder.getEmail()
                         + " so s/he can add your user account."
-                        + " If you don't recognise the owner and still want to proceed modify your company name (for now)"
+                        + " If you don't recognise the owner and still want to proceed modify your organization name (for now)"
                         + " and email us at admin@baterflywing.com so we can clarify the conflict.";
                     }
                     else
@@ -94,7 +96,7 @@
                 {
                 	// Create secondary user
                     // Add the user and fill his properties
-                    message = "Add a new user with whom you will share your company data";
+                    message = "Add a new user with whom you will share your organization data";
                     Key<Customer> customerKey = InventoryUser.getCurrentUser().getCustomerKey();
                     InventoryUser newuser = new InventoryUser(Ref.create(customerKey), first_name, last_name, new PhoneNumber(phone), new Email(email), false);
                     ObjectifyService.ofy().save().entity(newuser).now();
@@ -114,17 +116,18 @@
                 <%
                 if (iuser != null) {
                 %>
-                <div>email<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
+                <div>login gmail<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
                 <%
                 }
                 %>
+                <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
                 <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
                 <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
                 <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
                 <%
                 if (iuser == null) {
                 %>
-                <div>Company <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
+                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
                 <%
                 }
                 %>
@@ -140,7 +143,7 @@
     else
     {
     	// Return to Start.jsp
-    	response.sendRedirect(request.getContextPath() + "/start.jsp");
+    	response.sendRedirect(request.getContextPath() + "/");
     }
     %>
 
