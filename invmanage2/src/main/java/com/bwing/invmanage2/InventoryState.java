@@ -326,6 +326,11 @@ public class InventoryState implements AutoCloseable
 	        	return true;
 	        }
         }
+        catch (CommunicationsException ex)
+        {
+        	Log.severe("connection problem: " + ex.getMessage());
+        	return false;
+        }
     }
 
     public Status getStatus() throws SQLException
@@ -369,11 +374,11 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
-        	return true;
+        	return false;
         }
         catch (SQLException ex)
         {
-        	return false;
+        	return true;
         }
     }
        

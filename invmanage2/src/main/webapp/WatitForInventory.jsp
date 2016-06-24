@@ -11,6 +11,7 @@
 <body>
 	<%
     Logger log = Logger.getLogger(this.getClass().getName());
+	log.info("Now waiting for inventory to load");
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser == null)
@@ -30,35 +31,34 @@
     {
         String customer_name = iuser.theCustomer.get().company;
         InventoryState invState = new InventoryState(customer_name);
-        if (invState.isLoaded())
-        {
-        	// Return to Select Inventory page
-        	invState.close();
-            response.sendRedirect("/SelectInventory.jsp");
-        }
-        else if (invState.getStatus() == InventoryState.Status.invalid)
-        {
-        	invState.close();
-        	log.severe(customer_name + " inventory failed to load");
+         if (invState.isLocked()) 
+         {
+            //pageContext.setAttribute("customer_name", customer_name);
             %>
-            <p>ERROR! <%=customer_name%> inventory failed to load</p>
-            <p>Return to login page</p>
-            <form action="/" method="get">
-                <div>
-                    <input type="submit" value="Return" />
-                </div>
-            </form>
+            Waiting for <%=customer_name%> inventory to load
             <%
-        }
-        else {
-	        //pageContext.setAttribute("customer_name", customer_name);
-		    %>
-			Waiting for	<%=customer_name%> inventory to load
-			<%
-			invState.close();
-			response.setIntHeader("Refresh", 5);
-			log.info("Refreshing wait page");
-        }
+            invState.close();
+            response.setIntHeader("Refresh", 5);
+            log.info("Refreshing wait page");
+         }
+         else if (invState.isLoaded())
+         {
+             // Return to Select Inventory page
+             invState.close();
+             response.sendRedirect("/SelectInventory.jsp");
+         }
+//          else if (invState.getStatus() == InventoryState.Status.invalid)
+//          {
+//         	invState.close();
+//         	log.severe(customer_name + " inventory failed to load");
+         %>
+         <p>Return to login page</p>
+         <form action="/" method="get">
+             <div>
+                 <input type="submit" value="Return" />
+             </div>
+         </form>
+         <%
     }
     %>
 </body>

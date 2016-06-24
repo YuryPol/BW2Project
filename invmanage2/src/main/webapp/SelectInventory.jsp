@@ -45,7 +45,7 @@
         	if (invState.isLoaded())
         	{
         		%>
-		        <p>Allocate items in your inventory,</p>
+		        <p>Allocate impressions from the inventory</p>
 		        <form action="/Allocate.jsp" method="get">
 		        <div><input type="submit" value="Allocate"/></div>
 		        </form>
@@ -82,7 +82,7 @@
 		        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
 	        </form>
             <p>or upload new data</p>
-	    <% 
+	    <%  
 	    }
 	    %>        
         <p>Upload a new inventory data file</p>
@@ -112,6 +112,6 @@
         invState.close();
     }
 %>
-<p>For instruction on prepearing inventory data <a href="https://docs.google.com/document/d/1ZeFuV26SdLloWcDnlThMhlVhj4IZlalGfmwwo50pilI/pub" target="_blank">read White Paper</a></p>
+<p>For instruction on preparing inventory data <a href="https://docs.google.com/document/d/1ZeFuV26SdLloWcDnlThMhlVhj4IZlalGfmwwo50pilI/pub" target="_blank">read White Paper</a></p>
 </body>
 </html>

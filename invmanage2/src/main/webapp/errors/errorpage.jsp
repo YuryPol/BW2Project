@@ -40,7 +40,7 @@
         String message = "no errors found";
         if (throwable != null)
         {
-            message = "ERROR! please provide correct data " + throwable.getMessage();
+            message = "ERROR! exception " + throwable.getMessage();
         }
         else if (statusCode != null)
         {
