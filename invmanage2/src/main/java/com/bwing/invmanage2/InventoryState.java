@@ -402,23 +402,6 @@ public class InventoryState implements AutoCloseable
     }
     
        
-//    public boolean isValid() throws SQLException
-//    {
-//        try (Statement st = con.createStatement())
-//        {
-//        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base 
-//        		+ " WHERE goal = -2147483648");
-//	        if (!rs.next() || rs.getLong(1) == 0)
-//	        {
-//	        	return false;
-//	        }
-//	        else
-//	        {
-//	        	return true;
-//	        }
-//        }
-//    }
-
     public void load(GcsInputChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
     	//convert json input to InventroryData object
