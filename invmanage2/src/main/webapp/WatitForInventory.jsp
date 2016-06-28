@@ -36,7 +36,11 @@
             //pageContext.setAttribute("customer_name", customer_name);
             %>
             Waiting for <%=customer_name%> inventory to load
-            <%
+		    <p id="demo"></p>   
+		    <script>
+		    document.getElementById("demo").innerHTML = Date();
+		    </script>    
+		    <%
             invState.close();
             response.setIntHeader("Refresh", 5);
             log.info("Refreshing wait page");
@@ -47,18 +51,6 @@
              invState.close();
              response.sendRedirect("/SelectInventory.jsp");
          }
-//          else if (invState.getStatus() == InventoryState.Status.invalid)
-//          {
-//         	invState.close();
-//         	log.severe(customer_name + " inventory failed to load");
-         %>
-         <p>Return to login page</p>
-         <form action="/" method="get">
-             <div>
-                 <input type="submit" value="Return" />
-             </div>
-         </form>
-         <%
     }
     %>
 </body>
