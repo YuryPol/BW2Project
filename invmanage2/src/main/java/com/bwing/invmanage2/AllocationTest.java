@@ -31,7 +31,26 @@ public class AllocationTest {
             	int count = rs.getInt(1);
             	if (count == 0)
             	{
-          			log.info("Completed sucessfuly");
+          			log.info("Allocations completed sucessfuly");
+          			
+          			// check totals 
+          			rs = st.executeQuery("SELECT SUM(goal) FROM structured_data_base"); 
+          			rs.next();
+          			int totalGoal = rs.getInt(1);
+          			rs = st.executeQuery("SELECT SUM(availability) FROM structured_data_base"); 
+          			rs.next();
+          			int total_availability = rs.getInt(1);
+          			rs = st.executeQuery("SELECT SUM(count) FROM raw_inventory");
+          			rs.next();
+          			int total_capacity = rs.getInt(1);
+          			if (total_capacity != totalGoal + total_availability)
+          			{
+          				log.severe("But there is a problem with capacity, goal, availability");
+          				log.severe(Integer.toString(total_capacity) + ", "
+          						+ Integer.toString(totalGoal) + ", "
+         						+ Integer.toString(total_availability));
+         						          						
+          			}
           			invState.close();
           			return;            		
             	}
