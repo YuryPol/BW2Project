@@ -45,7 +45,7 @@
             response.setIntHeader("Refresh", 5);
             log.info("Refreshing wait page");
          }
-         else if (invState.isLoaded())
+         else // if (invState.isLoaded())
          {
              // Return to Select Inventory page
              invState.close();
