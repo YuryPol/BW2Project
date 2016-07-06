@@ -132,7 +132,9 @@
                 }
                 %>
                 <input type="hidden" name="user_data_submited" value="user_data_submited"/>
-                <div><input type="submit" value="Submit"/></div>
+                <div>
+                <input type="submit" value="Create Account"/> By creating account you accept the Terms of Service: <a href="https://docs.google.com/document/d/1ma2MWrMIqV8CUuFqa_9kPUzDEcGGUWJ27lPOpJyXzJA/pub" target="_blank">Read Terms of Service</a>                
+                </div>
             </form>
 	        <p>or return to starting page,</p>
 	        <form action="/" method="get">
