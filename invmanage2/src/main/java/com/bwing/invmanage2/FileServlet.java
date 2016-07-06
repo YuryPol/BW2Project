@@ -35,6 +35,7 @@ public class FileServlet extends HttpServlet {
 
     /**Used below to determine the size of chucks to read in. Should be > 1kb and < 10MB */
       private static final int BUFFER_SIZE = 2 * 1024 * 1024;
+      private static final int MAX_FILE_LENGTH = 100 * 1024; // 100 KB limit for free version TODO: set higher for professional version.
 
     // @SuppressWarnings("unchecked")
     @Override
@@ -121,13 +122,20 @@ public class FileServlet extends HttpServlet {
         }
    }
 
-    private void copy(InputStream input, OutputStream output) throws IOException {
+    private void copy(InputStream input, OutputStream output) throws Exception {
+    	int length = 0;
         try {
           byte[] buffer = new byte[BUFFER_SIZE];
           int bytesRead = input.read(buffer);
           while (bytesRead != -1) {
+          	if (length > MAX_FILE_LENGTH)
+        	{
+          		log.severe("Inventory file length exceeds " + Integer.toString(MAX_FILE_LENGTH) + " bytes");
+        		throw new ServletException("Inventory file length exceeds " + Integer.toString(MAX_FILE_LENGTH) + " bytes");
+        	}
             output.write(buffer, 0, bytesRead);
             bytesRead = input.read(buffer);
+            length += bytesRead;
           }
         } finally {
           input.close();
