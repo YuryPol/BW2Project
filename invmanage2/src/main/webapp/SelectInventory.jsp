@@ -52,6 +52,12 @@
 		        <p>Or you can start over and re-initialize your inventory</p>
         		<%
         	}
+        	else 
+        	{
+        		%>
+        		<p>No initialized inventory exists</p>
+        		<%
+        	}
         }
         InventoryFile testFile = new InventoryFile("TestInventory");
         if (testFile.isLoaded())

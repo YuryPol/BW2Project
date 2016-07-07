@@ -109,7 +109,8 @@
                 message = "Please enter the new user's information";
             }
             %>
-            <p><%out.print(theUser.getEmail());%>! <% out.println(message); %></p>
+            <p><%= iuser.user_first_name + " " + iuser.user_last_name %>! 
+            <% out.println(message); %></p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
             <p>or enter identifying information</p>
             <form>

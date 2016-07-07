@@ -83,7 +83,7 @@ public class FileServlet extends HttpServlet {
 
                     copy(stream, Channels.newOutputStream(outputChannel));
 
-                    response.sendRedirect("/"); // redirect to LoadInventory 
+                    response.sendRedirect("/SelectInventory.jsp"); // redirect to SelectInventory 
                     
                     break; // We don't want to upload multiple files for now
                 }
