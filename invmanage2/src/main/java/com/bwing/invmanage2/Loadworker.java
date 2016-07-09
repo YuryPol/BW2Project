@@ -22,7 +22,7 @@ import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 public class Loadworker  extends HttpServlet
 {
 	private static final Logger log = Logger.getLogger(Loadworker.class.getName());
-	private static final int BUFFER_SIZE = 2 * 1024 * 1024;
+	public static final int BUFFER_SIZE = 2 * 1024 * 1024;
 	private final GcsService gcsService = GcsServiceFactory.createGcsService(new RetryParams.Builder()
 			    .initialRetryDelayMillis(10)
 			    .retryMaxAttempts(10)

@@ -2,6 +2,7 @@ package com.bwing.invmanage2;
 
 import java.io.IOException;
 import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -402,7 +403,7 @@ public class InventoryState implements AutoCloseable
     }
     
        
-    public void load(GcsInputChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
+    public void load(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
