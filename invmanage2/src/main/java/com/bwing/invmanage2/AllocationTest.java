@@ -5,7 +5,6 @@ import java.sql.Statement;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.sql.ResultSet;
@@ -15,11 +14,6 @@ import java.util.logging.Logger;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsInputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 
 public class AllocationTest {
 
@@ -31,23 +25,23 @@ public class AllocationTest {
 		String file_name = args[0];
 		String customer_name = args[1];
 
-		// Initialize inventory
-		InventoryState invState = new InventoryState(customer_name);
-		invState.lock();
-		invState.clear();
-		// Process the file
-
-		InputStream in = null;
-		ReadableByteChannel readChannel = null;
-		ResultSet rs = null;
 		try {
-			// opens a file to read from the given location
-			in = new FileInputStream(file_name);
-
-			// returns ReadableByteChannel instance to read the file
-			readChannel = Channels.newChannel(in);
-
 			for (int ind = 0; ind < 100; ind++) {
+				// Initialize inventory
+				InventoryState invState = new InventoryState(customer_name);
+				invState.lock();
+				invState.clear();
+				// Process the file
+
+				InputStream in = null;
+				ReadableByteChannel readChannel = null;
+				ResultSet rs = null;
+				// opens a file to read from the given location
+				in = new FileInputStream(file_name);
+
+				// returns ReadableByteChannel instance to read the file
+				readChannel = Channels.newChannel(in);
+
 				invState.load(readChannel);
 				log.info(file_name + " was parsed successfuly.");
 
@@ -120,11 +114,6 @@ public class AllocationTest {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-			in.close();
-			readChannel.close();
-			rs.close();
-			invState.close();
 		}
 	}
 }
