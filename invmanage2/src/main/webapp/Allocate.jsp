@@ -49,7 +49,7 @@
         	log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
         	%>
             <p>The inventory <%=customer_name%> is <%=invState.getStatus().name()%></p>
-            <p>Return to login page</p>
+            <p>Return to start page</p>
             <form action="/" method="get">
             <div><input type="submit" value="Return"/></div>
             </form>
@@ -107,6 +107,13 @@
         // response.setIntHeader("Refresh",30);
         %>
         </table>
+        <p>
+        Or run the simulation
+        <form action="startsimulate" method="get">
+        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+        <div><input type="submit" value="Run Simulation"/></div>
+        </form>
+        </p>
         <%
      }
     }

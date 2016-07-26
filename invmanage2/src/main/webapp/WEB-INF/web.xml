@@ -11,6 +11,7 @@
       <servlet-name>gcs</servlet-name>
       <url-pattern>/gcs</url-pattern>
   </servlet-mapping>  
+  
   <servlet>
       <servlet-name>load</servlet-name>
       <servlet-class>com.bwing.invmanage2.LoadInventory</servlet-class>
@@ -18,8 +19,7 @@
   <servlet-mapping>
       <servlet-name>load</servlet-name>
       <url-pattern>/load</url-pattern>
-  </servlet-mapping>
-  
+  </servlet-mapping>  
   <servlet>
       <servlet-name>loadwork</servlet-name>
       <servlet-class>com.bwing.invmanage2.Loadworker</servlet-class>
@@ -29,6 +29,23 @@
       <url-pattern>/loadwork</url-pattern>
   </servlet-mapping>  
   
+  <servlet>
+      <servlet-name>startsimulate</servlet-name>
+      <servlet-class>com.bwing.invmanage2.StartSimulation</servlet-class>
+  </servlet>
+  <servlet-mapping>
+      <servlet-name>startsimulate</servlet-name>
+      <url-pattern>/startsimulate</url-pattern>
+  </servlet-mapping>
+  <servlet>
+      <servlet-name>simulate</servlet-name>
+      <servlet-class>com.bwing.invmanage2.Simulation</servlet-class>
+  </servlet>
+  <servlet-mapping>
+      <servlet-name>simulate</servlet-name>
+      <url-pattern>/simulate</url-pattern>
+  </servlet-mapping>
+    
 	<error-page>
 	    <exception-type>javax.servlet.ServletException</exception-type>
 	    <location>/errors/errorpage.jsp</location>
