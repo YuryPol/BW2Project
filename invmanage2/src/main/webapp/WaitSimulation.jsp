@@ -36,6 +36,7 @@
         String customer_name = iuser.theCustomer.get().company;
         InventoryState invState = new InventoryState(customer_name);
         String message = request.getParameter("message");
+        if (message != null && message.equals("wasRunning")){
         	%>
         	<p>Simulation was already running</p>
 		    <p>Return to start page</p>

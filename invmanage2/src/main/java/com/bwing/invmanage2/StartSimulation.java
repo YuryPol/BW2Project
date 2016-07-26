@@ -27,14 +27,24 @@ public class StartSimulation extends HttpServlet {
 		// Start simulation task
 		String customer_name = request.getParameter("customer_name");
 		try (InventoryState invState = new InventoryState(customer_name)) {
+//			invState.lock();
 			Connection con = invState.getConnection();
 
 			DatabaseMetaData dbm = con.getMetaData();
 			// check if "result_serving" table is there
+			ResultSet tables = dbm.getTables(null, null, "result_serving", null);
+			if (tables.next()) {
+				log.warning("Table " + customer_name + ".result_serving already exists, somebody else is running the simulation");
+				response.sendRedirect("/WaitSimulation.jsp?message=wasRunning");
+			} else {
+				// Table does not exist, go ahead
+				PreparedStatement createResultServingTable = con.prepareStatement("CREATE TABLE result_serving  ENGINE=MEMORY AS SELECT *, 0 AS served_count FROM structured_data_base;");
 	            createResultServingTable.executeUpdate();			
 		    	Queue queue = QueueFactory.getDefaultQueue();
 		    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
 		    	log.info(customer_name + " simulation added to default queue.");
+				// go to waiting page
+				response.sendRedirect("/WaitSimulation.jsp");
 			}
 		} catch (ClassNotFoundException | SQLException ex) {
 			log.severe(customer_name + "error " + ex.toString());
