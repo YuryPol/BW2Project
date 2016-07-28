@@ -109,7 +109,7 @@
         </table>
         <p>
         Or run the simulation
-        <form action="startsimulate" method="get">
+        <form action="/startsimulate" method="get">
         <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
         <div><input type="submit" value="Run Simulation"/></div>
         </form>

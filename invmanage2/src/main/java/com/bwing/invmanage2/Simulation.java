@@ -39,6 +39,7 @@ public class Simulation extends HttpServlet {
             if (!rs.next())
             	return; // no raw data
             int max_weight = Math.abs(rs.getInt(1));
+            PreparedStatement somethingLeft = con.prepareStatement("select max(goal - served_count) as maxRemained from result_serving");
             PreparedStatement getRequest = con.prepareStatement("select basesets from raw_inventory where weight >= ? order by weight asc limit 1");
             PreparedStatement choseInventorySet = con.prepareStatement(
             		"select set_key_is, (goal-served_count)/goal as weight_now from result_serving "
@@ -49,6 +50,13 @@ public class Simulation extends HttpServlet {
             // Process raw inventory
             //
             for(int i = 0; i < max_weight; i += increment) {
+            	// Are some unfulfilled goals left?
+                rs = somethingLeft.executeQuery();
+                if (!rs.next())
+                	break; // shouldn't happen
+                if (rs.getInt("maxRemained") <= 0)
+                	break; // all goals are fulfilled.            	
+            	
 	            // create the request
             	rand_weight = rand.nextInt(max_weight);
 	            getRequest.setInt(1, rand_weight);
@@ -82,7 +90,8 @@ public class Simulation extends HttpServlet {
 	                        + String.valueOf(missed_count) + "\r");            	
 	            }
             }
-            PreparedStatement createResultServingTable = con.prepareStatement("DROP TABLE IF EXISTS result_serving;");
+            PreparedStatement dropResultServingTable = con.prepareStatement("DROP TABLE IF EXISTS result_serving;");
+            dropResultServingTable.executeUpdate();
             log.info(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
             		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));            	
 		} catch (ClassNotFoundException | SQLException ex) {

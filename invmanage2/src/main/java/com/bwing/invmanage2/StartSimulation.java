@@ -6,6 +6,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -44,11 +45,15 @@ public class StartSimulation extends HttpServlet {
 		    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
 		    	log.info(customer_name + " simulation added to default queue.");
 				// go to waiting page
+		    	TimeUnit.SECONDS.sleep(1);
 				response.sendRedirect("/WaitSimulation.jsp");
 			}
 		} catch (ClassNotFoundException | SQLException ex) {
 			log.severe(customer_name + "error " + ex.toString());
             throw new ServletException(ex);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 }
