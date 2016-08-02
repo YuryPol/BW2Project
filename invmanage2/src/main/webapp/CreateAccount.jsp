@@ -109,7 +109,6 @@
                 message = "Please enter the new user's information";
             }
             %>
-            <p><%= iuser.user_first_name + " " + iuser.user_last_name %>! 
             <% out.println(message); %></p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>
             <p>or enter identifying information</p>
@@ -117,6 +116,7 @@
                 <%
                 if (iuser != null) {
                 %>
+                <p><%= iuser.user_first_name + " " + iuser.user_last_name %>! 
                 <div>login gmail<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
                 <%
                 }
