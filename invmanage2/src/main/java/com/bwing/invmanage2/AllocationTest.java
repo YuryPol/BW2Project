@@ -98,7 +98,7 @@ public class AllocationTest {
 						int alloc_Amount = ThreadLocalRandom.current().nextInt(1, availability + 1);
 
 						log.info(set_name + " : " + Integer.toString(alloc_Amount));
-						invState.GetItems(set_name, alloc_Amount);
+						invState.GetItems(set_name, "", alloc_Amount);
 
 						rs = st.executeQuery("SELECT set_name FROM structured_data_base WHERE availability < 0");
 						if (rs.next()) {

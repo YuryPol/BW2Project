@@ -9,7 +9,9 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.SimpleDateFormat;
 import java.util.BitSet;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -45,6 +47,7 @@ public class InventoryState implements AutoCloseable
     static final String structured_data_base = "structured_data_base";
     static final String unions_last_rank = "unions_last_rank";
     static final String unions_next_rank = "unions_next_rank";
+    static final String allocation_ledger = "allocation_protocol";
     static final String inventory_status = "inventory_status";
  
 	static final int BITMAP_SIZE = 64;
@@ -162,6 +165,16 @@ public class InventoryState implements AutoCloseable
     	    + "availability INT DEFAULT NULL, " 
     	    + "goal INT DEFAULT 0, "
     	    + "PRIMARY KEY(set_key))");
+        	
+        	st.executeUpdate("DROP TABLE IF EXISTS " + allocation_ledger);
+        	st.executeUpdate("CREATE TABLE " + allocation_ledger
+            	    + " (set_key BIGINT DEFAULT NULL, "
+            	    + "set_name VARCHAR(20) DEFAULT NULL, "
+            	    + "capacity INT DEFAULT NULL, " 
+            	    + "availability INT DEFAULT NULL, " 
+            	    + "advertiserID  VARCHAR(80) DEFAULT NULL, "
+            	    + "goal INT DEFAULT 0, "
+            	    + "PRIMARY KEY(advertiserID))");
         	
         	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
         	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
@@ -302,6 +315,7 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("TRUNCATE " + structured_data_base);
         	st.executeUpdate("TRUNCATE " + unions_last_rank);
         	st.executeUpdate("TRUNCATE " + unions_next_rank);
+        	st.executeUpdate("TRUNCATE " + allocation_ledger);
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
          }
     }
@@ -364,6 +378,7 @@ public class InventoryState implements AutoCloseable
         			+ structured_data_base + " AS sdbW WRITE, " 
         			+ structured_data_base + " AS sdbR READ, "
         			+ raw_inventory + " AS ri READ, "
+        			+ allocation_ledger + " WRITE, "
         			+ inventory_status + " WRITE "
       			);
         }
@@ -558,13 +573,19 @@ public class InventoryState implements AutoCloseable
         Log.info("Inventory for " + customer_name + " was loaded!");
     }
     
-    public void GetItems(String set_name, int amount) throws SQLException
+    public void GetItems(String set_name, String advertiserID, int amount) throws SQLException
     {
     	if (amount <= 0)
     	{
 			Log.warning("wrong allocation = " + amount);
 			return;
     	}
+    	if (advertiserID.length() == 0)
+    	{
+    		// replace advertiser ID with time-stamp
+    		advertiserID = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date());
+    	}
+    	
     	long set_key_is = 0;
     	
     	String query = "SELECT set_key_is FROM structured_data_base WHERE set_name = '" + set_name + "'";
@@ -574,12 +595,22 @@ public class InventoryState implements AutoCloseable
     		rs.next();
     		set_key_is = rs.getLong(1);
     	}
+    	
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?)}"))
     	{
     		callStatement.setLong(1, set_key_is);
     		callStatement.setInt(2, amount);
     		callStatement.execute();
     	}    			
+    	
+    	int result = 0;
+    	try (PreparedStatement statement = con.prepareStatement(
+    	"INSERT INTO " + allocation_ledger + " (set_name, advertiserID, goal) VALUES ('"
+    	+ set_name + "','" + advertiserID + "','" + String.valueOf(amount) 
+    	+ "') ON DUPLICATE KEY UPDATE goal = VALUES(goal) + goal" ))
+    	{
+    		result = statement.executeUpdate();
+    	}
     }
     
     

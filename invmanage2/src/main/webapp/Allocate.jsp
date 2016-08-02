@@ -37,9 +37,11 @@
         String set_name = request.getParameter("set_name");
         String customer_name = iuser.theCustomer.get().company;
         int alloc_Amount = 0;
+        String advertiserID = "";
         if (request.getParameter("alloc_Amount") != null)
         {
-        	alloc_Amount = Integer.parseInt(request.getParameter("alloc_Amount").trim());
+            alloc_Amount = Integer.parseInt(request.getParameter("alloc_Amount").trim());
+            advertiserID = request.getParameter("advertiserID").trim();
         }
         // System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
@@ -64,14 +66,14 @@
         <p>Or work with your inventory</p>
         <table border="1">
 		<tr>
-		<th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>allocate</th>
+		<th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>advertiser ID</th><th>allocate</th>
 		</tr>
         <%
         Statement st = invState.getConnection().createStatement();
         st.execute("USE " + InventoryState.BWdb + customer_name);
         if (alloc_Amount > 0 && set_name.length() > 0)
         {
-            invState.GetItems(set_name, alloc_Amount);
+            invState.GetItems(set_name, advertiserID, alloc_Amount);
             log.info(set_name + " : " + Integer.toString(alloc_Amount));
         }
         // build availabilities forms
@@ -92,13 +94,19 @@
             <td><%=capacity%></td>
             <td><%=goal%></td>
             <td><%=availability%></td>
-			<td>
-				<form>
-                <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
-                <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-                <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(availability)}" required/>
-				<input type="submit" value="Submit"/>
-				</form>
+			<form>
+            <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
+            <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+            <td>
+            <input type="text" name="advertiserID" required/>
+            </td>
+            <td>
+            <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(availability)}" required/>
+            </td>
+            <td>
+			<input type="submit" value="Submit"/>
+			</td>
+			</form>
 			</td>
 			</tr>
         	<%
