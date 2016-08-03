@@ -24,11 +24,11 @@
     if (iuser == null)
     {
         %>
-        <p>ERROR! You were logged out</p>
-        <p>Return to login page</p>
+        <p>ERROR! You were logged out. Return to login page: 
         <form action="/" method="get">
         <div><input type="submit" value="Return"/></div>
         </form>
+        </p>
         <%
     }
     else 
@@ -50,18 +50,17 @@
         {
         	log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
         	%>
-            <p>The inventory <%=customer_name%> is <%=invState.getStatus().name()%></p>
-            <p>Return to start page</p>
+            <p>The inventory <%=customer_name%> is <%=invState.getStatus().name()%>>: Return to start page 
             <form action="/" method="get">
             <div><input type="submit" value="Return"/></div>
             </form>
+            </p>
             <%
         }
         else {
         %>
-        <p>You can return to starting page,</p>
         <form action="/" method="get">
-        <div><input type="submit" value="Return"/></div>
+        You can return to starting page: <input type="submit" value="Return"/>
         </form>
         <p>Or work with your inventory</p>
         <table border="1">
@@ -112,16 +111,17 @@
         	<%
         }
         invState.close();
-        // response.setIntHeader("Refresh",30);
         %>
         </table>
-        <p>
-        Or run the simulation
+        <br>        
         <form action="/startsimulate" method="get">
         <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-        <div><input type="submit" value="Run Simulation"/></div>
+        Or run the simulation: <input type="submit" value="Run"/>
         </form>
-        </p>
+        <br>
+        <form action="/AllocationReport.jsp" method="get">
+        Or show allocation report  <input type="submit" value="Report"/>
+        </form>       
         <%
      }
     }

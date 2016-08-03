@@ -48,13 +48,13 @@
 	        %>
 	        <p>Hi <%= iuser.user_first_name + " " + iuser.user_last_name %></p>
             <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out,</a></p>
-            <p>or add another user account for your organization</p>
+            
             <form action="/CreateAccount.jsp" method="get">
-            <input type="submit" value="Add another user"/>
-            </form>            
-            <p>or you can work with available inventories, or upload a new inventory</p>
-	        <form action="/SelectInventory.jsp" method="get">
-	        <div><input type="submit" value="Get Inventory"/></div>
+            Or add another user account for your organization <input type="submit" value="Add another user"/>
+            </form>
+            <br>            
+ 	        <form action="/SelectInventory.jsp" method="get">
+	        Or you can work with available inventories, or upload a new inventory <input type="submit" value="Work with Inventory"/>
 	        </form>
 	        <%
 		}

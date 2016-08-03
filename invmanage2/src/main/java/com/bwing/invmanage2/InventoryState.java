@@ -587,13 +587,16 @@ public class InventoryState implements AutoCloseable
     	}
     	
     	long set_key_is = 0;
-    	
-    	String query = "SELECT set_key_is FROM structured_data_base WHERE set_name = '" + set_name + "'";
+    	long capacity =0;
+    	long availability;
+    	String query = "SELECT set_key_is, capacity, availability FROM structured_data_base WHERE set_name = '" + set_name + "'";
     	try (Statement statement = con.createStatement())
     	{
     		ResultSet rs = statement.executeQuery(query);
     		rs.next();
     		set_key_is = rs.getLong(1);
+    		capacity = rs.getInt(2);
+    		availability = rs.getInt(3);
     	}
     	
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?)}"))
@@ -605,8 +608,13 @@ public class InventoryState implements AutoCloseable
     	
     	int result = 0;
     	try (PreparedStatement statement = con.prepareStatement(
-    	"INSERT INTO " + allocation_ledger + " (set_name, advertiserID, goal) VALUES ('"
-    	+ set_name + "','" + advertiserID + "','" + String.valueOf(amount) 
+    	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal) VALUES ('"
+    	+ String.valueOf(set_key_is) + "','" 
+    	+ set_name + "','"
+    	+ String.valueOf(capacity) + "','" 
+    	+ String.valueOf(availability) + "','" 
+    	+ advertiserID + "','" 
+    	+ String.valueOf(amount) 
     	+ "') ON DUPLICATE KEY UPDATE goal = VALUES(goal) + goal" ))
     	{
     		result = statement.executeUpdate();
