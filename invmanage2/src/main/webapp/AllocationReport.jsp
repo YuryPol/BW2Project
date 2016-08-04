@@ -38,38 +38,43 @@
         InventoryState invState = new InventoryState(customer_name);
         Date date = new Date();
         %>
-        Report for <%=customer_name%> inventory allocations as of <%=date.toString() %>
+        <p>Report for <%=customer_name%> inventory allocations as of <%=date.toString() %></p>
+        <br>
         <table border="1">
         <tr>
-        <th>name</th><th>capacity</th><th>availability</th><th>advertiser ID</th><th>goal</th>
+        <th>name</th><th>capacity</th><th>advertiser ID</th><th>goal</th>
         <%
         Statement st = invState.getConnection().createStatement();
         st.execute("USE " + InventoryState.BWdb + customer_name);
         // TODO: check inventory status first
-        ResultSet rs = st.executeQuery("SELECT set_name, capacity, availability, advertiserID, goal FROM allocation_protocol");
+        ResultSet rs = st.executeQuery("SELECT set_name, capacity, advertiserID, goal FROM " + InventoryState.allocation_ledger);
+        int total_goal = 0;
         while (rs.next())
         {
             String set_name = rs.getString(1);
             int capacity = rs.getInt(2);
-            int availability = rs.getInt(3);
-            String advertiserID = rs.getString(4);
-            int goal = rs.getInt(5);
+            String advertiserID = rs.getString(3);
+            int goal = rs.getInt(4);
+            total_goal += goal;            
             %>
             <tr>
             <td><%=set_name%></td>
             <td><%=capacity%></td>
-             <td><%=availability%></td>
             <td><%=advertiserID%>
             <td><%=goal%></td>
             </tr>
             <%
         }
+        rs = st.executeQuery("SELECT SUM(count) FROM " + InventoryState.raw_inventory);
+        rs.next();
+        int total_availability = rs.getInt(1) - total_goal;
         invState.close();
         %>
         </table>
+        <p>Allocated <%=total_goal%> impressions. Remains <%=total_availability%> impressions available for allocation</p>
         <br>        
         <form action="/" method="get">
-        You can return to starting page: <input type="submit" value="Return"/>
+        Return to starting page: <input type="submit" value="Return"/>
         </form>
         <%
      }

@@ -42,12 +42,12 @@ public class InventoryState implements AutoCloseable
     
     // Tables
     static final String raw_inventory_ex = "raw_inventory_ex";
-    static final String raw_inventory = "raw_inventory";
+    public static final String raw_inventory = "raw_inventory";
     static final String structured_data_inc ="structured_data_inc";
     static final String structured_data_base = "structured_data_base";
     static final String unions_last_rank = "unions_last_rank";
     static final String unions_next_rank = "unions_next_rank";
-    static final String allocation_ledger = "allocation_protocol";
+    public static final String allocation_ledger = "allocation_protocol";
     static final String inventory_status = "inventory_status";
  
 	static final int BITMAP_SIZE = 64;
