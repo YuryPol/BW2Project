@@ -10,6 +10,7 @@
 <%@ page import="java.sql.PreparedStatement"%>
 <%@ page import="java.sql.ResultSet"%>
 <%@ page import="java.sql.DatabaseMetaData"%>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -39,6 +40,7 @@
     else 
     {
         String customer_name = iuser.theCustomer.get().company;
+        pageContext.setAttribute("customer_name", customer_name);
         InventoryState invState = new InventoryState(customer_name);
         String message = request.getParameter("message");
         if (message != null && message.equals("wasRunning")){
@@ -92,11 +94,16 @@
            else {
                %>
                <p>Simulation was completed</p>
-               <p>Return to start page</p>
+               Download simulation report 
+               <form action="/simulate" method="get">
+               <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+               <input type="submit" value="Download" />
+               </form>
+               <br>
+               <br>
+               Return to start page
                <form action="/" method="get">
-                   <div>
-                       <input type="submit" value="Return" />
-                   </div>
+                <input type="submit" value="Return" />
                </form>
                <%
            }

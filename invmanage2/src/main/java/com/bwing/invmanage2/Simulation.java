@@ -22,6 +22,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.google.appengine.tools.cloudstorage.GcsFileOptions;
 import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
 import com.google.appengine.tools.cloudstorage.GcsService;
 import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
@@ -36,6 +37,8 @@ public class Simulation extends HttpServlet {
 		      .retryMaxAttempts(10)
 		      .totalRetryPeriodMillis(15000)
 		      .build());
+	
+	private static String _simulatoin_rep = "_simulatoin_rep";
 	
 	  /**
 	   * Transfer the data from the inputStream to the outputStream. Then close both streams.
@@ -138,7 +141,7 @@ public class Simulation extends HttpServlet {
             		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));
             // Write protocol into the file
             GcsFileOptions instance = GcsFileOptions.getDefaultInstance();
-            GcsFilename fileName = new GcsFilename(InventoryFile.bucketName, customer_name);
+            GcsFilename fileName = new GcsFilename(InventoryFile.bucketName, customer_name + _simulatoin_rep);
             GcsOutputChannel outputChannel;
 			outputChannel = gcsService.createOrReplace(fileName, instance);
 			InputStream is = new ByteArrayInputStream(buffer.toString().getBytes());
@@ -149,4 +152,31 @@ public class Simulation extends HttpServlet {
 			throw new ServletException(ex);
 		}
 	}
+
+    @Override
+    public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
+    {
+    	// Download simulation report
+        String customer_name = request.getParameter("customer_name");
+
+        // You must tell the browser the file type you are going to send
+        // for example application/pdf, text/plain, text/html, image/jpg
+        response.setContentType("text/plain");
+
+        // Make sure to show the download dialog
+        response.setHeader("Content-disposition","attachment; filename=" + customer_name + _simulatoin_rep + ".txt");
+
+        try 
+        {
+        	// This should send the file to browser
+            GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, customer_name + "_simulatoin_rep");
+            GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, FileServlet.BUFFER_SIZE);
+            copy(Channels.newInputStream(readChannel), response.getOutputStream());
+        } 
+        catch (Exception ex) 
+        {
+        	log.severe(ex.toString());
+            throw new ServletException(ex);
+        }
+   }
 }
