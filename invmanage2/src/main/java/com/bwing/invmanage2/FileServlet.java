@@ -34,7 +34,7 @@ public class FileServlet extends HttpServlet {
     .build());
 
     /**Used below to determine the size of chucks to read in. Should be > 1kb and < 10MB */
-      private static final int BUFFER_SIZE = 2 * 1024 * 1024;
+      static final int BUFFER_SIZE = 2 * 1024 * 1024;
       private static final int MAX_FILE_LENGTH = 100 * 1024; // 100 KB limit for free version TODO: set higher for professional version.
 
     // @SuppressWarnings("unchecked")
