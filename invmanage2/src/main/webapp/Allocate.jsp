@@ -93,7 +93,7 @@
             <td><%=capacity%></td>
             <td><%=goal%></td>
             <td><%=availability%></td>
-			<form>
+			<form  action="/Allocate.jsp" method="post">
             <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
             <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
             <td>
