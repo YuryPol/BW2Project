@@ -10,13 +10,14 @@
 <%@ page import="java.sql.PreparedStatement"%>
 <%@ page import="java.sql.ResultSet"%>
 <%@ page import="java.sql.DatabaseMetaData"%>
+<%@ page import="java.util.Date" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+<%@ include file="PreventCache.jsp" %>
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>Insert title here</title>
+    <link type="text/css" rel="stylesheet" href="/stylesheets/main.css"/>
+    <title>Simulation run</title>
 </head>
 <body>
     <%
@@ -73,23 +74,50 @@
            // check if "result_serving" table is there
            ResultSet tables = dbm.getTables(null, null, "result_serving", null);
            if (tables.next()) {
-	           PreparedStatement getCompletionPercnt = con.prepareStatement(
-	                   "select round(max((goal-served_count)/goal)*100) from result_serving");
-	           ResultSet rs = getCompletionPercnt.executeQuery();
-	           int completionPercnt = 0;
-	           if (rs.next())
-	        	   completionPercnt = 100 - rs.getInt(1);
-	           %>
-	           Waiting for <%=customer_name%> simulation to complete
-	           <p>So far <%=completionPercnt%>% completed</p>
-	           <p id="demo"></p>   
-	           <script>
-	           document.getElementById("demo").innerHTML = Date();
-	           </script>    
-	           <%
-	           invState.close();
+               Date date = new Date();
+               %>
+               <p>Report for <%=customer_name%> inventory allocations on <%=date.toString() %></p>
+               <p>Waiting for simulation to complete</p>
+               <table border="1">
+               <tr>
+               <th>segment</th><th>availability</th><th>goal</th><th>served_count</th><th>percent served</th>
+               <%
+	           PreparedStatement getCompletionState = con.prepareStatement(
+	                   "select set_name, availability, goal, served_count, round(served_count/goal, 4)*100 from result_serving");
+	           ResultSet rs = getCompletionState.executeQuery();
+               String set_name = "";
+               int availability = 0;
+               int goal = 0;
+               int served_count = 0;
+               float percent_served = 0;
+               int total_goal = 0;
+               long total_served_count = 0;
+	   	       while (rs.next())
+	   	       {
+	   	            set_name = rs.getString(1);
+	   	            availability = rs.getInt(2);
+	   	            goal = rs.getInt(3);
+	   	            served_count = rs.getInt(4);
+	   	            percent_served = rs.getFloat(5);
+	   	            total_goal += goal;
+	   	            total_served_count += served_count; 
+	   	            %>
+	   	            <tr>
+	   	            <td><%=set_name%></td>
+	   	            <td><%=availability%></td>
+	   	            <td><%=goal%></td>
+	   	            <td><%=served_count%></td>
+	   	            <td><%=percent_served%></td>
+	   	            </tr>
+	   	            <%
+	   	       }	
+	   	       invState.close();
 	           response.setIntHeader("Refresh", 5);
 	           log.info("Refreshing page waiting for inventory to load");
+	           %>
+	           </table>
+	           <p>Totaly served <%=total_served_count%> impressions from allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%> %</p>
+	           <%
            }
            else {
                %>
