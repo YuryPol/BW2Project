@@ -6,6 +6,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -39,8 +40,9 @@ public class StartSimulation extends HttpServlet {
 				response.sendRedirect("/WaitSimulation.jsp?message=wasRunning");
 			} else {
 				// Table does not exist, go ahead
-				PreparedStatement createResultServingTable = con.prepareStatement("CREATE TABLE result_serving  ENGINE=MEMORY AS SELECT *, 0 AS served_count FROM structured_data_base;");
-	            createResultServingTable.executeUpdate();			
+	            Statement st = con.createStatement();
+	            st.executeUpdate("CREATE TABLE result_serving  ENGINE=MEMORY AS SELECT *, 0 AS served_count FROM structured_data_base;");
+	            st.executeUpdate("DROP TABLE IF EXISTS result_serving_copy");
 		    	Queue queue = QueueFactory.getDefaultQueue();
 		    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
 		    	log.info(customer_name + " simulation added to default queue.");

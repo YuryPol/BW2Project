@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -20,42 +21,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.google.appengine.tools.cloudstorage.GcsFileOptions;
-import com.google.appengine.tools.cloudstorage.GcsFilename;
-import com.google.appengine.tools.cloudstorage.GcsInputChannel;
-import com.google.appengine.tools.cloudstorage.GcsOutputChannel;
-import com.google.appengine.tools.cloudstorage.GcsService;
-import com.google.appengine.tools.cloudstorage.GcsServiceFactory;
-import com.google.appengine.tools.cloudstorage.RetryParams;
-
 @SuppressWarnings("serial")
 public class Simulation extends HttpServlet {
 	private static final Logger log = Logger.getLogger(Simulation.class.getName());
-
-	private final GcsService gcsService = GcsServiceFactory.createGcsService(new RetryParams.Builder()
-		      .initialRetryDelayMillis(10)
-		      .retryMaxAttempts(10)
-		      .totalRetryPeriodMillis(15000)
-		      .build());
-	
-	private static String _simulatoin_rep = "_simulatoin_rep";
-	
-	  /**
-	   * Transfer the data from the inputStream to the outputStream. Then close both streams.
-	   */
-	  private void copy(InputStream input, OutputStream output) throws IOException {
-	    try {
-	      byte[] buffer = new byte[FileServlet.BUFFER_SIZE];
-	      int bytesRead = input.read(buffer);
-	      while (bytesRead != -1) {
-	        output.write(buffer, 0, bytesRead);
-	        bytesRead = input.read(buffer);
-	      }
-	    } finally {
-	      input.close();
-	      output.close();
-	    }
-	  }
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
 	{
@@ -84,8 +52,6 @@ public class Simulation extends HttpServlet {
             		+ "where goal > served_count and ( ? & set_key_is ) = set_key_is order by weight_now desc limit 1;");
             PreparedStatement incrementServedCount = con.prepareStatement("update result_serving set served_count = served_count + "
             		+ Integer.toString(increment) + " where set_key_is = ?");
-            StringBuffer buffer = new StringBuffer();            
-            buffer.append("Protocol of simulation on " + Calendar.getInstance().getTime().toString() + "\r");
             //
             // Process raw inventory
             //
@@ -128,55 +94,16 @@ public class Simulation extends HttpServlet {
 	            	log.info(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
 	            			+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" 
 	                        + String.valueOf(missed_count) + "\r");
-	            	buffer.append(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
-	            			+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" 
-	                        + String.valueOf(missed_count) + "\r");
 	            }
             }
-            PreparedStatement dropResultServingTable = con.prepareStatement("DROP TABLE IF EXISTS result_serving;");
-            dropResultServingTable.executeUpdate();
+            Statement st = con.createStatement();
+            st.executeUpdate("CREATE TABLE result_serving_copy ENGINE=MEMORY AS SELECT * FROM result_serving");
+            st.executeUpdate("DROP TABLE IF EXISTS result_serving");
             log.info(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
-            		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));            	
-            buffer.append(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
-            		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));
-            // Write protocol into the file
-            GcsFileOptions instance = GcsFileOptions.getDefaultInstance();
-            GcsFilename fileName = new GcsFilename(InventoryFile.bucketName, customer_name + _simulatoin_rep);
-            GcsOutputChannel outputChannel;
-			outputChannel = gcsService.createOrReplace(fileName, instance);
-			InputStream is = new ByteArrayInputStream(buffer.toString().getBytes());
-            copy(is, Channels.newOutputStream(outputChannel));
-            
+            		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));            	            
 		} catch (ClassNotFoundException | SQLException ex) {
 			log.severe(ex.getMessage());
 			throw new ServletException(ex);
 		}
 	}
-
-    @Override
-    public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
-    {
-    	// Download simulation report
-        String customer_name = request.getParameter("customer_name");
-
-        // You must tell the browser the file type you are going to send
-        // for example application/pdf, text/plain, text/html, image/jpg
-        response.setContentType("text/plain");
-
-        // Make sure to show the download dialog
-        response.setHeader("Content-disposition","attachment; filename=" + customer_name + _simulatoin_rep + ".txt");
-
-        try 
-        {
-        	// This should send the file to browser
-            GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, customer_name + "_simulatoin_rep");
-            GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, FileServlet.BUFFER_SIZE);
-            copy(Channels.newInputStream(readChannel), response.getOutputStream());
-        } 
-        catch (Exception ex) 
-        {
-        	log.severe(ex.toString());
-            throw new ServletException(ex);
-        }
-   }
 }
