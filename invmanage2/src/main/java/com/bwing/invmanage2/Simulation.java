@@ -29,7 +29,7 @@ public class Simulation extends HttpServlet {
 	{
 		// Run simulation
 		String customer_name = request.getParameter("customer_name");
-		try (InventoryState invState = new InventoryState(customer_name)) {
+		try (InventoryState invState = new InventoryState(customer_name, true)) {
 //			invState.lock();
 			Connection con = invState.getConnection();
 	        ResultSet rs = null;

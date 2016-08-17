@@ -28,7 +28,7 @@ public class StartSimulation extends HttpServlet {
 	public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		// Start simulation task
 		String customer_name = request.getParameter("customer_name");
-		try (InventoryState invState = new InventoryState(customer_name)) {
+		try (InventoryState invState = new InventoryState(customer_name, true)) {
 //			invState.lock();
 			Connection con = invState.getConnection();
 

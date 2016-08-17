@@ -45,7 +45,7 @@
         }
         // System.out.println("Customer: " + customer_name);
         pageContext.setAttribute("customer_name", customer_name);
-        InventoryState invState = new InventoryState(customer_name);
+        InventoryState invState = new InventoryState(customer_name, true);
         if (!invState.isLoaded())
         {
         	log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
@@ -72,6 +72,7 @@
         st.execute("USE " + InventoryState.BWdb + customer_name);
         if (alloc_Amount > 0 && set_name.length() > 0)
         {
+        	invState.invalidate();
             invState.GetItems(set_name, advertiserID, alloc_Amount);
             log.info(set_name + " : " + Integer.toString(alloc_Amount));
         }

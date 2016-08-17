@@ -58,7 +58,7 @@ public class FileServlet extends HttpServlet {
                 item = iterator.next();
                 stream = item.openStream();
 
-                String sfieldname = item.getFieldName();
+                String customer_name = item.getFieldName();
  
                 sctype = item.getContentType();
 
@@ -68,12 +68,14 @@ public class FileServlet extends HttpServlet {
                 } 
                 else 
                 {
+                	InventoryState invState = new InventoryState(customer_name, true);
+                	
                     log.warning("Got an uploaded file: " + item.getFieldName() +
                             ", name = " + item.getName());
 
                     sctype = item.getContentType();
 
-                    GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, sfieldname);
+                    GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, customer_name);
 
                     GcsFileOptions options = new GcsFileOptions.Builder()
                     .acl("public-read").mimeType(sctype).build();
@@ -82,6 +84,8 @@ public class FileServlet extends HttpServlet {
                             gcsService.createOrReplace(gcsfileName, options);
 
                     copy(stream, Channels.newOutputStream(outputChannel));
+                    
+                    invState.invalidate();
 
                     response.sendRedirect("/SelectInventory.jsp"); // redirect to SelectInventory 
                     

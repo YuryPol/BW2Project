@@ -28,8 +28,7 @@ public class AllocationTest {
 		try {
 			for (int ind = 0; ind < 100; ind++) {
 				// Initialize inventory
-				InventoryState invState = new InventoryState(customer_name);
-				invState.lock();
+				InventoryState invState = new InventoryState(customer_name, true);
 				invState.clear();
 				// Process the file
 

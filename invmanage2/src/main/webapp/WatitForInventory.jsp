@@ -30,27 +30,39 @@
     else 
     {
         String customer_name = iuser.theCustomer.get().company;
-        InventoryState invState = new InventoryState(customer_name);
-         if (invState.isLocked()) 
-         {
-            //pageContext.setAttribute("customer_name", customer_name);
-            %>
+        InventoryState invState = new InventoryState(customer_name, true);
+             %>
             Waiting for <%=customer_name%> inventory to load
 		    <p id="demo"></p>   
 		    <script>
 		    document.getElementById("demo").innerHTML = Date();
 		    </script>    
 		    <%
-            invState.close();
-            response.setIntHeader("Refresh", 5);
-            log.info("Refreshing wait page");
-         }
-         else // if (invState.isLoaded())
+ 	     if (!invState.isValid()) 
+	     {
+ 	    	// waiting for inventory to unlock
+	     }
+         else if (invState.isLoaded() || invState.isWrongFile())
          {
              // Return to Select Inventory page
              invState.close();
              response.sendRedirect("/SelectInventory.jsp");
          }
+         else 
+         {
+      	    %>
+      	    <p>No data loaded yet</p>
+      	    <p>Return to inventory page</p>
+      	    <form action="/SelectInventory.jsp" method="get">
+      	        <div>
+      	            <input type="submit" value="Return" />
+      	        </div>
+      	    </form>
+      	    <%
+         }
+	     invState.close();
+         response.setIntHeader("Refresh", 5);
+         log.info("Refreshing wait page");
     }
     %>
 </body>

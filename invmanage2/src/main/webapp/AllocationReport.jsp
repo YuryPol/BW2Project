@@ -36,7 +36,7 @@
     else 
     {
         String customer_name = iuser.theCustomer.get().company;
-        InventoryState invState = new InventoryState(customer_name);
+        InventoryState invState = new InventoryState(customer_name,true);
         Date date = new Date();
         %>
         <p>Report for <%=customer_name%> inventory allocations as of <%=date.toString() %></p>

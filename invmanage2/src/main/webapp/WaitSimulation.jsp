@@ -42,7 +42,7 @@
     {
         String customer_name = iuser.theCustomer.get().company;
         pageContext.setAttribute("customer_name", customer_name);
-        InventoryState invState = new InventoryState(customer_name);
+        InventoryState invState = new InventoryState(customer_name, true);
         String message = request.getParameter("message");
         if (message != null && message.equals("wasRunning")){
         	%>
@@ -55,7 +55,7 @@
 		    </form>
         	<%
         }
-        else if (invState.isLocked()) 
+        else if (!invState.isValid()) 
         {
             %>
             <p>Inventory is locked</p>

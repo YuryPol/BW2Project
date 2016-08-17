@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import org.mortbay.log.Log;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,8 +30,10 @@ import java.sql.ResultSet;
 
 public class InventoryState implements AutoCloseable
 {
+	private static final Logger log = Logger.getLogger(InventoryState.class.getName());
+
 	public enum Status {
-		empty, clean, invalid, loaded
+		empty, clean, invalid, loaded, wrongfile
 	}
 
 	String customer_name;
@@ -52,7 +56,7 @@ public class InventoryState implements AutoCloseable
  
 	static final int BITMAP_SIZE = 64;
 	
-	public static Connection connect() throws ClassNotFoundException, SQLException
+	public static Connection connect(boolean auto) throws ClassNotFoundException, SQLException
 	{
 		Log.info(Status.loaded.name());
 		
@@ -73,12 +77,14 @@ public class InventoryState implements AutoCloseable
 		Properties info = new Properties();
 		info.setProperty("connectTimeout", "0");
 		info.setProperty("socketTimeout", "0");
-    	return DriverManager.getConnection(url, info);		
+		Connection con = DriverManager.getConnection(url, info);
+		con.setAutoCommit(auto);
+		return con;
 	}
     
-    public InventoryState(String name) throws ClassNotFoundException, SQLException
+    public InventoryState(String name, boolean auto) throws ClassNotFoundException, SQLException
 	{
-    	con = connect();
+    	con = connect(auto);
     	customer_name = name;
 		// Connect to DB
     	con.setCatalog(BWdb + customer_name);
@@ -90,13 +96,16 @@ public class InventoryState implements AutoCloseable
     
     public Connection getConnection() throws SQLException
     {
-    	return con;
+    	if (con.isValid(5))
+    		return con;
+    	else
+    		throw new SQLException("Connection is stale");
     }
     
     public static void init(String customer_name) throws SQLException, ClassNotFoundException
     {
     	// Create tables, stored procedures and functions
-    	Connection conect = connect();
+    	Connection conect = connect(true);
         try (Statement st = conect.createStatement())
         {
         	// Create the database and start using it
@@ -185,11 +194,11 @@ public class InventoryState implements AutoCloseable
         			+ "    SUM(capacity) as capacity, "
         			+ "    SUM(availability) as availability "
         			+ "  FROM ("
-        			+ "   SELECT unions_next_rank.set_key, ri.count as capacity, ri.count as availability "
-        			+ "    FROM unions_next_rank "
+        			+ "   SELECT unr1.set_key, ri.count as capacity, ri.count as availability "
+        			+ "    FROM unions_next_rank unr1"
         			+ "    JOIN raw_inventory ri "
-        			+ "    ON unions_next_rank.set_key & ri.basesets != 0 "
-        			+ "    WHERE unions_next_rank.capacity is NULL "
+        			+ "    ON unr1.set_key & ri.basesets != 0 "
+        			+ "    WHERE unr1.capacity is NULL "
         			+ "    ) blownUp "
         			+ "  GROUP BY set_key"
         			+ " ) comp "
@@ -231,9 +240,9 @@ public class InventoryState implements AutoCloseable
         			+ " DELETE FROM structured_data_inc "
         			+ "    WHERE EXISTS ("
         			+ "        SELECT * "
-        			+ "        FROM unions_next_rank "
-        			+ "        WHERE (structured_data_inc.set_key & unions_next_rank.set_key) = structured_data_inc.set_key "
-        			+ "        AND structured_data_inc.capacity = unions_next_rank.capacity); "
+        			+ "        FROM unions_next_rank unr1"
+        			+ "        WHERE (structured_data_inc.set_key & unr1.set_key) = structured_data_inc.set_key "
+        			+ "        AND structured_data_inc.capacity = unr1.capacity); "
         			
         			+ " INSERT /*IGNORE*/ INTO structured_data_inc "
         			+ "    SELECT * FROM unions_next_rank;"
@@ -251,6 +260,9 @@ public class InventoryState implements AutoCloseable
         			+ "    SET structured_data_base.set_key = structured_data_inc.set_key "
         			+ "    WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is "
         			+ "    AND structured_data_base.capacity = structured_data_inc.capacity; "
+        			
+        			// Validate the data in DB
+                	+ " REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "');"       			
         			
         			+ "END "
         			);
@@ -300,7 +312,7 @@ public class InventoryState implements AutoCloseable
         			+ "   END IF; "
         			+ "END "
         			);
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "')");
         }
     }
     
@@ -320,7 +332,7 @@ public class InventoryState implements AutoCloseable
          }
     }
     
-    public boolean isLoaded() throws SQLException
+    public boolean hasData() throws SQLException
     {
 		// Do the tables exist?
         try (Statement st = con.createStatement())
@@ -348,13 +360,14 @@ public class InventoryState implements AutoCloseable
         }
     }
 
-    public Status getStatus() throws SQLException
+    public Status getStatus() throws SQLException // TODO: do we really need it?
     {
         try (Statement st = con.createStatement())
         {
         	ResultSet rs = st.executeQuery("SELECT * FROM " + inventory_status);
         	if (rs.next())
         	{
+        		log.info("Status is " + rs.getString(2));
         		return Status.valueOf(rs.getString(2));
         	}
         	else
@@ -364,33 +377,34 @@ public class InventoryState implements AutoCloseable
         }
     }
     
-    public void lock() throws SQLException
+    void lock() throws SQLException // TODO: remove later
     {
-    	unlock(); 
         try (Statement st = con.createStatement())
         {
-        	st.executeQuery("LOCK TABLE "+ raw_inventory_ex + " WRITE, "
+        	boolean res = st.execute("LOCK TABLES "+ raw_inventory_ex + " WRITE, "
         			+ raw_inventory + " WRITE, "
         			+ structured_data_inc + " WRITE, "
         			+ structured_data_base + " WRITE, "
         			+ unions_last_rank + " WRITE, "
         			+ unions_next_rank + " WRITE, "
+        			+ unions_next_rank  + " AS unr1 WRITE, "
         			+ structured_data_base + " AS sdbW WRITE, " 
         			+ structured_data_base + " AS sdbR READ, "
         			+ raw_inventory + " AS ri READ, "
         			+ allocation_ledger + " WRITE, "
         			+ inventory_status + " WRITE "
       			);
+        	Log.warning(raw_inventory_ex + " was locked");
         }
     }
     
-    public boolean isLocked() throws SQLException
+    boolean isLocked() throws SQLException // TODO: remove later
     {
 		// Do the tables exist?
         try (Statement st = con.createStatement())
         {
-        	java.sql.ResultSet rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
-        	return false;
+        	boolean rs = st.execute("SELECT count(*) FROM " + structured_data_base);
+        	return !rs;
         }
         catch (SQLException ex)
         {
@@ -398,7 +412,7 @@ public class InventoryState implements AutoCloseable
         }
     }
        
-    public void unlock() throws SQLException
+    void unlock() throws SQLException // TODO: remove later
     {
         try (Statement st = con.createStatement())
         {
@@ -413,11 +427,56 @@ public class InventoryState implements AutoCloseable
         {
         	clear();
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.invalid.name() + "')");
-        	Log.warning("status invalidated");
+        	Log.info("status invalidated");
         }
     }
     
-       
+    public void wrongFile() throws SQLException
+    {
+        try (Statement st = con.createStatement())
+        {
+        	clear();
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.wrongfile.name() + "')");
+        	Log.info("status set to wrong file");
+        }
+    }
+    public void validate()
+    {
+        try (Statement st = con.createStatement())
+        {
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "')");
+        	Log.info("status validated");
+        } catch (SQLException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+			log.severe(customer_name + ex.toString());
+		}
+    }
+    
+    public boolean isLoaded() throws SQLException
+    {
+    	if (getStatus() == Status.loaded)
+    		return true;
+    	else
+    		return false;
+    }
+    
+    public boolean isValid() throws SQLException
+    {
+    	if (getStatus() == Status.invalid)
+    		return false;
+    	else
+    		return true;
+    }
+           
+    public boolean isWrongFile() throws SQLException
+    {
+    	if (getStatus() == Status.wrongfile)
+    		return true;
+    	else
+    		return false;
+    }
+
     public void load(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
     	//convert json input to InventroryData object
@@ -554,7 +613,6 @@ public class InventoryState implements AutoCloseable
         }
         
         // adds unions of higher ranks for all nodes to structured_data_inc
-        unlock();
         try (CallableStatement callStatement = con.prepareCall("{call AddUnions}"))
         {
         	Log.info("{call AddUnions}");
@@ -627,7 +685,6 @@ public class InventoryState implements AutoCloseable
     {
     	if(con!=null && !con.isClosed())
     	{
-    		unlock();
     		con.close();
     	}
     }

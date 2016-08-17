@@ -40,25 +40,29 @@
         </form>
         
         <% 
-        InventoryState invState = new InventoryState(customer_name);
-        {
-        	if (invState.isLoaded())
-        	{
-        		%>
-		        <p>Allocate impressions from the inventory</p>
-		        <form action="/Allocate.jsp" method="get">
-		        <div><input type="submit" value="Allocate"/></div>
-		        </form>
-		        <p>Or you can start over and re-initialize your inventory</p>
-        		<%
-        	}
-        	else 
-        	{
-        		%>
-        		<p>No initialized inventory exists</p>
-        		<%
-        	}
-        }
+        InventoryState invState = new InventoryState(customer_name, true);
+        if (invState.isLoaded() && invState.hasData())
+       	{
+       		%>
+	        <p>Allocate impressions from the inventory</p>
+	        <form action="/Allocate.jsp" method="get">
+	        <div><input type="submit" value="Allocate"/></div>
+	        </form>
+	        <p>Or you can start over and re-initialize your inventory</p>
+       		<%
+       	}
+       	else if (invState.isWrongFile())
+       	{
+            %>
+            <p>Uploaded inventory file has a wrong format. Upload correct file</p>
+            <%
+       	}
+       	else 
+       	{
+       		%>
+       		<p>No initialized inventory exists</p>
+       		<%
+       	}
         InventoryFile testFile = new InventoryFile("TestInventory");
         if (testFile.isLoaded())
         {
@@ -69,12 +73,17 @@
 	            <input type="hidden" name="file_name" value="TestInventory"/>
                 <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
 	        </form>        
+	        <p>download test data as a file</p>
+	        <form action="/gcs" method="get">
+	            <input type="hidden" name="customer_name" value="TestInventory"/>
+	            <input type="submit" value="Download Test Inventory">
+	        </form>
         <%
         }
         else
         {
         %>
-        	<p>ERROR: Test inventory file was not found</p>
+        	<p>Test inventory file was not found</p>
         <%
         }
         InventoryFile invFile = new InventoryFile(customer_name);
@@ -108,13 +117,6 @@
         <p>or</p>
         <%
         }
-        %>
-        <p>download test data as a file</p>
-        <form action="/gcs" method="get">
-            <input type="hidden" name="customer_name" value="TestInventory"/>
-            <input type="submit" value="Download Test Inventory">
-        </form>
-        <%
         invState.close();
     }
 %>

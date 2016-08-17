@@ -24,14 +24,16 @@ public class LoadInventory extends HttpServlet
         String customer_name = request.getParameter("customer_name");
         String file_name = request.getParameter("file_name");
 
-		try (InventoryState invState = new InventoryState(customer_name)) {
-			if (invState.isLocked())
+		try (InventoryState invState = new InventoryState(customer_name, true)) {
+			if (!invState.isValid())
 			{
 		    	log.warning(customer_name + " inventory is locked");
-				// go to allocation page
+				// go back
+		    	response.getWriter().println("Inventory " + customer_name + " is locked");
 				response.sendRedirect("/SelectInventory.jsp");
 			}
 			// Process the file
+			invState.invalidate();
 			invState.clear();
 	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
