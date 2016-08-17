@@ -62,7 +62,7 @@
         <form action="/" method="get">
         You can return to starting page: <input type="submit" value="Return"/>
         </form>
-        <p>Or work with your inventory</p>
+        <p>Or request an allocation from your inventory by submitting one at a time</p>
         <table border="1">
 		<tr>
 		<th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>advertiser ID</th><th>allocate</th>
