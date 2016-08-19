@@ -67,6 +67,6 @@
     }
 %>
 <p><a href="https://docs.google.com/document/d/1ZeFuV26SdLloWcDnlThMhlVhj4IZlalGfmwwo50pilI/pub" target="_blank">Read White Paper</a></p>
-<p><a href="https://docs.google.com/document/d/1ma2MWrMIqV8CUuFqa_9kPUzDEcGGUWJ27lPOpJyXzJA/pub" target="_blank">Read Terms of Service</a></p>
+<p><a href="/EUA.html" target="_blank">Read Terms of Service</a></p>
 </body>
 </html>
