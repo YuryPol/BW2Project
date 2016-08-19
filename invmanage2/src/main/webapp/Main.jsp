@@ -109,11 +109,36 @@
 	                <input type="hidden" name="user_data_submited" value="user_data_submited"/>
 	                <div><input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below</div>
 	                <% 
-	            break;
-                case "1":
-                %>
-                <%       
-                break;
+	                break;
+                case "user_data_submited":
+                    // user just submited her info
+                    String message = "";
+                    String email = "";
+                    String first_name = request.getParameter("first_name");
+                    String last_name = request.getParameter("last_name");
+                    String phone = request.getParameter("phone");
+                    String bis_email = request.getParameter("bis_email");
+                    String company = request.getParameter("company");
+                    
+                    if (first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
+                    {
+                        %>
+                         <p>Please enter missing data</p>
+                        <%
+                    }
+                    else 
+                    {
+                        // Create Customer and primary user
+                        // TODO: make it into transacton 
+                        Customer customer = new Customer(company, gUser);
+                        ObjectifyService.ofy().save().entity(customer).now();
+                        // Add the user and fill his properties
+                        InventoryUser newuser = new InventoryUser(Ref.create(customer), 
+                                first_name, last_name, new PhoneNumber(phone), new Email(gUser.getEmail()), true);
+                        ObjectifyService.ofy().save().entity(newuser).now();
+                        response.sendRedirect("/ConfirmAccount.jsp"); 
+                    }
+                    break;
                 case "2":
                 %>
                 <%       
