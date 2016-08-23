@@ -60,7 +60,7 @@
     </error-page>  
   
   <welcome-file-list>
-    <welcome-file>Start.jsp</welcome-file>
+    <welcome-file>Main.jsp</welcome-file>
   </welcome-file-list>
 <!-- [START Objectify] -->
 <filter>

@@ -1,4 +1,7 @@
+<%@ page import="com.bwing.invmanage2.UIhelper" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
+<%@ page import="com.bwing.invmanage2.InventoryState" %>
+<%@ page import="com.bwing.invmanage2.InventoryFile" %>
 <%@ page import="com.googlecode.objectify.Key" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
 <%@ page import="com.bwing.invmanage2.Customer" %>
@@ -44,10 +47,9 @@
                 <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
                 <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
                 <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
-                <input type="hidden" name="user_data_submited" value="user_data_submited"/>
-                <div>
-                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below                
-                </div>
+                <input type="hidden" name="mode" value="user_data_submited"/>
+                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
+                </form>
 	            <% 
         	}
         	else if (request.getParameter("mode") == "user_data_submited")
@@ -64,7 +66,16 @@
                 if (first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
                 {
                     %>
-                     <p>Please enter missing data</p>
+                    <p>Please enter correct data</p>
+	                <form action="/" method="post">
+	                <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
+	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
+	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
+	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
+	                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
+	                <input type="hidden" name="mode" value="user_data_submited"/>
+	                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below                
+	                </form>
                     <%
                 }
                 else 
@@ -94,11 +105,20 @@
         else 
         {
             // registered user
-            switch (request.getParameter("mode")) 
+            String customer_name = iuser.theCustomer.get().company;
+            pageContext.setAttribute("customer_name", customer_name);
+            String modeStr = request.getParameter("mode");
+            UIhelper.Mode mode;
+            if (modeStr == null)
+            	mode = UIhelper.Mode.none;
+            else
+            	mode = UIhelper.Mode.valueOf(modeStr);
+            	
+            switch (mode) 
             {
-	            case "createAccount":
+	            case createAccount:
 	                %>
-	                <p>You can enter identifying information to create secondary user account</p>
+	                <p>You can enter identifying information to create account for secondary user with whom you share your organization's data</p>
 	                <form action="/" method="post">
                     <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
 	                <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
@@ -106,11 +126,12 @@
 	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
 	                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
-	                <input type="hidden" name="user_data_submited" value="user_data_submited"/>
-	                <div><input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below</div>
+	                <input type="hidden" name="mode" value="user_data_submited"/>
+	                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
+	                </form>
 	                <% 
 	                break;
-                case "user_data_submited":
+                case user_data_submited:
                     // user just submited her info
                     String message = "";
                     String email = "";
@@ -123,33 +144,101 @@
                     if (first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
                     {
                         %>
-                         <p>Please enter missing data</p>
+                        <p>Please correct wrong data</p>
+	                    <form action="/" method="post">
+	                    <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
+	                    <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
+	                    <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
+	                    <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
+	                    <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
+	                    <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
+	                    <input type="hidden" name="mode" value="user_data_submited"/>
+	                    <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
+	                    </form>
                         <%
                     }
                     else 
                     {
-                        // Create Customer and primary user
-                        // TODO: make it into transacton 
-                        Customer customer = new Customer(company, gUser);
-                        ObjectifyService.ofy().save().entity(customer).now();
+                        // Create secondary user
                         // Add the user and fill his properties
-                        InventoryUser newuser = new InventoryUser(Ref.create(customer), 
-                                first_name, last_name, new PhoneNumber(phone), new Email(gUser.getEmail()), true);
+                        Key<Customer> customerKey = InventoryUser.getCurrentUser().getCustomerKey();
+                        InventoryUser newuser = new InventoryUser(Ref.create(customerKey), first_name, last_name, new PhoneNumber(phone), new Email(email), false);
                         ObjectifyService.ofy().save().entity(newuser).now();
-                        response.sendRedirect("/ConfirmAccount.jsp"); 
                     }
                     break;
-                case "2":
-                %>
-                <%       
-                break;
-                case "3":
-                %>
-                <%       
-                break;
-                case "4":
-                %>
-                <%       
+                default:
+                    // registered user, let her chose/create inventory
+                    InventoryState invState = new InventoryState(customer_name, true);
+                    if (invState.isLoaded() && invState.hasData())
+                    {
+                        %>
+                        <form action="/" method="post">
+                        <input type="hidden" name="mode" value="Allocate"/>
+                        Allocate impressions from the inventory <input type="submit" value="Allocate"/>
+                        </form>
+                        <p>Or you can start over and re-initialize your inventory with new data</p>
+                        <%
+                    }
+                    else if (invState.isWrongFile())
+                    {
+                        %>
+                        <p>Uploaded inventory file has a wrong format. Upload correct file and re-initialize the inventory</p>
+                        <%
+                    }
+                    else 
+                    {
+                        %>
+                        <p>THe inventory data wasn't initialized</p>
+                        <%
+                    }
+                    InventoryFile testFile = new InventoryFile("TestInventory");
+                    if (testFile.isLoaded())
+                    {
+                    %>        
+                        <form action="/" method="post">
+                        <input type="hidden" name="file_name" value="TestInventory"/>
+                        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+                        <input type="hidden" name="mode" value="init_inventory_test"/>
+                        Initialize inventory with test data <input type="submit" value="Test Inventory"/>
+                        </form>        
+                    <%
+                    }
+                    else
+                    {
+                    %>
+                        <p>Test inventory file was not found</p>
+                    <%
+                    }
+                    InventoryFile invFile = new InventoryFile(customer_name);
+                    if (invFile.isLoaded()) 
+                    {        
+                    %>
+                        <form action="/" method="post">
+                        <input type="hidden" name="file_name" value="${fn:escapeXml(customer_name)}"/>
+                        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+                        <input type="hidden" name="mode" value="init_inventory_custom"/>
+                        Initialize inventory with data you uploaded <input type="submit" value="Your Inventory"/>
+                        </form>
+                    <%  
+                    }
+                    %>        
+                    <p>Upload a new inventory data file</p>
+                    <form action="/gcs" method="post" enctype="multipart/form-data">
+                        <input type="file" name="${fn:escapeXml(customer_name)}">
+                        <input type="submit" value="Upload file to your ${fn:escapeXml(customer_name)} Inventory">
+                    </form>     
+                    <%
+                    if (invFile.isLoaded()) 
+                    {        
+                    %>
+                    <p>Also you can download your previously uploaded inventory as a file</p>
+                    <form action="/gcs" method="get">
+                        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+                        <input type="submit" value="Download your ${fn:escapeXml(customer_name)} Inventory">
+                    </form>
+                    <%
+                    }
+                    invState.close();
                 break;
             }
         }
