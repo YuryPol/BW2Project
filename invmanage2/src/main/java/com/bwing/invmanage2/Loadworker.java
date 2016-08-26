@@ -37,26 +37,13 @@ public class Loadworker  extends HttpServlet
 		
 		log.info("Post loading " + file_name);
 //		Connection con = null; 
-		InventoryState invState;
-		try {
-			invState = new InventoryState(customer_name, true);
-		} catch (ClassNotFoundException | SQLException ex) {
-			// TODO Auto-generated catch block
-			ex.printStackTrace();
-			log.severe(customer_name + ex.toString());
-			throw new ServletException(ex);
-		}
-		try {
-//			con = invState.getConnection();
+		try (InventoryState invState = new InventoryState(customer_name, true)) {
 			// Process the file
 			GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, file_name);
 			if (gcsService.getMetadata(gcsfileName) == null) {
 				// No file, request upload
 				// invState.unlock();
-				response.getWriter().println(
-						"You are missing the file with " + customer_name + " inventory Data. Upload it or work with Test Inventory ");
-				response.sendRedirect("/SelectInventory.jsp");
-				log.warning(customer_name + " missing the file with Inventory Data");
+				log.severe(customer_name + " missing the file with Inventory Data");
 				return;
 			}
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
@@ -65,7 +52,12 @@ public class Loadworker  extends HttpServlet
 //			invState.unlock();
 //			con.commit();
 			log.info(file_name + " was parsed successfuly.");
-		} 
+		} catch (ClassNotFoundException ex) {
+			// TODO Auto-generated catch block
+			ex.printStackTrace();
+			log.severe(customer_name + ex.toString());
+			throw new ServletException(ex);
+		}
 		catch (JsonParseException ex) 
 		{
 //			try 
@@ -75,18 +67,13 @@ public class Loadworker  extends HttpServlet
 //			} 
 			log.severe(customer_name + ex.toString());			
 			ex.printStackTrace();
-			try 
-			{
+			try (InventoryState invState = new InventoryState(customer_name, true)) {
 				invState.wrongFile();
 			} 
-			catch (SQLException e) {
+			catch (SQLException | ClassNotFoundException ex1) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				ex1.printStackTrace();
 			}			
-/*			response.getWriter().println(
-					"The file with " + customer_name + " inventory Data has wrong format. Upload new file or work with Test Inventory ");
-			response.sendRedirect("/SelectInventory.jsp");
-*/		
 		}
 		catch (CommunicationsException ex)
 		{

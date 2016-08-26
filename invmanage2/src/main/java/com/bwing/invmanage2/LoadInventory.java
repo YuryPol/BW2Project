@@ -19,7 +19,7 @@ public class LoadInventory extends HttpServlet
    private static final Logger log = Logger.getLogger(LoadInventory.class.getName());
 
     @Override
-    public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
+    public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException 
     {
         String customer_name = request.getParameter("customer_name");
         String file_name = request.getParameter("file_name");
@@ -30,11 +30,11 @@ public class LoadInventory extends HttpServlet
 		    	log.warning(customer_name + " inventory is locked");
 				// go back
 		    	response.getWriter().println("Inventory " + customer_name + " is locked");
-				response.sendRedirect("/SelectInventory.jsp");
+				response.sendRedirect("/");
 			}
 			// Process the file
 			invState.invalidate();
-			invState.clear();
+//			invState.clear();
 	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
 	    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));

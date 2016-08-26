@@ -60,6 +60,12 @@ public class FileServlet extends HttpServlet {
 
                 String customer_name = item.getFieldName();
  
+                if (item.getName().isEmpty())
+                {
+                	log.severe("File was not selected");
+                    response.sendRedirect("/");
+                }
+                	
                 sctype = item.getContentType();
 
                 if (item.isFormField()) 
@@ -68,8 +74,8 @@ public class FileServlet extends HttpServlet {
                 } 
                 else 
                 {
-                	InventoryState invState = new InventoryState(customer_name, true);
-                	
+                	try (InventoryState invState = new InventoryState(customer_name, true))
+                	{
                     log.warning("Got an uploaded file: " + item.getFieldName() +
                             ", name = " + item.getName());
 
@@ -87,9 +93,9 @@ public class FileServlet extends HttpServlet {
                     
                     invState.invalidate();
 
-                    response.sendRedirect("/SelectInventory.jsp"); // redirect to SelectInventory 
-                    
-                    break; // We don't want to upload multiple files for now
+                    response.sendRedirect("/");
+                	}
+                	break; // We don't want to upload multiple files for now
                 }
             }
         } catch (Exception ex) {

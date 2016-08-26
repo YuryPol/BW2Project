@@ -33,7 +33,7 @@ public class InventoryState implements AutoCloseable
 	private static final Logger log = Logger.getLogger(InventoryState.class.getName());
 
 	public enum Status {
-		empty, clean, invalid, loaded, wrongfile
+		clean, invalid, loaded, wrongfile
 	}
 
 	String customer_name;
@@ -58,7 +58,7 @@ public class InventoryState implements AutoCloseable
 	
 	public static Connection connect(boolean auto) throws ClassNotFoundException, SQLException
 	{
-		Log.info(Status.loaded.name());
+//		Log.info(Status.loaded.name());
 		
 		String url;
 		if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
@@ -312,7 +312,7 @@ public class InventoryState implements AutoCloseable
         			+ "   END IF; "
         			+ "END "
         			);
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "')");
+//        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "')");
         }
     }
     

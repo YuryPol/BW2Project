@@ -37,7 +37,11 @@
         if (iuser == null)
         {
         	// The user wasn't registered
-        	if (request.getParameter("mode") == "createAccount")
+        	%>
+                <p>Logged in as <%= gUser.getNickname()%></p>
+        	<%
+        	String mode = request.getParameter("mode");
+        	if (mode != null && mode.equals("createAccount"))
         	{
         		%>
 	            <p>You can enter identifying information to create user account</p>
@@ -52,7 +56,7 @@
                 </form>
 	            <% 
         	}
-        	else if (request.getParameter("mode") == "user_data_submited")
+        	else if (mode != null && mode.equals("user_data_submited"))
         	{
                 // user just submited her info
                 String message = "";
@@ -94,7 +98,6 @@
         	else
         	{
         		%>
-                <p>Hi <%= gUser.getNickname()%></p>
                 <form action="/" method="post">
                 <input type="hidden" name="mode" value="createAccount"/>
                 You can create primary user account for your organization <input type="submit" value="Create account"/>
@@ -106,6 +109,9 @@
         {
             // registered user
             String customer_name = iuser.theCustomer.get().company;
+            %>
+            <p>Logged in as <%=iuser.user_first_name%> <%=iuser.user_last_name %> from <%=iuser.theCustomer.get().company %></p>
+            <%
             pageContext.setAttribute("customer_name", customer_name);
             String modeStr = request.getParameter("mode");
             UIhelper.Mode mode;
@@ -125,7 +131,6 @@
 	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
 	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
-	                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
 	                <input type="hidden" name="mode" value="user_data_submited"/>
 	                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
 	                </form>
@@ -151,7 +156,6 @@
 	                    <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
 	                    <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                    <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
-	                    <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
 	                    <input type="hidden" name="mode" value="user_data_submited"/>
 	                    <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
 	                    </form>
@@ -164,6 +168,7 @@
                         Key<Customer> customerKey = InventoryUser.getCurrentUser().getCustomerKey();
                         InventoryUser newuser = new InventoryUser(Ref.create(customerKey), first_name, last_name, new PhoneNumber(phone), new Email(email), false);
                         ObjectifyService.ofy().save().entity(newuser).now();
+                        response.sendRedirect("/"); 
                     }
                     break;
                 default:
@@ -182,59 +187,64 @@
                     else if (invState.isWrongFile())
                     {
                         %>
-                        <p>Uploaded inventory file has a wrong format. Upload correct file and re-initialize the inventory</p>
+                        <p><font color="red">Uploaded inventory file has a wrong format. Upload correct file and re-initialize the inventory</font></p>
                         <%
                     }
                     else 
                     {
                         %>
-                        <p>THe inventory data wasn't initialized</p>
+                        <p><font color="red">The inventory data is not initialized</font></p>
                         <%
                     }
                     InventoryFile testFile = new InventoryFile("TestInventory");
                     if (testFile.isLoaded())
                     {
                     %>        
-                        <form action="/" method="post">
+                        <form action="/load" method="get">
                         <input type="hidden" name="file_name" value="TestInventory"/>
                         <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-                        <input type="hidden" name="mode" value="init_inventory_test"/>
-                        Initialize inventory with test data <input type="submit" value="Test Inventory"/>
+                        Initialize inventory with test data <input type="submit" value="Initialize Test Inventory"/>
                         </form>        
                     <%
                     }
                     else
                     {
                     %>
-                        <p>Test inventory file was not found</p>
+                        <p><font color="red">Test inventory file was not found</font></p>
                     <%
                     }
                     InventoryFile invFile = new InventoryFile(customer_name);
-                    if (invFile.isLoaded()) 
+                    if (invFile.isLoaded() && !invState.isWrongFile()) 
                     {        
                     %>
-                        <form action="/" method="post">
+                        <form action="/load" method="get">
                         <input type="hidden" name="file_name" value="${fn:escapeXml(customer_name)}"/>
                         <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-                        <input type="hidden" name="mode" value="init_inventory_custom"/>
-                        Initialize inventory with data you uploaded <input type="submit" value="Your Inventory"/>
+                        Initialize inventory with data you uploaded <input type="submit" value="Initialize ${fn:escapeXml(customer_name)} Inventory"/>
                         </form>
                     <%  
                     }
                     %>        
-                    <p>Upload a new inventory data file</p>
                     <form action="/gcs" method="post" enctype="multipart/form-data">
-                        <input type="file" name="${fn:escapeXml(customer_name)}">
-                        <input type="submit" value="Upload file to your ${fn:escapeXml(customer_name)} Inventory">
+                        Upload a new inventory data file <input type="file" name="${fn:escapeXml(customer_name)}">
+                        <input type="submit" value="Upload file for your ${fn:escapeXml(customer_name)} Inventory">
                     </form>     
                     <%
                     if (invFile.isLoaded()) 
                     {        
                     %>
-                    <p>Also you can download your previously uploaded inventory as a file</p>
                     <form action="/gcs" method="get">
-                        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-                        <input type="submit" value="Download your ${fn:escapeXml(customer_name)} Inventory">
+                    <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+                    Also you can download your previously uploaded inventory as a file <input type="submit" value="Download your ${fn:escapeXml(customer_name)} Inventory">
+                    </form>
+                    <%
+                    }
+                    if (iuser.isPrimary)
+                    {
+                    %>
+                    <form action="/" method="post">
+                    <input type="hidden" name="mode" value="createAccount"/>
+                    Create secondary user account for your organization <input type="submit" value="Create account"/>
                     </form>
                     <%
                     }
@@ -249,7 +259,7 @@
     else 
     {
 	    %>
-	    <p>You can <a href="<%= userService.createLoginURL(request.getRequestURI()) %>">sign in</a> with your Google email.</p>
+	    <p><a href="<%= userService.createLoginURL(request.getRequestURI()) %>">Sign in</a> with your Google email.</p>
 	    <%
     }
     %>

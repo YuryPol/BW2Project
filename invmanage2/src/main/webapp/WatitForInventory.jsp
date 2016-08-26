@@ -46,14 +46,14 @@
          {
              // Return to Select Inventory page
              invState.close();
-             response.sendRedirect("/SelectInventory.jsp");
+             response.sendRedirect("/");
          }
          else 
          {
       	    %>
       	    <p>No data loaded yet</p>
       	    <p>Return to inventory page</p>
-      	    <form action="/SelectInventory.jsp" method="get">
+      	    <form action="/" method="get">
       	        <div>
       	            <input type="submit" value="Return" />
       	        </div>

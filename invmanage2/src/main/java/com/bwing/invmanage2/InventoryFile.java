@@ -30,7 +30,7 @@ public class InventoryFile
     public boolean isLoaded()
     {
     	try {
-			return gcsService.getMetadata(gcsfileName) != null;
+			return (gcsService.getMetadata(gcsfileName) != null);
 		} catch (IOException e) {
 			log.warning("Can't open file " + gcsfileName.getBucketName() + "." + gcsfileName.getObjectName());
 			return false;
