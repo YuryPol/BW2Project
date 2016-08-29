@@ -37,12 +37,12 @@ import com.googlecode.objectify.ObjectifyService;
 @Entity
 public class InventoryUser {
 	  @Parent public Ref<Customer> theCustomer;
-	  @Id public Long id;
+	  @Id public String id;
 
 	  public String user_first_name;
 	  public String user_last_name;
 	  public PhoneNumber user_phone;
-	  public Email user_email;
+	  public String bisness_email;
 	  public boolean isPrimary;
 	  @Index public Date date;
 	  
@@ -53,14 +53,15 @@ public class InventoryUser {
 		  date = new Date();
 	  }
 	  
-	  public InventoryUser(Ref<Customer> company, String first_name, String last_name, PhoneNumber phone, Email email, boolean isprimary) throws ClassNotFoundException, SQLException
+	  public InventoryUser(Ref<Customer> company, Email email, String first_name, String last_name, PhoneNumber phone, String bis_email, boolean isprimary) throws ClassNotFoundException, SQLException
 	  {
 		  this();
 		  theCustomer = company;
+		  id = email.getEmail();
 		  user_first_name = first_name;
 		  user_last_name = last_name;
 		  user_phone = phone;
-		  user_email = email;
+		  bisness_email = bis_email;
 		  isPrimary = isprimary;
 		  if (isprimary)
 		  {
@@ -68,24 +69,43 @@ public class InventoryUser {
 		  }
 	  }
 	  
-	  static public InventoryUser findInventoryUser(List<InventoryUser> iuserrs, String email)
+	  static public InventoryUser findInventoryUser(List<InventoryUser> iusers, String email)
 	  {
-		  if (iuserrs == null || iuserrs.isEmpty())
+		  if (iusers == null || iusers.isEmpty())
 		  {
-			  log.warning("No Users exist");
+			  log.severe("No Users exist");
 			  return null;
 		  }
 		  
-		  for (InventoryUser iuser : iuserrs)
+		  for (InventoryUser iuser : iusers)
 		  {
-			  if (iuser.user_email.getEmail().equals(email))
+			  if (iuser.id.equals(email))
 			  {
-				  // log.warning("User already exists: " + email);
+				  log.info("User found: " + email);
 				  return iuser;
 			  }
 		  }
 		  log.warning("No such User exists: " + email);
 		  return null;
+	  }
+	  
+	  static public InventoryUser findInventoryUser(String email)
+	  {
+			List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
+			// .filter("user_email", theUser.getEmail())
+			.list();
+			return InventoryUser.findInventoryUser(users, email);
+	  }
+	  
+	  
+	  static public InventoryUser getCurrentUser(String company)
+	  {
+			UserService userService = UserServiceFactory.getUserService();
+			User theUser = userService.getCurrentUser();
+			if (theUser != null) {
+				return ObjectifyService.ofy().load().type(InventoryUser.class).parent(Customer.getCustomer(company)).id(theUser.getEmail().toString()).now();				
+			}
+			return null;
 	  }
 	  
 	  static public InventoryUser getCurrentUser()
@@ -96,10 +116,18 @@ public class InventoryUser {
 				List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
 						// .filter("user_email", theUser.getEmail())
 						.list();
-				InventoryUser iuser = InventoryUser.findInventoryUser(users, theUser.getEmail());
-				return iuser;
+				return InventoryUser.findInventoryUser(users, theUser.getEmail());
 			}
 			return null;
+	  }
+	  
+	  static public InventoryUser getGmailUser(String gmail)
+	  {
+		  // There is a presumption that there is only one user with gmail.
+			List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
+			// .filter("user_email", theUser.getEmail())
+			.list();
+			return InventoryUser.findInventoryUser(users, gmail);
 	  }
 	  
 	  public Key<Customer> getCustomerKey()

@@ -30,10 +30,10 @@
     if (gUser != null) {
     	// user was looged in
         // try to find gUser in Inventry users
-        List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
-                // .filter("user_email", gUser.getEmail())
-                .list();
-        InventoryUser iuser = InventoryUser.findInventoryUser(users, gUser.getEmail());
+//         List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
+//                 // .filter("user_email", gUser.getEmail())
+//                 .list();
+        InventoryUser iuser = InventoryUser.getGmailUser(gUser.getEmail());
         if (iuser == null)
         {
         	// The user wasn't registered
@@ -89,10 +89,9 @@
                     Customer customer = new Customer(company, gUser);
                     ObjectifyService.ofy().save().entity(customer).now();
                     // Add the user and fill his properties
-                    InventoryUser newuser = new InventoryUser(Ref.create(customer), 
-                    		first_name, last_name, new PhoneNumber(phone), new Email(gUser.getEmail()), true);
+                    InventoryUser newuser = new InventoryUser(Ref.create(customer), new Email(gUser.getEmail()), first_name, last_name, new PhoneNumber(phone), bis_email, true);
                     ObjectifyService.ofy().save().entity(newuser).now();
-                    response.sendRedirect("/ConfirmAccount.jsp"); 
+                    //response.sendRedirect("/ConfirmAccount.jsp"); 
                 }
         	}
         	else
@@ -139,14 +138,13 @@
                 case user_data_submited:
                     // user just submited her info
                     String message = "";
-                    String email = "";
+                    String email = request.getParameter("email");
                     String first_name = request.getParameter("first_name");
                     String last_name = request.getParameter("last_name");
                     String phone = request.getParameter("phone");
                     String bis_email = request.getParameter("bis_email");
-                    String company = request.getParameter("company");
-                    
-                    if (first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
+                     
+                    if (first_name == "Jerk" || last_name == "" || phone == "" || bis_email == "") // TODO: add real parameters' checks
                     {
                         %>
                         <p>Please correct wrong data</p>
@@ -165,8 +163,8 @@
                     {
                         // Create secondary user
                         // Add the user and fill his properties
-                        Key<Customer> customerKey = InventoryUser.getCurrentUser().getCustomerKey();
-                        InventoryUser newuser = new InventoryUser(Ref.create(customerKey), first_name, last_name, new PhoneNumber(phone), new Email(email), false);
+                        Ref<Customer> customerKey = iuser.theCustomer;
+                        InventoryUser newuser = new InventoryUser(customerKey, new Email(email), first_name, last_name, new PhoneNumber(phone), bis_email, false);
                         ObjectifyService.ofy().save().entity(newuser).now();
                         response.sendRedirect("/"); 
                     }
@@ -193,7 +191,7 @@
                     else 
                     {
                         %>
-                        <p><font color="red">The inventory data is not initialized</font></p>
+                        <p><font color="red">The inventory data was not initialized</font></p>
                         <%
                     }
                     InventoryFile testFile = new InventoryFile("TestInventory");
@@ -244,7 +242,7 @@
                     %>
                     <form action="/" method="post">
                     <input type="hidden" name="mode" value="createAccount"/>
-                    Create secondary user account for your organization <input type="submit" value="Create account"/>
+                    Create or modify a secondary user account for your organization <input type="submit" value="Create account"/>
                     </form>
                     <%
                     }

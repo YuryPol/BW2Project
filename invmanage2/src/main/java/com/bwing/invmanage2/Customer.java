@@ -1,5 +1,6 @@
 package com.bwing.invmanage2;
 
+import com.googlecode.objectify.ObjectifyService;
 import com.googlecode.objectify.annotation.Entity;
 import com.googlecode.objectify.annotation.Id;
 
@@ -55,6 +56,11 @@ public class Customer {
 	  }
 	  log.warning("No such Customer exists: " + theCompany);
 	  return null;
+  }
+  
+  static public Customer getCustomer(String company)
+  {
+	  return ObjectifyService.ofy().load().type(Customer.class).id(company).now();
   }
 
 }
