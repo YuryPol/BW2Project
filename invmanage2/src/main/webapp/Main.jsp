@@ -15,6 +15,9 @@
 <%@ page import="com.googlecode.objectify.Ref" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.Iterator" %>
+<%@ page import="java.sql.ResultSet" %>
+<%@ page import="java.sql.Statement" %>
+<%@ page import="java.util.logging.Logger" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
 <html>
@@ -25,6 +28,7 @@
 <body>
 
 <%
+    Logger log = Logger.getLogger(this.getClass().getName());
     UserService userService = UserServiceFactory.getUserService();
     User gUser = userService.getCurrentUser();
     if (gUser != null) {
@@ -169,10 +173,102 @@
                         response.sendRedirect("/"); 
                     }
                     break;
+                case Allocate:
+                    String set_name = request.getParameter("set_name");
+                    int alloc_Amount = 0;
+                    String advertiserID = "";
+                    if (request.getParameter("alloc_Amount") != null)
+                    {
+                        alloc_Amount = Integer.parseInt(request.getParameter("alloc_Amount").trim());
+                        advertiserID = request.getParameter("advertiserID").trim();
+                    }
+                    // System.out.println("Customer: " + customer_name);
+                    pageContext.setAttribute("customer_name", customer_name);
+                    InventoryState invState = new InventoryState(customer_name, true);
+                    if (!invState.isLoaded())
+                    {
+                        log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
+                        %>
+                        <p>The inventory <%=customer_name%> is <%=invState.getStatus().name()%>>: Return to start page 
+                        <form action="/" method="get">
+                        <div><input type="submit" value="Return"/></div>
+                        </form>
+                        </p>
+                        <%
+                    }
+                    else {
+                    %>
+                    <form action="/" method="get">
+                    </form>
+                    <p>Request an allocation from your inventory by submitting one at a time</p>
+                    <table border="1">
+                    <tr>
+                    <th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>advertiser ID</th><th>allocate</th>
+                    </tr>
+                    <%
+                    Statement st = invState.getConnection().createStatement();
+                    st.execute("USE " + InventoryState.BWdb + customer_name);
+                    if (alloc_Amount > 0 && set_name.length() > 0)
+                    {
+                        // invState.invalidate();
+                        invState.GetItems(set_name, advertiserID, alloc_Amount);
+                        log.info(set_name + " : " + Integer.toString(alloc_Amount));
+                    }
+                    // build availabilities forms
+                    // TODO: check inventory status first
+                    ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
+                    while (rs.next())
+                    {
+                        set_name = rs.getString(1);
+                        pageContext.setAttribute("set_name", set_name);
+                        int capacity = rs.getInt(2);
+                        int goal = rs.getInt(3);
+                        int availability = rs.getInt(4);
+                        log.info(set_name.toString() + ", " + Integer.toString(capacity) + ", " + Integer.toString(goal)  + ", " + Integer.toString(availability));
+                        pageContext.setAttribute("availability", availability);
+                        %>
+                        <tr>
+                        <td><%=set_name%></td>
+                        <td><%=capacity%></td>
+                        <td><%=goal%></td>
+                        <td><%=availability%></td>
+                        <form  action="/" method="post">
+                        <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
+                        <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+                        <input type="hidden" name="mode" value="Allocate"/>
+                        <td>
+                        <input type="text" name="advertiserID" required/>
+                        </td>
+                        <td>
+                        <input type="number" name="alloc_Amount" min="1" max="${fn:escapeXml(availability)}" required/>
+                        </td>
+                        <td>
+                        <input type="submit" value="Submit"/>
+                        </td>
+                        </form>
+                        </td>
+                        </tr>
+                        <%
+                    }
+                    invState.close();
+                    %>
+                    </table>
+                    <br>        
+                    <form action="/startsimulate" method="get">
+                    <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
+                    Or run the simulation: <input type="submit" value="Run"/>
+                    </form>
+                    <br>
+                    <form action="/AllocationReport.jsp" method="get">
+                    Or show allocation report  <input type="submit" value="Report"/>
+                    </form>       
+                    <%
+                    }
+                	break;
                 default:
                     // registered user, let her chose/create inventory
-                    InventoryState invState = new InventoryState(customer_name, true);
-                    if (invState.isLoaded() && invState.hasData())
+                    InventoryState invState2 = new InventoryState(customer_name, true);
+                    if (invState2.isLoaded() && invState2.hasData())
                     {
                         %>
                         <form action="/" method="post">
@@ -182,7 +278,7 @@
                         <p>Or you can start over and re-initialize your inventory with new data</p>
                         <%
                     }
-                    else if (invState.isWrongFile())
+                    else if (invState2.isWrongFile())
                     {
                         %>
                         <p><font color="red">Uploaded inventory file has a wrong format. Upload correct file and re-initialize the inventory</font></p>
@@ -212,7 +308,7 @@
                     <%
                     }
                     InventoryFile invFile = new InventoryFile(customer_name);
-                    if (invFile.isLoaded() && !invState.isWrongFile()) 
+                    if (invFile.isLoaded() && !invState2.isWrongFile()) 
                     {        
                     %>
                         <form action="/load" method="get">
@@ -246,9 +342,18 @@
                     </form>
                     <%
                     }
-                    invState.close();
+                    invState2.close();
                 break;
             }
+            if (modeStr != null)
+            {
+                %>
+                <form action="/" method="post">
+                Return to main page <input type="submit" value="Return"/>
+                </form>
+                <%
+            }
+
         }
         %>
             <p>Or you can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>

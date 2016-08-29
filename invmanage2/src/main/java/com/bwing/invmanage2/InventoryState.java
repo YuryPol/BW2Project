@@ -645,16 +645,20 @@ public class InventoryState implements AutoCloseable
     	}
     	
     	long set_key_is = 0;
-    	long capacity =0;
-    	long availability;
+    	long capacity = 0;
+    	long availability = 0;
     	String query = "SELECT set_key_is, capacity, availability FROM structured_data_base WHERE set_name = '" + set_name + "'";
     	try (Statement statement = con.createStatement())
     	{
     		ResultSet rs = statement.executeQuery(query);
-    		rs.next();
-    		set_key_is = rs.getLong(1);
-    		capacity = rs.getInt(2);
-    		availability = rs.getInt(3);
+	        if (rs.next())
+	        {
+	    		set_key_is = rs.getLong(1);
+	    		capacity = rs.getInt(2);
+	    		availability = rs.getInt(3);
+	        }
+	        else
+	        	log.severe(set_name + " set wasn't found");
     	}
     	
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?)}"))
