@@ -3,6 +3,7 @@
 <%@ page import="com.google.appengine.api.users.UserService" %>
 <%@ page import="com.google.appengine.api.users.UserServiceFactory" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
+<%@ include file="PreventCache.jsp" %>
 
 <html>
 <head>

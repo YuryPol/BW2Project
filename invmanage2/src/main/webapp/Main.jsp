@@ -19,6 +19,7 @@
 <%@ page import="java.sql.Statement" %>
 <%@ page import="java.util.logging.Logger" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+<%@ include file="PreventCache.jsp" %>
 
 <html>
 <head>
@@ -95,7 +96,7 @@
                     // Add the user and fill his properties
                     InventoryUser newuser = new InventoryUser(Ref.create(customer), new Email(gUser.getEmail()), first_name, last_name, new PhoneNumber(phone), bis_email, true);
                     ObjectifyService.ofy().save().entity(newuser).now();
-                    //response.sendRedirect("/ConfirmAccount.jsp"); 
+                    response.sendRedirect("/ConfirmAccount.jsp"); 
                 }
         	}
         	else

@@ -9,6 +9,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.BitSet;
 import java.util.Date;
@@ -288,7 +289,7 @@ public class InventoryState implements AutoCloseable
         			);
         	
         	st.executeUpdate("DROP PROCEDURE IF EXISTS GetItemsFromSD");
-        	st.executeUpdate("CREATE PROCEDURE GetItemsFromSD(IN iset BIGINT, IN amount INT) "
+        	st.executeUpdate("CREATE PROCEDURE GetItemsFromSD(IN iset BIGINT, IN amount INT, OUT result BOOLEAN) "
         			+ "BEGIN "
         			+ "IF BookItemsFromIS(iset, amount) "
         			+ "   THEN "
@@ -306,9 +307,9 @@ public class InventoryState implements AutoCloseable
         			+ "     UPDATE structured_data_base sdbR, structured_data_inc sd "
         			+ "     SET sdbR.availability = LEAST(sdbR.availability, sd.availability) "
         			+ "     WHERE sd.set_key & sdbR.set_key_is = sdbR.set_key_is; "
-        			+ "     SELECT 'passed'; "
+        			+ "     SELECT TRUE INTO result; "
         			+ "   ELSE "
-        			+ "     SELECT 'failed'; "
+        			+ "     SELECT FALSE INTO result; "
         			+ "   END IF; "
         			+ "END "
         			);
@@ -631,12 +632,12 @@ public class InventoryState implements AutoCloseable
         Log.info("Inventory for " + customer_name + " was loaded!");
     }
     
-    public void GetItems(String set_name, String advertiserID, int amount) throws SQLException
+    public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException
     {
     	if (amount <= 0)
     	{
-			Log.warning("wrong allocation = " + amount);
-			return;
+			Log.severe("wrong allocation = " + Integer.toString(amount));
+			return false;
     	}
     	if (advertiserID.length() == 0)
     	{
@@ -658,17 +659,27 @@ public class InventoryState implements AutoCloseable
 	    		availability = rs.getInt(3);
 	        }
 	        else
+	        {
 	        	log.severe(set_name + " set wasn't found");
+	        	return false;
+	        }
     	}
     	
-    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?)}"))
+    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?, ?)}"))
     	{
+        	boolean returnValue = false;
     		callStatement.setLong(1, set_key_is);
     		callStatement.setInt(2, amount);
-    		callStatement.execute();
+    		callStatement.registerOutParameter(3, Types.BOOLEAN);
+    		callStatement.executeUpdate();
+    		returnValue = callStatement.getBoolean(3);
+    		if (!returnValue)
+    		{
+    			log.severe("GetItemsFromSD failed for " + Long.toString(set_key_is) + " trying to allocate " + Integer.toString(amount));
+     			return false; // TODO: we probably need some diagnostic for UI
+    		}
     	}    			
     	
-    	int result = 0;
     	try (PreparedStatement statement = con.prepareStatement(
     	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal) VALUES ('"
     	+ String.valueOf(set_key_is) + "','" 
@@ -679,8 +690,9 @@ public class InventoryState implements AutoCloseable
     	+ String.valueOf(amount) 
     	+ "') ON DUPLICATE KEY UPDATE goal = VALUES(goal) + goal" ))
     	{
-    		result = statement.executeUpdate();
+    		statement.executeUpdate();
     	}
+    	return true;
     }
     
     
