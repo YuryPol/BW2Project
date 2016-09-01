@@ -257,11 +257,10 @@
                     <br>        
                     <form action="/startsimulate" method="get">
                     <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-                    Or run the simulation: <input type="submit" value="Run"/>
+                    You can run the simulation: <input type="submit" value="Run"/>
                     </form>
-                    <br>
                     <form action="/AllocationReport.jsp" method="get">
-                    Or show allocation report  <input type="submit" value="Report"/>
+                    Show allocation report  <input type="submit" value="Report"/>
                     </form>       
                     <%
                     }

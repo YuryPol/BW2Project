@@ -17,8 +17,6 @@ import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import org.mortbay.log.Log;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +51,8 @@ public class InventoryState implements AutoCloseable
     static final String unions_last_rank = "unions_last_rank";
     static final String unions_next_rank = "unions_next_rank";
     public static final String allocation_ledger = "allocation_protocol";
+    public static final String result_serving = "result_serving";
+    public static final String result_serving_copy = "result_serving_copy";
     static final String inventory_status = "inventory_status";
  
 	static final int BITMAP_SIZE = 64;
@@ -185,6 +185,10 @@ public class InventoryState implements AutoCloseable
             	    + "advertiserID  VARCHAR(80) DEFAULT NULL, "
             	    + "goal INT DEFAULT 0, "
             	    + "PRIMARY KEY(advertiserID))");
+        	
+        	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving);
+        	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving_copy);
+        	
         	
         	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
         	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "

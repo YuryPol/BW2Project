@@ -40,8 +40,8 @@ public class Simulation extends HttpServlet {
 	        int rand_weight = 0;
 
             Statement st = con.createStatement();
-            st.executeUpdate("DROP TABLE IF EXISTS result_serving");
-            st.executeUpdate("CREATE TABLE result_serving  ENGINE=MEMORY AS SELECT *, 0 AS served_count FROM structured_data_base;");
+//            st.executeUpdate("DROP TABLE IF EXISTS result_serving");
+//            st.executeUpdate("CREATE TABLE result_serving  ENGINE=MEMORY AS SELECT *, 0 AS served_count FROM structured_data_base;");
             st.executeUpdate("DROP TABLE IF EXISTS result_serving_copy");
             // process result_serving table
             PreparedStatement max_weightStatement = con.prepareStatement("select max(weight) from raw_inventory");
@@ -104,7 +104,13 @@ public class Simulation extends HttpServlet {
             st.executeUpdate("DROP TABLE IF EXISTS result_serving");
             log.info(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
             		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));            	            
-		} catch (ClassNotFoundException | SQLException ex) {
+		} 
+		catch (com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException ex)
+		{
+			// May happen when user cancels simulation
+			log.severe("Excepton " + ex.getMessage());
+		}
+		catch (ClassNotFoundException | SQLException ex) {
 			log.severe(ex.getMessage());
 			throw new ServletException(ex);
 		}

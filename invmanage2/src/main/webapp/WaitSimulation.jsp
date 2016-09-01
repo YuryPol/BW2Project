@@ -67,6 +67,14 @@
 		    </form>
 		    <%
         }
+        else if (message != null && message.equals("Cancel"))
+        {
+            // Remove result_serving table, thus causing Simulation to crash
+            Connection con = invState.getConnection();
+            Statement st = con.createStatement();
+            st.executeUpdate("DROP TABLE IF EXISTS result_serving");
+            response.sendRedirect("/");
+        }
         else
         {
            Connection con = invState.getConnection();
@@ -116,6 +124,11 @@
 	           %>
 	           </table>
 	           <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%> %</p>
+               <br>               
+               <form action="" method="post">
+               <input type="hidden" name="message" value="Cancel"/>
+               To cancel simulation and return to start page: <input type="submit" value="Cancel" />
+               </form>
 	           <%
            }
            else {
@@ -157,8 +170,7 @@
                %>
                </table>
                <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%>%</p>
-               <br>
-               
+               <br>               
                <form action="/" method="get">
                Return to start page: <input type="submit" value="Return" />
                </form>

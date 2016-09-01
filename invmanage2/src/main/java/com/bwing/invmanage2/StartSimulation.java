@@ -40,6 +40,10 @@ public class StartSimulation extends HttpServlet {
 				response.sendRedirect("/WaitSimulation.jsp?message=wasRunning");
 			} else {
 				// Table does not exist, go ahead
+				// Create the table
+	            Statement st = con.createStatement();
+	            st.executeUpdate("CREATE TABLE result_serving  ENGINE=MEMORY AS SELECT *, 0 AS served_count FROM structured_data_base;");
+				// And queue the task
 		    	Queue queue = QueueFactory.getDefaultQueue();
 		    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
 		    	log.info(customer_name + " simulation added to default queue.");
