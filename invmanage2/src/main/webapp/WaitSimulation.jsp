@@ -44,36 +44,27 @@
         pageContext.setAttribute("customer_name", customer_name);
         InventoryState invState = new InventoryState(customer_name, true);
         String message = request.getParameter("message");
-        if (message != null && message.equals("wasRunning")){
-        	%>
-        	<p>Simulation was already running</p>
-		    <p>Return to start page</p>
-		    <form action="/" method="get">
-		        <div>
-		            <input type="submit" value="Return" />
-		        </div>
-		    </form>
-        	<%
-        }
-        else if (!invState.isValid()) 
-        {
-            %>
-            <p>Inventory is locked</p>
-		    <p>Return to start page</p>
-		    <form action="/" method="get">
-		        <div>
-		            <input type="submit" value="Return" />
-		        </div>
-		    </form>
-		    <%
-        }
-        else if (message != null && message.equals("Cancel"))
+        if (message != null && message.equals("Cancel"))
         {
             // Remove result_serving table, thus causing Simulation to crash
             Connection con = invState.getConnection();
             Statement st = con.createStatement();
             st.executeUpdate("DROP TABLE IF EXISTS result_serving");
             response.sendRedirect("/");
+            return;
+        }
+        else if (!invState.isValid()) 
+        {
+            %>
+            <p>Inventory is locked</p>
+            <form action="/" method="get">
+            Return to start page<input type="submit" value="Return" />
+            </form>
+            <form action="/WaitSimulation.jsp" method="post">
+            <input type="hidden" name="message" value="Cancel"/>
+            To cancel simulation and return to start page: <input type="submit" value="Cancel" />
+            </form>
+            <%
         }
         else
         {
@@ -120,12 +111,15 @@
 	   	       }	
 	   	       invState.close();
 	           response.setIntHeader("Refresh", 5);
-	           log.info("Refreshing page waiting for inventory to load");
+	           log.info("Refreshing page waiting for simulation to complete");
 	           %>
 	           </table>
 	           <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%> %</p>
                <br>               
-               <form action="" method="post">
+	           <form action="/" method="get">
+	           Return to start page: <input type="submit" value="Return" />
+	           </form>
+               <form action="/WaitSimulation.jsp" method="post">
                <input type="hidden" name="message" value="Cancel"/>
                To cancel simulation and return to start page: <input type="submit" value="Cancel" />
                </form>

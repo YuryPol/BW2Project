@@ -29,22 +29,26 @@ public class LoadInventory extends HttpServlet
 			{
 		    	log.warning(customer_name + " inventory is locked");
 				// go back
-		    	response.getWriter().println("Inventory " + customer_name + " is locked");
-				response.sendRedirect("/");
+				response.sendRedirect("/WatitForInventory.jsp");
+				return;
 			}
-			// Process the file
-			invState.invalidate();
-//			invState.clear();
-	    	Queue queue = QueueFactory.getDefaultQueue();
-	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
-	    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
-	    			);
-	    	log.info(file_name + " processing added to default queue.");
-			// go to allocation page
-			response.sendRedirect("/WatitForInventory.jsp");
+			else
+			{
+				// Process the file
+				invState.invalidate();
+		    	Queue queue = QueueFactory.getDefaultQueue();
+		    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
+		    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));
+		    			);
+		    	log.info(file_name + " processing added to default queue.");
+				// go to allocation page
+				response.sendRedirect("/WatitForInventory.jsp");
+				return;
+			}
 		}
 		catch (Exception ex) 
         {
+			ex.printStackTrace();
 			log.severe(customer_name + "error " + ex.toString());
             throw new ServletException(ex);
         }

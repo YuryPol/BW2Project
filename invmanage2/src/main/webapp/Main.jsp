@@ -32,12 +32,16 @@
     Logger log = Logger.getLogger(this.getClass().getName());
     UserService userService = UserServiceFactory.getUserService();
     User gUser = userService.getCurrentUser();
+    String modeStr = request.getParameter("mode");
+    UIhelper.Mode mode;
+    if (modeStr == null)
+        mode = UIhelper.Mode.none;
+    else
+        mode = UIhelper.Mode.valueOf(modeStr);
+
     if (gUser != null) {
     	// user was looged in
         // try to find gUser in Inventry users
-//         List<InventoryUser> users = ObjectifyService.ofy().load().type(InventoryUser.class) // We want only Users
-//                 // .filter("user_email", gUser.getEmail())
-//                 .list();
         InventoryUser iuser = InventoryUser.getGmailUser(gUser.getEmail());
         if (iuser == null)
         {
@@ -45,9 +49,9 @@
         	%>
                 <p>Logged in as <%= gUser.getNickname()%></p>
         	<%
-        	String mode = request.getParameter("mode");
-        	if (mode != null && mode.equals("createAccount"))
-        	{
+            switch (mode) 
+            {
+                case createAccount:
         		%>
 	            <p>You can enter identifying information to create user account</p>
                 <form action="/" method="post">
@@ -56,13 +60,12 @@
                 <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
                 <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
                 <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
-                <input type="hidden" name="mode" value="user_data_submited"/>
+                <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
                 <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
                 </form>
-	            <% 
-        	}
-        	else if (mode != null && mode.equals("user_data_submited"))
-        	{
+	            <%
+	            break;
+                case user_data_submited:
                 // user just submited her info
                 String message = "";
                 String email = "";
@@ -82,7 +85,7 @@
 	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
 	                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
-	                <input type="hidden" name="mode" value="user_data_submited"/>
+	                <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
 	                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below                
 	                </form>
                     <%
@@ -96,14 +99,14 @@
                     // Add the user and fill his properties
                     InventoryUser newuser = new InventoryUser(Ref.create(customer), new Email(gUser.getEmail()), first_name, last_name, new PhoneNumber(phone), bis_email, true);
                     ObjectifyService.ofy().save().entity(newuser).now();
-                    response.sendRedirect("/ConfirmAccount.jsp"); 
+                    response.sendRedirect("/ConfirmAccount.jsp");
+                    return;
                 }
-        	}
-        	else
-        	{
+                break;
+                default:
         		%>
                 <form action="/" method="post">
-                <input type="hidden" name="mode" value="createAccount"/>
+                <input type="hidden" name="mode" value="<%=UIhelper.Mode.createAccount.toString()%>"/>
                 You can create primary user account for your organization <input type="submit" value="Create account"/>
                 </form>
                 <%
@@ -117,12 +120,6 @@
             <p>Logged in as <%=iuser.user_first_name%> <%=iuser.user_last_name %> from <%=iuser.theCustomer.get().company %></p>
             <%
             pageContext.setAttribute("customer_name", customer_name);
-            String modeStr = request.getParameter("mode");
-            UIhelper.Mode mode;
-            if (modeStr == null)
-            	mode = UIhelper.Mode.none;
-            else
-            	mode = UIhelper.Mode.valueOf(modeStr);
             	
             switch (mode) 
             {
@@ -135,7 +132,7 @@
 	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
 	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
-	                <input type="hidden" name="mode" value="user_data_submited"/>
+	                <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
 	                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
 	                </form>
 	                <% 
@@ -159,7 +156,7 @@
 	                    <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
 	                    <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                    <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
-	                    <input type="hidden" name="mode" value="user_data_submited"/>
+	                    <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
 	                    <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
 	                    </form>
                         <%
@@ -171,7 +168,8 @@
                         Ref<Customer> customerKey = iuser.theCustomer;
                         InventoryUser newuser = new InventoryUser(customerKey, new Email(email), first_name, last_name, new PhoneNumber(phone), bis_email, false);
                         ObjectifyService.ofy().save().entity(newuser).now();
-                        response.sendRedirect("/"); 
+                        response.sendRedirect("/");
+                        return;
                     }
                     break;
                 case Allocate:
@@ -236,7 +234,7 @@
                         <form  action="/" method="post">
                         <input type="hidden" name="set_name" value="${fn:escapeXml(set_name)}"/>
                         <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
-                        <input type="hidden" name="mode" value="Allocate"/>
+                        <input type="hidden" name="mode" value="<%=UIhelper.Mode.Allocate.toString()%>"/>
                         <td>
                         <input type="text" name="advertiserID" required/>
                         </td>
@@ -272,7 +270,7 @@
                     {
                         %>
                         <form action="/" method="post">
-                        <input type="hidden" name="mode" value="Allocate"/>
+                        <input type="hidden" name="mode" value="<%=UIhelper.Mode.Allocate.toString()%>"/>
                         Allocate impressions from the inventory <input type="submit" value="Allocate"/>
                         </form>
                         <p>Or you can start over and re-initialize your inventory with new data</p>
@@ -337,7 +335,7 @@
                     {
                     %>
                     <form action="/" method="post">
-                    <input type="hidden" name="mode" value="createAccount"/>
+                    <input type="hidden" name="mode" value="<%=UIhelper.Mode.createAccount.toString()%>"/>
                     Create or modify a secondary user account for your organization <input type="submit" value="Create account"/>
                     </form>
                     <%
@@ -345,15 +343,14 @@
                     invState2.close();
                 break;
             }
-            if (modeStr != null)
-            {
-                %>
-                <form action="/" method="post">
-                Return to main page <input type="submit" value="Return"/>
-                </form>
-                <%
-            }
-
+        }
+        if (modeStr != null)
+        {
+            %>
+            <form action="/" method="post">
+            Return to main page <input type="submit" value="Return"/>
+            </form>
+            <%
         }
         %>
             <p>Or you can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out</a></p>

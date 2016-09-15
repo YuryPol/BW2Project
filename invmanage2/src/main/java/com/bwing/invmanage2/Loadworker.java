@@ -49,7 +49,6 @@ public class Loadworker  extends HttpServlet
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
 			invState.load(readChannel);
-//			invState.unlock();
 //			con.commit();
 			log.info(file_name + " was parsed successfuly.");
 		} catch (ClassNotFoundException ex) {
@@ -85,6 +84,12 @@ public class Loadworker  extends HttpServlet
 		{
 			//TODO: this is temporary hack because it GAE throws the exception after 5 sec timeout
 			log.severe(customer_name + ex.toString());			
+			ex.printStackTrace();			
+		}
+		catch (com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException ex)
+		{
+			// May happen when user cancels load
+			log.severe("Excepton " + ex.getMessage() + ". May happen when user cancels load");
 			ex.printStackTrace();			
 		}
 		catch (Exception ex) {

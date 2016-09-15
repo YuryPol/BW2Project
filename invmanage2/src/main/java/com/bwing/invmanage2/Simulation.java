@@ -21,6 +21,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.apphosting.api.DeadlineExceededException;
+import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
+
 @SuppressWarnings("serial")
 public class Simulation extends HttpServlet {
 	private static final Logger log = Logger.getLogger(Simulation.class.getName());
@@ -108,7 +114,20 @@ public class Simulation extends HttpServlet {
 		catch (com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException ex)
 		{
 			// May happen when user cancels simulation
-			log.severe("Excepton " + ex.getMessage());
+			log.severe("Excepton " + ex.getMessage() + ". May happen when user cancels simulation");
+			ex.printStackTrace();			
+		}
+        catch (CommunicationsException ex)
+        {
+        	// Caused by DeadlineExceededException
+        	log.severe("Caused by DeadlineExceededException " + ex.getMessage());
+        }
+		catch (DeadlineExceededException ex)
+		{
+			// And queue the task to continue after it timed out
+	    	Queue queue = QueueFactory.getDefaultQueue();
+	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
+	    	log.warning(customer_name + " simulation added to default queue after dedline expired.");			
 		}
 		catch (ClassNotFoundException | SQLException ex) {
 			log.severe(ex.getMessage());

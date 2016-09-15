@@ -64,6 +64,7 @@ public class FileServlet extends HttpServlet {
                 {
                 	log.severe("File was not selected");
                     response.sendRedirect("/");
+                    return;
                 }
                 	
                 sctype = item.getContentType();
@@ -74,8 +75,8 @@ public class FileServlet extends HttpServlet {
                 } 
                 else 
                 {
-                	try (InventoryState invState = new InventoryState(customer_name, true))
-                	{
+                  try (InventoryState invState = new InventoryState(customer_name, true))
+                  {
                     log.warning("Got an uploaded file: " + item.getFieldName() +
                             ", name = " + item.getName());
 
@@ -91,11 +92,11 @@ public class FileServlet extends HttpServlet {
 
                     copy(stream, Channels.newOutputStream(outputChannel));
                     
-                    invState.invalidate();
+                    invState.invalidate(); // File was uploaded but inventory not initialized yet.
 
                     response.sendRedirect("/");
-                	}
-                	break; // We don't want to upload multiple files for now
+                    return; // We don't want to upload multiple files for now
+                  }
                 }
             }
         } catch (Exception ex) {
@@ -122,11 +123,10 @@ public class FileServlet extends HttpServlet {
             GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, customer_name);
             GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
             copy(Channels.newInputStream(readChannel), response.getOutputStream());
-            
-//            response.sendRedirect("/");
         } 
         catch (Exception ex) 
         {
+			ex.printStackTrace();
         	log.severe(ex.toString());
             throw new ServletException(ex);
         }

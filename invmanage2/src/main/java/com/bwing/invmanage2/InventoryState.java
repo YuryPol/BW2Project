@@ -430,7 +430,6 @@ public class InventoryState implements AutoCloseable
     {
         try (Statement st = con.createStatement())
         {
-        	clear();
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.invalid.name() + "')");
         	Log.info("status invalidated");
         }
@@ -440,23 +439,11 @@ public class InventoryState implements AutoCloseable
     {
         try (Statement st = con.createStatement())
         {
-        	clear();
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.wrongfile.name() + "')");
         	Log.info("status set to wrong file");
         }
     }
-    public void validate()
-    {
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "')");
-        	Log.info("status validated");
-        } catch (SQLException ex) {
-			// TODO Auto-generated catch block
-			ex.printStackTrace();
-			log.severe(customer_name + ex.toString());
-		}
-    }
+    
     
     public boolean isLoaded() throws SQLException
     {
@@ -484,6 +471,7 @@ public class InventoryState implements AutoCloseable
 
     public void load(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
+    	clear();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 		// Create inventory sets data. TODO: write into DB from the start
@@ -628,11 +616,11 @@ public class InventoryState implements AutoCloseable
         	// TODO: ignoring it for now until we figure out how to set timeout higher than 5 sec.
         	Log.severe("AddUnions thrown " + ex.getMessage());
         }
-        catch (Exception ex)
-        {
-        	Log.severe(ex.getMessage());
-        	throw ex;
-        }
+//        catch (Exception ex)
+//        {
+//        	Log.severe(ex.getMessage());
+//        	throw ex;
+//        }
         Log.info("Inventory for " + customer_name + " was loaded!");
     }
     

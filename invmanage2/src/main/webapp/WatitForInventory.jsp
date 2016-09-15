@@ -17,48 +17,68 @@
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser == null)
     {
-    log.warning("user was logged out");
-    %>
-	<p>ERROR! You were logged out</p>
-	<p>Return to login page</p>
-	<form action="/" method="get">
-		<div>
-			<input type="submit" value="Return" />
-		</div>
-	</form>
-	<%
+	    log.warning("user was logged out");
+	    %>
+		<p>ERROR! You were logged out</p>
+		<p>Return to login page</p>
+		<form action="/" method="get">
+			<div>
+				<input type="submit" value="Return" />
+			</div>
+		</form>
+	    <%
     }
     else 
     {
-        String customer_name = iuser.theCustomer.get().company;
-        InventoryState invState = new InventoryState(customer_name, true);
-             %>
-            Waiting for <%=customer_name%> inventory to load
-		    <p id="demo"></p>   
-		    <script>
-		    document.getElementById("demo").innerHTML = Date();
-		    </script>    
-		    <%
- 	     if (!invState.isValid()) 
+         String customer_name = iuser.theCustomer.get().company;
+         InventoryState invState = new InventoryState(customer_name, true);
+         String message = request.getParameter("message");
+         %>
+         Waiting for <%=customer_name%> inventory to load
+	     <p id="demo"></p>   
+	     <script>
+	     document.getElementById("demo").innerHTML = Date();
+	     </script>    
+	     <%
+         if (message != null && message.equals("Cancel"))
+         {
+            // Remove tables, if any created, thus causing Load to crash
+            invState.clear();
+            invState.close();
+            response.sendRedirect("/");
+            return;
+         }
+         else if (!invState.isValid()) 
 	     {
- 	    	// waiting for inventory to unlock
+             %>
+             <form action="/" method="get">
+             Return to start page<input type="submit" value="Return" />
+             </form>
+             <br>
+             <form action="/WatitForInventory.jsp" method="post">
+             <input type="hidden" name="message" value="Cancel"/>
+             To cancel inventory load and return to start page: <input type="submit" value="Cancel" />
+             </form>
+             <%
 	     }
          else if (invState.isLoaded() || invState.isWrongFile())
          {
              // Return to Select Inventory page
              invState.close();
              response.sendRedirect("/");
+             return;
          }
          else 
          {
       	    %>
-      	    <p>No data loaded yet</p>
-      	    <p>Return to inventory page</p>
-      	    <form action="/" method="get">
-      	        <div>
-      	            <input type="submit" value="Return" />
-      	        </div>
-      	    </form>
+             <form action="/" method="get">
+             Return to start page: <input type="submit" value="Return" />
+             </form>
+             <br>
+             <form action="/WatitForInventory.jsp" method="post">
+             <input type="hidden" name="message" value="Cancel"/>
+             To cancel inventory load and return to start page: <input type="submit" value="Cancel" />
+             </form>
       	    <%
          }
 	     invState.close();
