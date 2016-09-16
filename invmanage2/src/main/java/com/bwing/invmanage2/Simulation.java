@@ -13,6 +13,7 @@ import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.Random;
 import java.util.logging.Logger;
 
@@ -30,10 +31,14 @@ import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 @SuppressWarnings("serial")
 public class Simulation extends HttpServlet {
 	private static final Logger log = Logger.getLogger(Simulation.class.getName());
+	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
 	{
 		// Run simulation
+		Calendar starting = new GregorianCalendar();
+		Long start = starting.getTimeInMillis();
+		Long interval;
 		String customer_name = request.getParameter("customer_name");
 		try (InventoryState invState = new InventoryState(customer_name, true)) {
 //			invState.lock();
@@ -105,6 +110,15 @@ public class Simulation extends HttpServlet {
 	            			+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" 
 	                        + String.valueOf(missed_count) + "\r");
 	            }
+	            Calendar current = new GregorianCalendar();
+	            interval = current.getTimeInMillis() - start;
+	            if (interval >= RESTART_INTERVAL)
+	            {
+	    	    	Queue queue = QueueFactory.getDefaultQueue();
+	    	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
+	            	log.warning("Restartint the simuilation after " + interval.toString());
+	            	return;
+	            }	            	
             }
             st.executeUpdate("CREATE TABLE result_serving_copy ENGINE=MEMORY AS SELECT * FROM result_serving");
             st.executeUpdate("DROP TABLE IF EXISTS result_serving");
@@ -117,18 +131,14 @@ public class Simulation extends HttpServlet {
 			log.severe("Excepton " + ex.getMessage() + ". May happen when user cancels simulation");
 			ex.printStackTrace();			
 		}
-        catch (CommunicationsException ex)
+        catch (CommunicationsException | DeadlineExceededException ex)
         {
         	// Caused by DeadlineExceededException
-        	log.severe("Caused by DeadlineExceededException " + ex.getMessage());
-        }
-		catch (DeadlineExceededException ex)
-		{
 			// And queue the task to continue after it timed out
 	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
-	    	log.warning(customer_name + " simulation added to default queue after dedline expired.");			
-		}
+        	log.severe("Caused by DeadlineExceededException " + ex.getMessage());
+        }
 		catch (ClassNotFoundException | SQLException ex) {
 			log.severe(ex.getMessage());
 			throw new ServletException(ex);
