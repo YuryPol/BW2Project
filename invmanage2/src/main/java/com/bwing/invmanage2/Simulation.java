@@ -116,7 +116,7 @@ public class Simulation extends HttpServlet {
 	            {
 	    	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
-	            	log.warning("Restartint the simuilation after " + interval.toString());
+	            	log.warning("Restarting the simuilation after " + interval.toString() + " msec.");
 	            	return;
 	            }	            	
             }
