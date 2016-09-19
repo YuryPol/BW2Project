@@ -52,7 +52,7 @@ public class inventoryset implements Serializable {
     private int goal;
 
 	public inventoryset() {
-		// TODO Auto-generated constructor stub
+		goal = 0;
 	}
 
 	/**
