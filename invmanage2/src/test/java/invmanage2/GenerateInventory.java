@@ -98,55 +98,53 @@ public class GenerateInventory
 			seg.setCount(rand.nextInt(max_segment_count));
 			criteria some_criteria = new criteria();
 
-			HashSet<String> criterion = new HashSet<String>();
-			criterion.add(Regions[rand.nextInt(Regions.length)]);
-			some_criteria.putIfAbsent("region", criterion); // all users have
+			{
+				HashSet<String> criterion = new HashSet<String>();
+				criterion.add(Regions[rand.nextInt(Regions.length)]);
+				some_criteria.putIfAbsent("region", criterion); // all users have
+			}
 															// region
 			seg.setcriteria(some_criteria);
 
 			if (rand.nextInt(3) > 1) // only 66% of users have interests known
 			{
-				criterion.clear();
+				HashSet<String> criterion = new HashSet<String>();
 				while (true) {
 					if (!criterion.add(Interests[rand.nextInt(Interests.length)]))
 						break;
 				}
 				some_criteria.putIfAbsent("interests", criterion);
-				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(2) > 1) // only 50% of users have gender known
 			{
-				criterion.clear();
+				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Genders[rand.nextInt(Genders.length)]);
 				some_criteria.putIfAbsent("gender", criterion);
-				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(5) > 1) // only 20% of users have age known
 			{
-				criterion.clear();
+				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Ages[rand.nextInt(Ages.length)]);
 				some_criteria.putIfAbsent("age", criterion);
-				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(10) > 1) // only 10% of users have income known
 			{
-				criterion.clear();
+				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Incomes[rand.nextInt(Incomes.length)]);
 				some_criteria.putIfAbsent("income", criterion);
-				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(2) > 1) // only 50% of pages have content defined
 			{
-				criterion.clear();
+				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Contents[rand.nextInt(Contents.length)]);
 				some_criteria.putIfAbsent("content", criterion);
-				seg.setcriteria(some_criteria);
 			}
 			
+			seg.setcriteria(some_criteria);
 			segments.add(seg);
 		}
 		
