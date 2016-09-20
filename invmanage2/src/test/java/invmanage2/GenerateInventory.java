@@ -1,5 +1,7 @@
 package invmanage2;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -10,6 +12,7 @@ import com.bwing.invmanage2.InventroryData;
 import com.bwing.invmanage2.criteria;
 import com.bwing.invmanage2.inventoryset;
 import com.bwing.invmanage2.segment;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class GenerateInventory 
 {	
@@ -21,17 +24,13 @@ public class GenerateInventory
 	private static final String[] Incomes = new String[] {"poor", "middle", "affluent", "rich"};
 	private static final String[] Contents = new String[] {"drama", "comedy", "news", "actions", "travel"};
 	
-	//public static final HashSet<String> StatesSet = new HashSet<String>(Arrays.asList(States));
+    private static ObjectMapper mapper = new ObjectMapper();
 	
-	private HashMap<String, HashSet<String>> criterion; 
-
 	public static void main(String[] args) {
 		int inventorysets_count = Integer.parseInt(args[0]);
-		int max_inventoryset_count = Integer.parseInt(args[1]);
-		int segments_count = Integer.parseInt(args[2]);
-		int max_segment_count = Integer.parseInt(args[3]);
+		int segments_count = Integer.parseInt(args[1]);
+		int max_segment_count = Integer.parseInt(args[2]);
         Random rand = new Random();
-		HashSet<String> some_set = new HashSet<String>();
 		
 		// Generate inventory sets
 		ArrayList<inventoryset> inventorysets = new ArrayList<inventoryset>();
@@ -43,54 +42,52 @@ public class GenerateInventory
 
 			if (rand.nextInt(10) > 1) // only 10% of inventory sets have require region
 			{
-				some_set.clear();
-				some_set.add(Regions[rand.nextInt(Regions.length)]);
-				some_criteria.putIfAbsent("region", some_set); 
-				set.setcriteria(some_criteria);
+				HashSet<String> criterion = new HashSet<String>();
+				criterion.add(Regions[rand.nextInt(Regions.length)]);
+				some_criteria.putIfAbsent("region", criterion); 
 			}
 
 			if (rand.nextInt(3) > 1) // only 66% of inventory sets require interests
 			{
-				some_set.clear();
-				while (true) {
-					if (!some_set.add(Interests[rand.nextInt(Interests.length)]))
+				HashSet<String> criterion = new HashSet<String>();
+				while (true) 
+				{
+					if (!criterion.add(Interests[rand.nextInt(Interests.length)]))
 						break;
 				}
-				some_criteria.putIfAbsent("interests", some_set);
-				set.setcriteria(some_criteria);
+				some_criteria.putIfAbsent("interests", criterion);
 			}
 
 			if (rand.nextInt(4) > 1) // only 25% of inventory sets require gender
 			{
-				some_set.clear();
-				some_set.add(Genders[rand.nextInt(Genders.length)]);
-				some_criteria.putIfAbsent("gender", some_set);
-				set.setcriteria(some_criteria);
+				HashSet<String> criterion = new HashSet<String>();
+				criterion.add(Genders[rand.nextInt(Genders.length)]);
+				some_criteria.putIfAbsent("gender", criterion);
 			}
 
 			if (rand.nextInt(5) > 1) // only 20% of inventory sets require age
 			{
-				some_set.clear();
-				some_set.add(Ages[rand.nextInt(Ages.length)]);
-				some_criteria.putIfAbsent("age", some_set);
-				set.setcriteria(some_criteria);
+				HashSet<String> criterion = new HashSet<String>();
+				criterion.add(Ages[rand.nextInt(Ages.length)]);
+				some_criteria.putIfAbsent("age", criterion);
 			}
 
 			if (rand.nextInt(10) > 1) // only 10% of users have income known
 			{
-				some_set.clear();
-				some_set.add(Incomes[rand.nextInt(Incomes.length)]);
-				some_criteria.putIfAbsent("income", some_set);
-				set.setcriteria(some_criteria);
+				HashSet<String> criterion = new HashSet<String>();
+				criterion.add(Incomes[rand.nextInt(Incomes.length)]);
+				some_criteria.putIfAbsent("income", criterion);
 			}
 
 			if (rand.nextInt(2) > 1) // only 50% of paves have content defined
 			{
-				some_set.clear();
-				some_set.add(Contents[rand.nextInt(Contents.length)]);
-				some_criteria.putIfAbsent("content", some_set);
-				set.setcriteria(some_criteria);
-			}			
+				HashSet<String> criterion = new HashSet<String>();
+				criterion.add(Contents[rand.nextInt(Contents.length)]);
+				some_criteria.putIfAbsent("content", criterion);
+			}
+			
+			set.setcriteria(some_criteria);
+			inventorysets.add(set);
 		}
 		
 		// Generate segments
@@ -101,59 +98,70 @@ public class GenerateInventory
 			seg.setCount(rand.nextInt(max_segment_count));
 			criteria some_criteria = new criteria();
 
-			some_set.clear();
-			some_set.add(Regions[rand.nextInt(Regions.length)]);
-			some_criteria.putIfAbsent("region", some_set); // all users have
+			HashSet<String> criterion = new HashSet<String>();
+			criterion.add(Regions[rand.nextInt(Regions.length)]);
+			some_criteria.putIfAbsent("region", criterion); // all users have
 															// region
 			seg.setcriteria(some_criteria);
 
 			if (rand.nextInt(3) > 1) // only 66% of users have interests known
 			{
-				some_set.clear();
+				criterion.clear();
 				while (true) {
-					if (!some_set.add(Interests[rand.nextInt(Interests.length)]))
+					if (!criterion.add(Interests[rand.nextInt(Interests.length)]))
 						break;
 				}
-				some_criteria.putIfAbsent("interests", some_set);
+				some_criteria.putIfAbsent("interests", criterion);
 				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(2) > 1) // only 50% of users have gender known
 			{
-				some_set.clear();
-				some_set.add(Genders[rand.nextInt(Genders.length)]);
-				some_criteria.putIfAbsent("gender", some_set);
+				criterion.clear();
+				criterion.add(Genders[rand.nextInt(Genders.length)]);
+				some_criteria.putIfAbsent("gender", criterion);
 				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(5) > 1) // only 20% of users have age known
 			{
-				some_set.clear();
-				some_set.add(Ages[rand.nextInt(Ages.length)]);
-				some_criteria.putIfAbsent("age", some_set);
+				criterion.clear();
+				criterion.add(Ages[rand.nextInt(Ages.length)]);
+				some_criteria.putIfAbsent("age", criterion);
 				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(10) > 1) // only 10% of users have income known
 			{
-				some_set.clear();
-				some_set.add(Incomes[rand.nextInt(Incomes.length)]);
-				some_criteria.putIfAbsent("income", some_set);
+				criterion.clear();
+				criterion.add(Incomes[rand.nextInt(Incomes.length)]);
+				some_criteria.putIfAbsent("income", criterion);
 				seg.setcriteria(some_criteria);
 			}
 
 			if (rand.nextInt(2) > 1) // only 50% of pages have content defined
 			{
-				some_set.clear();
-				some_set.add(Contents[rand.nextInt(Contents.length)]);
-				some_criteria.putIfAbsent("content", some_set);
+				criterion.clear();
+				criterion.add(Contents[rand.nextInt(Contents.length)]);
+				some_criteria.putIfAbsent("content", criterion);
 				seg.setcriteria(some_criteria);
-			}			
+			}
+			
+			segments.add(seg);
 		}
 		
 		InventroryData inventorydata = new InventroryData();
 		inventorydata.setSegments(segments.toArray(new segment[segments.size()]));
-		inventorydata.setInventorysets(new inventoryset[inventorysets.size()]);
+		inventorydata.setInventorysets(inventorysets.toArray(new inventoryset[inventorysets.size()]));
+		try 
+		{
+			mapper.writeValue(new File("Test.json"), inventorydata);
+		} 
+		catch (IOException e) 
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 }
