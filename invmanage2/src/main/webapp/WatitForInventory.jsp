@@ -40,18 +40,23 @@
 	     document.getElementById("demo").innerHTML = Date();
 	     </script>    
 	     <%
+         log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
          if (message != null && message.equals("Cancel"))
          {
             // Remove tables, if any created, thus causing Load to crash
             invState.clear();
             invState.close();
+            log.info("Canceling wait inventory page");
             response.sendRedirect("/");
             return;
          }
-         else if (invState.isLoaded() || invState.isWrongFile() || invState.isClean())
+         else if (invState.isLoaded() || invState.isWrongFile() 
+//         		 || invState.isClean()
+        		 )
          {
              // Return to Select Inventory page
              invState.close();
+             log.info("Data was doaded, leave wait page");
              response.sendRedirect("/");
              return;
          }

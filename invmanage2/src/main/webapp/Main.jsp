@@ -52,6 +52,7 @@
             switch (mode) 
             {
                 case createAccount:
+                log.warning("Entering account info by " + gUser.getNickname());
         		%>
 	            <p>You can enter identifying information to create user account</p>
                 <form action="/" method="post">
@@ -77,6 +78,7 @@
                 
                 if (first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
                 {
+                    log.warning("Correcting Account info for " + gUser.getNickname());
                     %>
                     <p>Please enter correct data</p>
 	                <form action="/" method="post">
@@ -94,6 +96,7 @@
                 {
                     // Create Customer and primary user
                     // TODO: make it into transacton 
+                    log.warning("Creating Account for " + gUser.getNickname());
                     Customer customer = new Customer(company, gUser);
                     ObjectifyService.ofy().save().entity(customer).now();
                     // Add the user and fill his properties
@@ -124,6 +127,7 @@
             switch (mode) 
             {
 	            case createAccount:
+	                log.warning("Entering secondary Account info by " + customer_name);
 	                %>
 	                <p>You can enter identifying information to create account for secondary user with whom you share your organization's data</p>
 	                <form action="/" method="post">
@@ -148,6 +152,7 @@
                      
                     if (first_name == "Jerk" || last_name == "" || phone == "" || bis_email == "") // TODO: add real parameters' checks
                     {
+                        log.warning("Correcing secondary Account info by " + customer_name);
                         %>
                         <p>Please correct wrong data</p>
 	                    <form action="/" method="post">
@@ -165,6 +170,7 @@
                     {
                         // Create secondary user
                         // Add the user and fill his properties
+                        log.warning("Creating secondary Account " + first_name + " " + last_name);
                         Ref<Customer> customerKey = iuser.theCustomer;
                         InventoryUser newuser = new InventoryUser(customerKey, new Email(email), first_name, last_name, new PhoneNumber(phone), bis_email, false);
                         ObjectifyService.ofy().save().entity(newuser).now();
@@ -184,9 +190,9 @@
                     // System.out.println("Customer: " + customer_name);
                     pageContext.setAttribute("customer_name", customer_name);
                     InventoryState invState = new InventoryState(customer_name, true);
+                    log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
                     if (!invState.isLoaded())
                     {
-                        log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
                         %>
                         <p>The inventory <%=customer_name%> is <%=invState.getStatus().name()%>>: Return to start page 
                         <form action="/" method="get">
@@ -210,8 +216,10 @@
                     if (alloc_Amount > 0 && set_name.length() > 0)
                     {
                         // invState.invalidate();
-                        invState.GetItems(set_name, advertiserID, alloc_Amount);
-                        log.info(set_name + " : " + Integer.toString(alloc_Amount));
+                        if (invState.GetItems(set_name, advertiserID, alloc_Amount))
+                        	log.info("Allocated " + set_name + " : " + Integer.toString(alloc_Amount));
+                        else
+                            log.severe("Allocation failed for " + set_name + " of " + Integer.toString(alloc_Amount));
                     }
                     // build availabilities forms
                     // TODO: check inventory status first
@@ -266,6 +274,7 @@
                 default:
                     // registered user, let her chose/create inventory
                     InventoryState invState2 = new InventoryState(customer_name, true);
+                    log.warning("The inventory " + customer_name + " is " + invState2.getStatus().name());
                     if (invState2.isLoaded())
                     {
                      if (invState2.hasData())
