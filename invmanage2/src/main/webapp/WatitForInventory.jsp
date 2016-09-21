@@ -48,20 +48,7 @@
             response.sendRedirect("/");
             return;
          }
-         else if (!invState.isValid()) 
-	     {
-             %>
-             <form action="/" method="get">
-             Return to start page<input type="submit" value="Return" />
-             </form>
-             <br>
-             <form action="/WatitForInventory.jsp" method="post">
-             <input type="hidden" name="message" value="Cancel"/>
-             To cancel inventory load and return to start page: <input type="submit" value="Cancel" />
-             </form>
-             <%
-	     }
-         else if (invState.isLoaded() || invState.isWrongFile())
+         else if (invState.isLoaded() || invState.isWrongFile() || invState.isClean())
          {
              // Return to Select Inventory page
              invState.close();

@@ -468,6 +468,15 @@ public class InventoryState implements AutoCloseable
     	else
     		return false;
     }
+    
+    public boolean isClean() throws SQLException
+    {
+    	if (getStatus() == Status.clean)
+    		return true;
+    	else
+    		return false;
+    	
+    }
 
     public void load(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
@@ -488,8 +497,7 @@ public class InventoryState implements AutoCloseable
 		}
 		if (highBit == 0)
 		{
-			Log.warning("no data in inventory sets in " + readChannel.toString());
-			return;
+			Log.severe("no data in inventory sets in " + readChannel.toString());
 		}			
 		
 		// Create segments' raw data. TODO: write into DB from the start
@@ -516,8 +524,7 @@ public class InventoryState implements AutoCloseable
 		}
 		if (base_segments.isEmpty())
 		{
-			Log.warning("no data in segments " + readChannel.toString());
-			return;
+			Log.severe("no data in segments " + readChannel.toString());
 		}
 
 		//

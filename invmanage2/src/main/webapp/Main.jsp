@@ -266,8 +266,10 @@
                 default:
                     // registered user, let her chose/create inventory
                     InventoryState invState2 = new InventoryState(customer_name, true);
-                    if (invState2.isLoaded() && invState2.hasData())
+                    if (invState2.isLoaded())
                     {
+                     if (invState2.hasData())
+                     {
                         %>
                         <form action="/" method="post">
                         <input type="hidden" name="mode" value="<%=UIhelper.Mode.Allocate.toString()%>"/>
@@ -275,6 +277,14 @@
                         </form>
                         <p>Or you can start over and re-initialize your inventory with new data</p>
                         <%
+                     }
+                     else
+                     {
+                         %>
+                         <p><font color="red">All availabilities in your data equal 0</p>
+                         <p>You can start over and re-initialize your inventory with new data</p>
+                         <%
+                     }
                     }
                     else if (invState2.isWrongFile())
                     {
