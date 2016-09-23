@@ -184,7 +184,8 @@ public class InventoryState implements AutoCloseable
             	    + "availability INT DEFAULT NULL, " 
             	    + "advertiserID  VARCHAR(80) DEFAULT NULL, "
             	    + "goal INT DEFAULT 0, "
-            	    + "PRIMARY KEY(advertiserID))");
+            	    + "alloc_key VARCHAR(40) DEFAULT NULL, "
+            	    + "PRIMARY KEY(alloc_key))");
         	
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving);
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving_copy);
@@ -698,13 +699,14 @@ public class InventoryState implements AutoCloseable
     	}    			
     	
     	try (PreparedStatement statement = con.prepareStatement(
-    	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal) VALUES ('"
+    	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal, alloc_key) VALUES ('"
     	+ String.valueOf(set_key_is) + "','" 
     	+ set_name + "','"
     	+ String.valueOf(capacity) + "','" 
     	+ String.valueOf(availability) + "','" 
     	+ advertiserID + "','" 
-    	+ String.valueOf(amount) 
+    	+ String.valueOf(amount)  + "','"
+    	+ advertiserID + " | " + set_name
     	+ "') ON DUPLICATE KEY UPDATE goal = VALUES(goal) + goal" ))
     	{
     		statement.executeUpdate();
