@@ -40,11 +40,14 @@ public class GenerateInventory
 			criteria some_criteria = new criteria();
 			set.setName("Audience_" + Integer.toString(ind, 10));
 
-			if (rand.nextInt(10) >= 8) // only 20% of inventory sets require region
+			if (rand.nextInt(10) >= 9) // only 10% of inventory sets require region
 			{
 				HashSet<String> criterion = new HashSet<String>();
-				criterion.add(Regions[rand.nextInt(Regions.length)]);
-				some_criteria.putIfAbsent("region", criterion); 
+				while (true) 
+				{
+					if (!criterion.add(Regions[rand.nextInt(Regions.length)]))
+						break;
+				}
 			}
 
 			if (rand.nextInt(10) >= 7) // only 30% of inventory sets require interests
@@ -65,7 +68,7 @@ public class GenerateInventory
 				some_criteria.putIfAbsent("gender", criterion);
 			}
 
-			if (rand.nextInt(10) >= 8) // only 20% of inventory sets require age
+			if (rand.nextInt(10) >= 9) // only 10% of inventory sets require age
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Ages[rand.nextInt(Ages.length)]);
@@ -106,41 +109,47 @@ public class GenerateInventory
 															// region
 			seg.setcriteria(some_criteria);
 
-			if (rand.nextInt(3) > 1) // only 66% of users have interests known
+			if (rand.nextInt(3) >= 1) // only 66% of users have interests known
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				while (true) {
-					if (!criterion.add(Interests[rand.nextInt(Interests.length)]))
+					if (!criterion.add(Interests[rand.nextInt(Interests.length)]) || rand.nextInt(3) >= 1)
+						// 2 interests on average per person
 						break;
 				}
 				some_criteria.putIfAbsent("interests", criterion);
 			}
 
-			if (rand.nextInt(2) > 1) // only 50% of users have gender known
+			if (rand.nextInt(2) >= 1) // only 50% of users have gender known
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Genders[rand.nextInt(Genders.length)]);
 				some_criteria.putIfAbsent("gender", criterion);
 			}
 
-			if (rand.nextInt(5) > 1) // only 20% of users have age known
+			if (rand.nextInt(5) >= 4) // only 20% of users have age known
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Ages[rand.nextInt(Ages.length)]);
 				some_criteria.putIfAbsent("age", criterion);
 			}
 
-			if (rand.nextInt(10) > 1) // only 10% of users have income known
+			if (rand.nextInt(10) >= 9) // only 10% of users have income known
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Incomes[rand.nextInt(Incomes.length)]);
 				some_criteria.putIfAbsent("income", criterion);
 			}
 
-			if (rand.nextInt(2) > 1) // only 50% of pages have content defined
+			if (rand.nextInt(3) >= 2) // only 66% of pages have content defined
 			{
 				HashSet<String> criterion = new HashSet<String>();
-				criterion.add(Contents[rand.nextInt(Contents.length)]);
+
+				while (true) {
+					if (!criterion.add(Contents[rand.nextInt(Contents.length)]) || rand.nextInt(3) >= 1)
+						// 2 contents on average per page
+						break;
+				}
 				some_criteria.putIfAbsent("content", criterion);
 			}
 			
