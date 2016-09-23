@@ -20,8 +20,8 @@ public class GenerateInventory
 	private static final String[] Interests = new String[] 
 			{"sport", "business", "cooking", "movies", "politics", "nature", "cars", "food", "investments", "golf", "vine", "football", "sport", "tech"};
 	private static final String[] Genders = new String[] {"F", "M"};
-	private static final String[] Ages = new String[] {"child", "young", "middle", "senior"};
-	private static final String[] Incomes = new String[] {"poor", "middle", "affluent", "rich"};
+	private static final String[] Ages = new String[] {"young", "middle", "senior"};
+	private static final String[] Incomes = new String[] {"middle", "affluent", "rich"};
 	private static final String[] Contents = new String[] {"drama", "comedy", "news", "actions", "travel"};
 	
     private static ObjectMapper mapper = new ObjectMapper();
@@ -40,14 +40,14 @@ public class GenerateInventory
 			criteria some_criteria = new criteria();
 			set.setName("Audience_" + Integer.toString(ind, 10));
 
-			if (rand.nextInt(10) > 1) // only 10% of inventory sets have require region
+			if (rand.nextInt(10) >= 8) // only 20% of inventory sets require region
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Regions[rand.nextInt(Regions.length)]);
 				some_criteria.putIfAbsent("region", criterion); 
 			}
 
-			if (rand.nextInt(3) > 1) // only 66% of inventory sets require interests
+			if (rand.nextInt(10) >= 7) // only 30% of inventory sets require interests
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				while (true) 
@@ -58,28 +58,28 @@ public class GenerateInventory
 				some_criteria.putIfAbsent("interests", criterion);
 			}
 
-			if (rand.nextInt(4) > 1) // only 25% of inventory sets require gender
+			if (rand.nextInt(10) >= 9) // only 10% of inventory sets require gender
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Genders[rand.nextInt(Genders.length)]);
 				some_criteria.putIfAbsent("gender", criterion);
 			}
 
-			if (rand.nextInt(5) > 1) // only 20% of inventory sets require age
+			if (rand.nextInt(10) >= 8) // only 20% of inventory sets require age
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Ages[rand.nextInt(Ages.length)]);
 				some_criteria.putIfAbsent("age", criterion);
 			}
 
-			if (rand.nextInt(10) > 1) // only 10% of users have income known
+			if (rand.nextInt(10) >= 9) // only 10% of inventory sets require income
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Incomes[rand.nextInt(Incomes.length)]);
 				some_criteria.putIfAbsent("income", criterion);
 			}
 
-			if (rand.nextInt(2) > 1) // only 50% of paves have content defined
+			if (rand.nextInt(2) >= 1) // only 50% of inventory sets require content
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Contents[rand.nextInt(Contents.length)]);

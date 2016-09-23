@@ -491,14 +491,15 @@ public class InventoryState implements AutoCloseable
 			boolean match_found = false;
 			for (BaseSet bs1 : base_sets.values())
 			{
-				if (bs1.getCriteria().matches(is.getcriteria()))
+				if (bs1.getCriteria().equals(is.getcriteria()))
 				{
 					match_found = true;
 					break;
 				}
 			}
 			if (match_found)
-				continue;
+				continue; // skip repeated set
+			
 			BaseSet tmp = new BaseSet(BITMAP_SIZE);
 			tmp.setkey(highBit);
 			tmp.setname(is.getName());
