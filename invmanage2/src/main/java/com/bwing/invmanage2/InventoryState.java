@@ -44,7 +44,6 @@ public class InventoryState implements AutoCloseable
     public static final String BWdb = "BWing_";
     
     // Tables
-    static final String raw_inventory_ex = "raw_inventory_ex";
     public static final String raw_inventory = "raw_inventory";
     static final String structured_data_inc ="structured_data_inc";
     static final String structured_data_base = "structured_data_base";
@@ -121,18 +120,12 @@ public class InventoryState implements AutoCloseable
         	+ " status VARCHAR(200) DEFAULT '" + Status.invalid.name()
         	+ "', PRIMARY KEY(fake_key))");
 
-        	// create raw_inventory_ex table to fill up by impressions' counts
-        	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory_ex);
-        	st.executeUpdate("CREATE TABLE " + raw_inventory_ex 
-        	+ " (basesets BIGINT NOT NULL, "
-            + "count INT NOT NULL, "
-            + "criteria VARCHAR(200) DEFAULT NULL)");
-
-        	// create raw_inventory table to fill it from raw_inventory_ex with compacted and weighted data
+        	// create raw_inventory table to fill up by impressions' counts
         	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory);
         	st.executeUpdate("CREATE TABLE " + raw_inventory 
         	+ " (basesets BIGINT NOT NULL, "
             + "count INT NOT NULL, "
+            + "criteria VARCHAR(200) DEFAULT NULL, "
             + "weight BIGINT DEFAULT 0)");
 
         	// create structured data table
@@ -327,7 +320,6 @@ public class InventoryState implements AutoCloseable
     	// Truncate all tables
         try (Statement st = con.createStatement())
         {
-        	st.executeUpdate("TRUNCATE " + raw_inventory_ex);
         	st.executeUpdate("TRUNCATE " + raw_inventory);
         	st.executeUpdate("TRUNCATE " + structured_data_inc);
         	st.executeUpdate("TRUNCATE " + structured_data_base);
@@ -387,7 +379,7 @@ public class InventoryState implements AutoCloseable
     {
         try (Statement st = con.createStatement())
         {
-        	boolean res = st.execute("LOCK TABLES "+ raw_inventory_ex + " WRITE, "
+        	boolean res = st.execute("LOCK TABLES "
         			+ raw_inventory + " WRITE, "
         			+ structured_data_inc + " WRITE, "
         			+ structured_data_base + " WRITE, "
@@ -400,7 +392,7 @@ public class InventoryState implements AutoCloseable
         			+ allocation_ledger + " WRITE, "
         			+ inventory_status + " WRITE "
       			);
-        	Log.warning(raw_inventory_ex + " was locked");
+        	Log.warning("tables were locked");
         }
     }
     
@@ -563,27 +555,19 @@ public class InventoryState implements AutoCloseable
         }
         
         // populate raw data with inventory sets' bitmaps
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory_ex 
-        		+ " SET basesets = ?, count = ?, criteria = ?"))
+        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory 
+        		+ " SET basesets = ?, count = ?, criteria = ?, weight = ? ON DUPLICATE KEY UPDATE count = VALUES(count) + count" ))
         {
-        	Log.info("INSERT INTO "  + raw_inventory_ex);
+        	Log.info("INSERT INTO "  + raw_inventory);
 	        for (BaseSegement bs1 : base_segments.values()) {
 	        	insertStatement.setLong(1, bs1.getKeyBin()[0]);
 	        	insertStatement.setInt(2, bs1.getcapacity());
 	        	insertStatement.setString(3, bs1.getCriteria().toString());
+	        	insertStatement.setLong(4, 0);
 	            insertStatement.execute();
 	        }
         }
-        
-        // adds up multiple records in raw_inventory_ex with the same key
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("INSERT INTO " + raw_inventory
-        		+ " SELECT basesets, sum(count) as count, 0 as weight FROM " + raw_inventory_ex 
-        		+ " GROUP BY basesets");
-        	Log.info("INSERT INTO " + raw_inventory);
-        } // That shouldn't be necessary as raw_inventory_ex already groups them but verification is needed.
-        
+                
         // update raw inventory with weights
         try (PreparedStatement st = con.prepareStatement("SELECT @n:=0"))
         {
