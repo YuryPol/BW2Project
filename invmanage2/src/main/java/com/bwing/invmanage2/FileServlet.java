@@ -92,7 +92,7 @@ public class FileServlet extends HttpServlet {
 
                     copy(stream, Channels.newOutputStream(outputChannel));
                     
-                    invState.invalidate(); // File was uploaded but inventory not initialized yet.
+                    invState.inconsitent(); // File was uploaded but inventory not initialized yet.
 
                     response.sendRedirect("/");
                     return; // We don't want to upload multiple files for now

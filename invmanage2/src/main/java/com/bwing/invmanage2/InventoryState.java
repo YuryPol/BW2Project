@@ -32,7 +32,7 @@ public class InventoryState implements AutoCloseable
 	private static final Logger log = Logger.getLogger(InventoryState.class.getName());
 
 	public enum Status {
-		clean, invalid, loaded, wrongfile
+		clean, invalid, loaded, wrongfile, inconsitent
 	}
 
 	String customer_name;
@@ -428,6 +428,15 @@ public class InventoryState implements AutoCloseable
         }
     }
     
+    public void inconsitent() throws SQLException
+    {
+        try (Statement st = con.createStatement())
+        {
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.inconsitent.name() + "')");
+        	Log.info("status inconsitent");
+        }
+    }
+
     public void wrongFile() throws SQLException
     {
         try (Statement st = con.createStatement())
