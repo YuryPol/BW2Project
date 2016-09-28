@@ -54,7 +54,7 @@ public class InventoryState implements AutoCloseable
     public static final String result_serving_copy = "result_serving_copy";
     static final String inventory_status = "inventory_status";
  
-	static final int BITMAP_SIZE = 64;
+	static final int BITMAP_SIZE = 15; // max = 64;
 	
 	public static Connection connect(boolean auto) throws ClassNotFoundException, SQLException
 	{
@@ -485,6 +485,12 @@ public class InventoryState implements AutoCloseable
     	clear();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
+		if (inventorydata.getInventorysets().length > BITMAP_SIZE)
+		{
+			Log.severe("more than " + String.valueOf(BITMAP_SIZE) + " inventory sets in " + readChannel.toString());
+			wrongFile();
+			return;
+		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
@@ -512,6 +518,8 @@ public class InventoryState implements AutoCloseable
 		if (highBit == 0)
 		{
 			Log.severe("no data in inventory sets in " + readChannel.toString());
+			wrongFile();
+			return;
 		}			
 		
 		// Create segments' raw data. TODO: write into DB from the start

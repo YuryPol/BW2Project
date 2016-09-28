@@ -297,7 +297,7 @@
                     else if (invState2.isWrongFile())
                     {
                         %>
-                        <p><font color="red">Uploaded inventory file has a wrong format. Upload correct file and re-initialize the inventory</font></p>
+                        <p><font color="red">Uploaded inventory file is wrong. Upload correct file and re-initialize the inventory</font></p>
                         <%
                     }
                     else 
