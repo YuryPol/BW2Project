@@ -643,7 +643,7 @@ public class InventoryState implements AutoCloseable
         Log.info("Inventory for " + customer_name + " was loaded!");
     }
     
-    public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException
+    public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException, ClassNotFoundException
     {
     	if (amount <= 0)
     	{
@@ -676,20 +676,30 @@ public class InventoryState implements AutoCloseable
 	        }
     	}
     	
-    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?, ?)}"))
+    	CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?, ?)}");
+     	boolean returnValue = false;
+		callStatement.setLong(1, set_key_is);
+		callStatement.setInt(2, amount);
+		callStatement.registerOutParameter(3, Types.BOOLEAN);
+    	try 
     	{
-        	boolean returnValue = false;
-    		callStatement.setLong(1, set_key_is);
-    		callStatement.setInt(2, amount);
-    		callStatement.registerOutParameter(3, Types.BOOLEAN);
+    		// GetItemsFromSD can fail because of 5 msec limit on GAE connection
     		callStatement.executeUpdate();
     		returnValue = callStatement.getBoolean(3);
     		if (!returnValue)
     		{
     			log.severe("GetItemsFromSD failed for " + Long.toString(set_key_is) + " trying to allocate " + Integer.toString(amount));
+    			callStatement.close();
      			return false; // TODO: we probably need some diagnostic for UI
     		}
-    	}    			
+    	}
+    	catch (com.mysql.jdbc.exceptions.jdbc4.CommunicationsException ex)
+    	{
+    		log.severe("GetItemsFromSD caused an exception. Hopefully it completed." + ex.toString());
+    		// Reconnect back because the exception closed the connection.
+        	con = connect(true);
+        	con.setCatalog(BWdb + customer_name);
+    	}
     	
     	try (PreparedStatement statement = con.prepareStatement(
     	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal, alloc_key) VALUES ('"

@@ -211,8 +211,6 @@
                     <th>name</th><th>capacity</th><th>goal</th><th>availability</th><th>advertiser ID</th><th>allocate</th>
                     </tr>
                     <%
-                    Statement st = invState.getConnection().createStatement();
-                    st.execute("USE " + InventoryState.BWdb + customer_name);
                     if (alloc_Amount > 0 && set_name.length() > 0)
                     {
                         // invState.invalidate();
@@ -223,6 +221,7 @@
                     }
                     // build availabilities forms
                     // TODO: check inventory status first
+                    Statement st = invState.getConnection().createStatement();
                     ResultSet rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base");
                     while (rs.next())
                     {
