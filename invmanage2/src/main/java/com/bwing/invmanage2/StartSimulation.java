@@ -37,7 +37,7 @@ public class StartSimulation extends HttpServlet {
 			ResultSet tables = dbm.getTables(null, null, "result_serving", null);
 			if (tables.next()) {
 				log.warning("Table " + customer_name + ".result_serving already exists, somebody else is running the simulation");
-				response.sendRedirect("/WaitSimulation.jsp");
+				response.sendRedirect("/waitsim");
 				return;
 			} 
 			else 
@@ -52,7 +52,7 @@ public class StartSimulation extends HttpServlet {
 		    	log.info(customer_name + " simulation added to default queue.");
 				// go to waiting page
 		    	TimeUnit.SECONDS.sleep(1);
-				response.sendRedirect("/WaitSimulation.jsp");
+				response.sendRedirect("/waitsim");
 				return;
 			}
 		} catch (ClassNotFoundException | SQLException ex) {

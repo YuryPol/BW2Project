@@ -60,7 +60,7 @@
             <form action="/" method="get">
             Return to start page<input type="submit" value="Return" />
             </form>
-            <form action="/WaitSimulation.jsp" method="post">
+            <form action="/waitsim" method="post">
             <input type="hidden" name="message" value="Cancel"/>
             To cancel simulation and return to start page: <input type="submit" value="Cancel" />
             </form>
@@ -119,7 +119,7 @@
 	           <form action="/" method="get">
 	           Return to start page: <input type="submit" value="Return" />
 	           </form>
-               <form action="/WaitSimulation.jsp" method="post">
+               <form action="/waitsim" method="post">
                <input type="hidden" name="message" value="Cancel"/>
                To cancel simulation and return to start page: <input type="submit" value="Cancel" />
                </form>

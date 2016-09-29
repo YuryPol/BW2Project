@@ -45,7 +45,40 @@
       <servlet-name>simulate</servlet-name>
       <url-pattern>/simulate</url-pattern>
   </servlet-mapping>
-    
+  
+  <servlet>
+        <servlet-name>allocrep</servlet-name>
+        <jsp-file>AllocationReport.jsp</jsp-file>  
+  </servlet>  
+  <servlet-mapping>
+        <servlet-name>allocrep</servlet-name>
+        <url-pattern>/allocrep</url-pattern>
+  </servlet-mapping>   
+  <servlet>
+        <servlet-name>confirmacnt</servlet-name>
+        <jsp-file>ConfirmAccount.jsp</jsp-file>  
+  </servlet>  
+  <servlet-mapping>
+        <servlet-name>confirmacnt</servlet-name>
+        <url-pattern>/confirmacnt</url-pattern>
+  </servlet-mapping>  
+  <servlet>
+        <servlet-name>waitsim</servlet-name>
+        <jsp-file>WaitSimulation.jsp</jsp-file>  
+  </servlet>  
+  <servlet-mapping>
+        <servlet-name>waitsim</servlet-name>
+        <url-pattern>/waitsim</url-pattern>
+  </servlet-mapping>  
+  <servlet>
+        <servlet-name>waitinv</servlet-name>
+        <jsp-file>WatitForInventory.jsp</jsp-file>  
+  </servlet>  
+  <servlet-mapping>
+        <servlet-name>waitinv</servlet-name>
+        <url-pattern>/waitinv</url-pattern>
+  </servlet-mapping>
+  
 	<error-page>
 	    <exception-type>javax.servlet.ServletException</exception-type>
 	    <location>/errors/errorpage.jsp</location>

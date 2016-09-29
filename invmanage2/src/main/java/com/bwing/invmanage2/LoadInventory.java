@@ -29,7 +29,7 @@ public class LoadInventory extends HttpServlet
 			{
 		    	log.warning(customer_name + " inventory is locked");
 				// go back
-				response.sendRedirect("/WatitForInventory.jsp");
+				response.sendRedirect("/waitinv");
 				return;
 			}
 			else
@@ -42,7 +42,7 @@ public class LoadInventory extends HttpServlet
 		    			);
 		    	log.info(file_name + " processing added to default queue.");
 				// go to allocation page
-				response.sendRedirect("/WatitForInventory.jsp");
+				response.sendRedirect("/waitinv");
 				return;
 			}
 		}
