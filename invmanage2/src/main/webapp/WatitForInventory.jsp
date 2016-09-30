@@ -67,7 +67,7 @@
              Return to start page: <input type="submit" value="Return" />
              </form>
              <br>
-             <form action="/waitinv" method="post">
+             <form action="WatitForInventory.jsp" method="post">
              <input type="hidden" name="message" value="Cancel"/>
              To cancel inventory load and return to start page: <input type="submit" value="Cancel" />
              </form>

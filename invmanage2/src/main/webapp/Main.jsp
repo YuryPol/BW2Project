@@ -266,7 +266,7 @@
                     <input type="hidden" name="customer_name" value="${fn:escapeXml(customer_name)}"/>
                     You can run the simulation: <input type="submit" value="Run"/>
                     </form>
-                    <form action="/allocrep" method="get">
+                    <form action="/AllocationReport.jsp" method="get">
                     Show allocation report  <input type="submit" value="Report"/>
                     </form>       
                     <%
