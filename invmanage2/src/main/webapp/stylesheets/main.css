@@ -1,6 +1,7 @@
 @CHARSET "UTF-8";
 body {
     font-family: Verdana, Helvetica, sans-serif;
+    line-height: 2.3em;
     background-color: #ffffff
     h2 {font-size: 1.875em;}
 }
