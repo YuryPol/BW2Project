@@ -485,7 +485,7 @@ public class InventoryState implements AutoCloseable
     	clear();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
-		if (inventorydata.getInventorysets().length > BITMAP_SIZE)
+		if (inventorydata.getSegments().length > BITMAP_SIZE)
 		{
 			Log.severe("more than " + String.valueOf(BITMAP_SIZE) + " inventory sets in " + readChannel.toString());
 			wrongFile();
@@ -494,7 +494,7 @@ public class InventoryState implements AutoCloseable
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
-		for (inventoryset is : inventorydata.getInventorysets())
+		for (segment is : inventorydata.getSegments())
 		{
 			boolean match_found = false;
 			for (BaseSet bs1 : base_sets.values())
@@ -524,7 +524,7 @@ public class InventoryState implements AutoCloseable
 		
 		// Create segments' raw data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSegement> base_segments = new HashMap<BitSet, BaseSegement>();
-		for (segment seg : inventorydata.getSegments())
+		for (opportunity seg : inventorydata.getOpportunities())
 		{
 			boolean match_found = false;
 			BaseSegement tmp = new BaseSegement(BITMAP_SIZE);

@@ -29,7 +29,7 @@ public class criteria extends HashMap<String, HashSet<String>> implements Serial
 		// TODO Auto-generated constructor stub
 	}
 
-	criteria(inventoryset is)
+	criteria(segment is)
 	{
 		putAll(is.getcriteria());
 	}

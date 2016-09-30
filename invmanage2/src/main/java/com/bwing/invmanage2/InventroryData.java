@@ -21,7 +21,7 @@ public class InventroryData implements Serializable {
   "owner": "me",
   "name": "choices for me",
   "update": false,
-  "inventorysets": [
+  "opportunities": [
     {
       "name": "highrollers",
       "creteria": {
@@ -51,7 +51,7 @@ public class InventroryData implements Serializable {
       "goal": 150000
     }
   ],
-  "segments": [
+  "opportunities": [
     {
       "creteria": {
         "state": [
@@ -85,8 +85,8 @@ public class InventroryData implements Serializable {
 	  private String name;
 	  private Boolean update;
 	  
-	  private inventoryset[] inventorysets;
 	  private segment[] segments;
+	  private opportunity[] opportunities;
 
 	public InventroryData() {
 		// TODO Auto-generated constructor stub
@@ -149,20 +149,6 @@ public class InventroryData implements Serializable {
 	}
 
 	/**
-	 * @return the inventorysets
-	 */
-	public inventoryset[] getInventorysets() {
-		return inventorysets;
-	}
-
-	/**
-	 * @param inventorysets the inventorysets to set
-	 */
-	public void setInventorysets(inventoryset[] inventorysets) {
-		this.inventorysets = inventorysets;
-	}
-
-	/**
 	 * @return the segments
 	 */
 	public segment[] getSegments() {
@@ -170,10 +156,24 @@ public class InventroryData implements Serializable {
 	}
 
 	/**
-	 * @param segments the segments to set
+	 * @param inventorysets the inventorysets to set
 	 */
-	public void setSegments(segment[] segments) {
-		this.segments = segments;
+	public void setInventorysets(segment[] inventorysets) {
+		this.segments = inventorysets;
+	}
+
+	/**
+	 * @return the opportunities
+	 */
+	public opportunity[] getOpportunities() {
+		return opportunities;
+	}
+
+	/**
+	 * @param opportunities the opportunities to set
+	 */
+	public void setOpportunities(opportunity[] opportunities) {
+		this.opportunities = opportunities;
 	}
 
 }

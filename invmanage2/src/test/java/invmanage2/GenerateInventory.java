@@ -10,8 +10,8 @@ import java.util.Random;
 
 import com.bwing.invmanage2.InventroryData;
 import com.bwing.invmanage2.criteria;
-import com.bwing.invmanage2.inventoryset;
 import com.bwing.invmanage2.segment;
+import com.bwing.invmanage2.opportunity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class GenerateInventory 
@@ -33,10 +33,10 @@ public class GenerateInventory
         Random rand = new Random();
 		
 		// Generate inventory sets
-		ArrayList<inventoryset> inventorysets = new ArrayList<inventoryset>();
+		ArrayList<segment> inventorysets = new ArrayList<segment>();
 		for (int ind = 0; ind < inventorysets_count; ind++)
 		{
-			inventoryset set = new inventoryset();
+			segment set = new segment();
 			criteria some_criteria = new criteria();
 			set.setName("Audience_" + Integer.toString(ind, 10));
 
@@ -94,10 +94,10 @@ public class GenerateInventory
 		}
 		
 		// Generate segments
-		ArrayList<segment> segments = new ArrayList<segment>();
+		ArrayList<opportunity> segments = new ArrayList<opportunity>();
 		for (int ind = 0; ind < segments_count; ind++)
 		{
-			segment seg = new segment();
+			opportunity seg = new opportunity();
 			seg.setCount(rand.nextInt(max_segment_count));
 			criteria some_criteria = new criteria();
 
@@ -158,8 +158,8 @@ public class GenerateInventory
 		}
 		
 		InventroryData inventorydata = new InventroryData();
-		inventorydata.setSegments(segments.toArray(new segment[segments.size()]));
-		inventorydata.setInventorysets(inventorysets.toArray(new inventoryset[inventorysets.size()]));
+		inventorydata.setOpportunities(segments.toArray(new opportunity[segments.size()]));
+		inventorydata.setInventorysets(inventorysets.toArray(new segment[inventorysets.size()]));
 		try 
 		{
 			mapper.writeValue(new File("Test.json"), inventorydata);

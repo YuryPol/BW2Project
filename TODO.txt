@@ -1,5 +1,5 @@
+A. Code:
 Immediate:
-3. Rename inventory tags according to docs.
 
 Future:
 1. Pull InventorySet into a library to share.
@@ -7,3 +7,6 @@ Future:
 
 Long shot:
 1. Dynamic inventory buildup.
+
+
+B. Docs:

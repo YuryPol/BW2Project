@@ -15,42 +15,56 @@ public class segment implements Serializable {
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -1888169935678278992L;
+	private static final long serialVersionUID = 2014952295388849523L;
 	/**
+	      {
+	      "name": "highrollers",
 	      "criteria": {
 	        "state": [
-	          "CA"
+	          "NY",
+	          "NJ"
+	        ],
+	        "income": [
+	          "affluent",
+	          "middle"
+	        ],
+	        "gender": [
+	          "M"
 	        ],
 	        "content": [
+	          "business",
 	          "sport",
-	          "food"
+	          "food",
+	          "news"
 	        ],
 	        "age": [
-	          "young"
+	          "middle",
+	          "young",
+	          "child"
 	        ]
-	      	},
-		    "count": 80000
+	      },
+	 * 
 	 */
 	
+	private String name;
 	private criteria this_criteria;
-	private int count;
-	
+
 	public segment() {
-		// TODO Auto-generated constructor stub
+		// goal = 0;
 	}
 
 	/**
-	 * @return the count
+	 * @return the name
 	 */
-	public int getCount() {
-		return count;
+	public String getName() {
+		return name;
 	}
 
 	/**
-	 * @param count the count to set
+	 * @param name the name to set
 	 */
-	public void setCount(int count) {
-		this.count = count;
+	public void setName(String name) {
+		this.name = name;
 	}
 
 	/**
@@ -66,5 +80,4 @@ public class segment implements Serializable {
 	public void setcriteria(criteria that_criteria) {
 		this.this_criteria = that_criteria;
 	}
-
 }
