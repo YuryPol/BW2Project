@@ -21,6 +21,8 @@
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ include file="PreventCache.jsp" %>
 
+<%@ include file="Branding.jsp" %>
+
 <html>
 <head>
     <link type="text/css" rel="stylesheet" href="/stylesheets/main.css"/>
