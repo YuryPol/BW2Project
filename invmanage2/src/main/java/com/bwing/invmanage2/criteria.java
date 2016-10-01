@@ -35,6 +35,9 @@ public class criteria extends HashMap<String, HashSet<String>> implements Serial
 	}
 
 	public boolean matches(criteria another) {
+		if (another == null)
+			return false;
+		
 		// get this names
 		Set<String> thisNames = keySet();
 		Set<String> anotherNames = another.keySet();

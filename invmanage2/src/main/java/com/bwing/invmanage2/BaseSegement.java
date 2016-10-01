@@ -50,11 +50,6 @@ public class BaseSegement {
 		capacity = cp;
 	};
 	
-	boolean matches(criteria that_criteria)
-	{
-		return this_criteria.matches(that_criteria);
-	}
-	
 	boolean contains(BaseSegement another)
 	{
 		BitSet tmp = key;

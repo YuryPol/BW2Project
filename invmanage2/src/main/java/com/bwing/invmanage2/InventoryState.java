@@ -499,7 +499,17 @@ public class InventoryState implements AutoCloseable
 			boolean match_found = false;
 			for (BaseSet bs1 : base_sets.values())
 			{
-				if (bs1.getCriteria().equals(is.getcriteria()))
+				if (bs1.getCriteria() == null && is.getcriteria() == null)
+				{
+					match_found = true;
+					break;
+				}
+				else if (bs1.getCriteria() == null)
+				{
+					// because is.criteria isn't null no need to compare
+					continue;
+				}
+				else if (bs1.getCriteria().equals(is.getcriteria()))
 				{
 					match_found = true;
 					break;
@@ -532,7 +542,17 @@ public class InventoryState implements AutoCloseable
 			
 			for (BaseSet bs1 : base_sets.values())
 			{					
-				if (bs1.getCriteria().matches(tmp.getCriteria()))
+				if (bs1.getCriteria() == null && tmp.getCriteria() == null)
+				{
+					tmp.getkey().or(bs1.getkey());
+					match_found = true;
+				}
+				else if (bs1.getCriteria() == null)
+				{
+					// because tmp.criteria isn't null no need to compare
+					continue;
+				}
+				else if (bs1.getCriteria().matches(tmp.getCriteria()))
 				{
 					tmp.getkey().or(bs1.getkey());
 					match_found = true;
@@ -566,8 +586,15 @@ public class InventoryState implements AutoCloseable
 	         	insertStatement.setLong(1, bs1.getKeyBin()[0]);
 	            insertStatement.setString(2, bs1.getname());
 	        	insertStatement.setLong(3, bs1.getKeyBin()[0]);
-	        	insertStatement.setString(4, bs1.getCriteria().toString());
-	            insertStatement.execute();
+	        	if (bs1.getCriteria() == null)
+	        	{
+		        	insertStatement.setString(4, "");	        		
+	        	}
+	        	else
+	        	{
+	        		insertStatement.setString(4, bs1.getCriteria().toString());
+	        	}	            
+	        	insertStatement.execute();
 	        }
         }
         
@@ -579,7 +606,14 @@ public class InventoryState implements AutoCloseable
 	        for (BaseSegement bs1 : base_segments.values()) {
 	        	insertStatement.setLong(1, bs1.getKeyBin()[0]);
 	        	insertStatement.setInt(2, bs1.getcapacity());
-	        	insertStatement.setString(3, bs1.getCriteria().toString());
+	        	if (bs1.getCriteria() == null)
+	        	{
+		        	insertStatement.setString(3, "");	        		
+	        	}
+	        	else
+	        	{
+	        		insertStatement.setString(3, bs1.getCriteria().toString());
+	        	}
 	        	insertStatement.setLong(4, 0);
 	            insertStatement.execute();
 	        }
