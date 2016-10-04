@@ -34,7 +34,7 @@ public class criteria extends HashMap<String, HashSet<String>> implements Serial
 		putAll(is.getcriteria());
 	}
 
-	public boolean matches(criteria another) {
+/*	public boolean matches(criteria another) {
 		if (another == null)
 			return false;
 		
@@ -58,5 +58,45 @@ public class criteria extends HashMap<String, HashSet<String>> implements Serial
 			// it defies the common sense as each criterion AND-ed with others 
 			// fewer selection criteria means wider set
 			return false;
+	}*/
+
+	public static boolean matches(criteria one, criteria another) {
+		if (another == null && one == null)
+			return true;
+		else if ((another == null && one != null) 
+				|| (another != null && one == null))
+			return false;
+		
+		// get this names
+		Set<String> thisNames = one.keySet();
+		Set<String> anotherNames = another.keySet();
+		if (anotherNames.containsAll(thisNames))
+		{
+			// another Criteria contains all names of this one, so it is more (or the same) specific
+		    // check elements
+		    for (String name: thisNames) {
+		    	HashSet<String> anotherValues = another.get(name);
+		    	HashSet<String> oneValues = one.get(name);
+		    	if (Collections.disjoint(oneValues, anotherValues))
+		    		// criteron's values are OR-ed with each other
+		    		return false;
+		    }
+			return true;
+		}
+		else
+			// it defies the common sense as each criterion AND-ed with others 
+			// fewer selection criteria means wider set
+			return false;
+	}
+	
+	public static boolean equals (criteria one, criteria another)
+	{
+		if (another == null && one == null)
+			return true;
+		else if ((another == null && one != null) 
+				|| (another != null && one == null))
+			return false;
+		
+		return one.equals(another);
 	}
 }

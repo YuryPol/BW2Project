@@ -499,7 +499,7 @@ public class InventoryState implements AutoCloseable
 			boolean match_found = false;
 			for (BaseSet bs1 : base_sets.values())
 			{
-				if (bs1.getCriteria() == null && is.getcriteria() == null)
+/*				if (bs1.getCriteria() == null && is.getcriteria() == null)
 				{
 					match_found = true;
 					break;
@@ -509,7 +509,8 @@ public class InventoryState implements AutoCloseable
 					// because is.criteria isn't null no need to compare
 					continue;
 				}
-				else if (bs1.getCriteria().equals(is.getcriteria()))
+				else */
+				if (criteria.equals(bs1.getCriteria(), is.getcriteria()))
 				{
 					match_found = true;
 					break;
@@ -552,7 +553,7 @@ public class InventoryState implements AutoCloseable
 					// because tmp.criteria isn't null no need to compare
 					continue;
 				}
-				else if (bs1.getCriteria().matches(tmp.getCriteria()))
+				else if (criteria.matches(bs1.getCriteria(), tmp.getCriteria()))
 				{
 					tmp.getkey().or(bs1.getkey());
 					match_found = true;
