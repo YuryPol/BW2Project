@@ -215,7 +215,6 @@
                     <%
                     if (alloc_Amount > 0 && set_name.length() > 0)
                     {
-                        // invState.invalidate();
                         if (invState.GetItems(set_name, advertiserID, alloc_Amount))
                         	log.info("Allocated " + set_name + " : " + Integer.toString(alloc_Amount));
                         else
@@ -368,7 +367,7 @@
         {
             %>
             <form action="/" method="post">
-            Return to main page <input type="submit" value="Return"/>
+            Return to start page <input type="submit" value="Return"/>
             </form>
             <%
         }

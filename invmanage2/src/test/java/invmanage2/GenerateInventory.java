@@ -40,7 +40,7 @@ public class GenerateInventory
 			criteria some_criteria = new criteria();
 			set.setName("Audience_" + Integer.toString(ind, 10));
 
-			if (rand.nextInt(10) >= 9) // only 10% of inventory sets require region
+			if (rand.nextInt(10) >= 8) // only 20% of inventory sets require region
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				while (true) 
@@ -48,6 +48,7 @@ public class GenerateInventory
 					if (!criterion.add(Regions[rand.nextInt(Regions.length)]))
 						break;
 				}
+				some_criteria.putIfAbsent("regions", criterion);
 			}
 
 			if (rand.nextInt(10) >= 7) // only 30% of inventory sets require interests
@@ -68,14 +69,14 @@ public class GenerateInventory
 				some_criteria.putIfAbsent("gender", criterion);
 			}
 
-			if (rand.nextInt(10) >= 9) // only 10% of inventory sets require age
+			if (rand.nextInt(10) >= 8) // only 20% of inventory sets require age
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Ages[rand.nextInt(Ages.length)]);
 				some_criteria.putIfAbsent("age", criterion);
 			}
 
-			if (rand.nextInt(10) >= 9) // only 10% of inventory sets require income
+			if (rand.nextInt(10) >= 8) // only 20% of inventory sets require income
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Incomes[rand.nextInt(Incomes.length)]);
@@ -104,7 +105,7 @@ public class GenerateInventory
 			{
 				HashSet<String> criterion = new HashSet<String>();
 				criterion.add(Regions[rand.nextInt(Regions.length)]);
-				some_criteria.putIfAbsent("region", criterion); // all users have
+				some_criteria.putIfAbsent("regions", criterion); // all users have
 			}
 															// region
 			seg.setcriteria(some_criteria);
@@ -162,7 +163,7 @@ public class GenerateInventory
 		inventorydata.setInventorysets(inventorysets.toArray(new segment[inventorysets.size()]));
 		try 
 		{
-			mapper.writeValue(new File("Test.json"), inventorydata);
+			mapper.writeValue(new File("..\\Test.json"), inventorydata);
 		} 
 		catch (IOException e) 
 		{

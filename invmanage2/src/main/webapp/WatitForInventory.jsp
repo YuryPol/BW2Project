@@ -50,9 +50,7 @@
             response.sendRedirect("/");
             return;
          }
-         else if (invState.isLoaded() || invState.isWrongFile() 
-//         		 || invState.isClean()
-        		 )
+         else if (invState.isLoaded() || invState.isWrongFile())
          {
              // Return to Select Inventory page
              invState.close();
