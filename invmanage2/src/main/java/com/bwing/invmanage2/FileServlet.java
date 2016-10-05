@@ -90,9 +90,10 @@ public class FileServlet extends HttpServlet {
                     GcsOutputChannel outputChannel =
                             gcsService.createOrReplace(gcsfileName, options);
 
-                    copy(stream, Channels.newOutputStream(outputChannel));
-                    
-                    invState.inconsitent(); // File was uploaded but inventory not initialized yet.
+                    if (copy(stream, Channels.newOutputStream(outputChannel)))
+                    	invState.inconsitent(); // File was uploaded but inventory not initialized yet.
+                    else
+                    	invState.wrongFile();
 
                     response.sendRedirect("/");
                     return; // We don't want to upload multiple files for now
@@ -132,25 +133,35 @@ public class FileServlet extends HttpServlet {
         }
    }
 
-    private void copy(InputStream input, OutputStream output) throws Exception {
+    private boolean copy(InputStream input, OutputStream output) throws Exception {
     	int length = 0;
+    	boolean ret = true;
         try {
           byte[] buffer = new byte[BUFFER_SIZE];
           int bytesRead = input.read(buffer);
-          while (bytesRead != -1) {
+          while (bytesRead != -1) 
+          {
           	if (length > MAX_FILE_LENGTH)
         	{
           		log.severe("Inventory file length exceeds " + Integer.toString(MAX_FILE_LENGTH) + " bytes");
-        		throw new ServletException("Inventory file length exceeds " + Integer.toString(MAX_FILE_LENGTH) + " bytes");
+          		ret = false;
+          		break;
         	}
-            output.write(buffer, 0, bytesRead);
-            bytesRead = input.read(buffer);
-            length += bytesRead;
+          	else 
+          	{
+	            output.write(buffer, 0, bytesRead);
+	            bytesRead = input.read(buffer);
+	            length += bytesRead;
+	            ret = true;
+          	}
           }
-        } finally {
+        } 
+        finally 
+        {
           input.close();
           output.close();
         }
+		return ret;
       }
 
 }

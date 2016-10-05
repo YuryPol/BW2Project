@@ -1,7 +1,7 @@
 A. Code:
 Immediate:
 1. Remove Main.jsp from url.
-2. Down-grade unnecessarey warings and remove extra info logging. 
+2. Down-grade unnecessary warnings and remove extra info logging. 
 3. Increase segments max and make them more intersecting.
 
 Future:
