@@ -82,7 +82,8 @@
                <tr>
                <th>segment</th><th>availability</th><th>goal</th><th>served_count</th><th>percent served</th>
                <%
-	           ResultSet rs = st.executeQuery("select set_name, availability, goal, served_count, round(served_count/goal, 4)*100 from result_serving");
+               try {
+               ResultSet rs = st.executeQuery("select set_name, availability, goal, served_count, round(served_count/goal, 4)*100 from result_serving");
                String set_name = "";
                int availability = 0;
                int goal = 0;
@@ -124,6 +125,12 @@
                To cancel simulation and return to start page: <input type="submit" value="Cancel" />
                </form>
 	           <%
+               }
+               catch (Exception ex)
+               {
+                   response.sendRedirect("/");
+                   return;                 
+               }
            }
            else {
                %>
@@ -133,6 +140,7 @@
                <tr>
                <th>segment</th><th>availability</th><th>goal</th><th>served_count</th><th>percent served</th>
                <%
+               try {
                ResultSet rs = st.executeQuery("select set_name, availability, goal, served_count, round(served_count/goal, 4)*100 from result_serving_copy");
                String set_name = "";
                int availability = 0;
@@ -169,6 +177,12 @@
                Return to start page: <input type="submit" value="Return" />
                </form>
                <%
+               }
+               catch (Exception ex)
+               {
+                   response.sendRedirect("/");
+                   return;                 
+               }               
            }
         }
     }
