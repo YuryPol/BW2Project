@@ -365,7 +365,7 @@ public class InventoryState implements AutoCloseable
         	ResultSet rs = st.executeQuery("SELECT * FROM " + inventory_status);
         	if (rs.next())
         	{
-        		log.info("Status is " + rs.getString(2));
+//        		log.info("Status is " + rs.getString(2));
         		return Status.valueOf(rs.getString(2));
         	}
         	else
@@ -415,7 +415,7 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	st.executeQuery("UNLOCK TABLES");
-        	Log.warning("databases unlocked");
+        	Log.info("databases unlocked");
        }
     }
     

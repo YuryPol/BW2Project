@@ -50,11 +50,11 @@ public class Customer {
 	  {
 		  if (icustomer.company.toString().equals(theCompany))
 		  {
-			  log.warning("Customer already exists: " + theCompany);
+			  log.info("Customer already exists: " + theCompany);
 			  return icustomer;
 		  }
 	  }
-	  log.warning("No such Customer exists: " + theCompany);
+	  log.info("No such Customer exists: " + theCompany);
 	  return null;
   }
   

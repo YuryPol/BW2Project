@@ -50,7 +50,7 @@
         {
             message = "ERROR! The request URI: " + requestUri;
         }
-        log.warning(message);
+        log.severe(message);
    	%> 
    	<p>ERROR: <%=message%></p>
    	<%

@@ -54,7 +54,7 @@
             switch (mode) 
             {
                 case createAccount:
-                log.warning("Entering account info by " + gUser.getNickname());
+                log.info("Entering account info by " + gUser.getNickname());
         		%>
 	            <p>You can enter identifying information to create user account</p>
                 <form action="/" method="post">
@@ -80,7 +80,7 @@
                 
                 if (first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
                 {
-                    log.warning("Correcting Account info for " + gUser.getNickname());
+                    log.info("Correcting Account info for " + gUser.getNickname());
                     %>
                     <p>Please enter correct data</p>
 	                <form action="/" method="post">
@@ -98,7 +98,7 @@
                 {
                     // Create Customer and primary user
                     // TODO: make it into transacton 
-                    log.warning("Creating Account for " + gUser.getNickname());
+                    log.info("Creating Account for " + gUser.getNickname());
                     Customer customer = new Customer(company, gUser);
                     ObjectifyService.ofy().save().entity(customer).now();
                     // Add the user and fill his properties
@@ -129,7 +129,7 @@
             switch (mode) 
             {
 	            case createAccount:
-	                log.warning("Entering secondary Account info by " + customer_name);
+	                log.info("Entering secondary Account info by " + customer_name);
 	                %>
 	                <p>You can enter identifying information to create account for secondary user with whom you share your organization's data</p>
 	                <form action="/" method="post">
@@ -154,7 +154,7 @@
                      
                     if (first_name == "Jerk" || last_name == "" || phone == "" || bis_email == "") // TODO: add real parameters' checks
                     {
-                        log.warning("Correcing secondary Account info by " + customer_name);
+                        log.info("Correcting secondary Account info by " + customer_name);
                         %>
                         <p>Please correct wrong data</p>
 	                    <form action="/" method="post">
@@ -172,7 +172,7 @@
                     {
                         // Create secondary user
                         // Add the user and fill his properties
-                        log.warning("Creating secondary Account " + first_name + " " + last_name);
+                        log.info("Creating secondary Account " + first_name + " " + last_name);
                         Ref<Customer> customerKey = iuser.theCustomer;
                         InventoryUser newuser = new InventoryUser(customerKey, new Email(email), first_name, last_name, new PhoneNumber(phone), bis_email, false);
                         ObjectifyService.ofy().save().entity(newuser).now();
@@ -192,7 +192,7 @@
                     // System.out.println("Customer: " + customer_name);
                     pageContext.setAttribute("customer_name", customer_name);
                     InventoryState invState = new InventoryState(customer_name, true);
-                    log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
+                    log.info("The inventory " + customer_name + " is " + invState.getStatus().name());
                     if (!invState.isLoaded())
                     {
                         %>

@@ -12,7 +12,7 @@
 <body>
 	<%
     Logger log = Logger.getLogger(this.getClass().getName());
-	log.info("Now waiting for inventory to load");
+	// log.info("Now waiting for inventory to load");
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser == null)
@@ -40,7 +40,7 @@
 	     document.getElementById("demo").innerHTML = Date();
 	     </script>    
 	     <%
-         log.warning("The inventory " + customer_name + " is " + invState.getStatus().name());
+         // log.info("The inventory " + customer_name + " is " + invState.getStatus().name());
          if (message != null && message.equals("Cancel"))
          {
             // Remove tables, if any created, thus causing Load to crash
@@ -73,7 +73,7 @@
          }
 	     invState.close();
          response.setIntHeader("Refresh", 5);
-         log.info("Refreshing wait page");
+         // log.info("Refreshing wait page");
     }
     %>
 </body>

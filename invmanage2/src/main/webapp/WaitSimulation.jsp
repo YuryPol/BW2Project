@@ -22,7 +22,7 @@
 <body>
     <%
     Logger log = Logger.getLogger(this.getClass().getName());
-    log.info("Now waiting for simulation to complete");
+    // log.info("Now waiting for simulation to complete");
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser == null)
@@ -112,7 +112,8 @@
 	   	       }	
 	   	       invState.close();
 	           response.setIntHeader("Refresh", 5);
-	           log.info("Refreshing page waiting for simulation to complete");
+	           log.info("Inventory: " + customer_name + ". Totally served " + total_served_count + " impressions out of allocated " + total_goal + " impressions, or " 
+	                   + Math.round((total_served_count*100.0)/total_goal));
 	           %>
 	           </table>
 	           <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%> %</p>
@@ -169,6 +170,8 @@
                     <%
                }    
                invState.close();
+               log.info("Inventory: " + customer_name + ". Totally served " + total_served_count + " impressions out of allocated " + total_goal + " impressions, or " 
+               + Math.round((total_served_count*100.0)/total_goal));
                %>
                </table>
                <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%>%</p>

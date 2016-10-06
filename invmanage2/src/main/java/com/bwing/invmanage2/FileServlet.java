@@ -71,13 +71,13 @@ public class FileServlet extends HttpServlet {
 
                 if (item.isFormField()) 
                 {
-                    log.warning("Got a form field: " + item.getFieldName());
+                    log.info("Got a form field: " + item.getFieldName());
                 } 
                 else 
                 {
                   try (InventoryState invState = new InventoryState(customer_name, true))
                   {
-                    log.warning("Got an uploaded file: " + item.getFieldName() +
+                    log.info("Got an uploaded file: " + item.getFieldName() +
                             ", name = " + item.getName());
 
                     sctype = item.getContentType();
@@ -101,6 +101,7 @@ public class FileServlet extends HttpServlet {
                 }
             }
         } catch (Exception ex) {
+			ex.printStackTrace();
         	log.severe(ex.toString());
             throw new ServletException(ex);
         }

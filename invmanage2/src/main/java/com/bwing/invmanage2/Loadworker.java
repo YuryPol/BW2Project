@@ -92,7 +92,7 @@ public class Loadworker  extends HttpServlet
 			log.severe("Excepton " + ex.getMessage() + ". May happen when user cancels load");
 			ex.printStackTrace();			
 		}
-		catch (Exception ex) {
+		catch (SQLException ex) {
 			ex.printStackTrace();
 			log.severe(customer_name + ex.toString());
 			throw new ServletException(ex);

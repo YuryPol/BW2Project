@@ -73,7 +73,7 @@ public class InventoryUser {
 	  {
 		  if (iusers == null || iusers.isEmpty())
 		  {
-			  log.severe("No Users exist");
+			  log.warning("No Users exist");
 			  return null;
 		  }
 		  
@@ -81,7 +81,7 @@ public class InventoryUser {
 		  {
 			  if (iuser.id.equals(email))
 			  {
-				  log.info("User found: " + email);
+//				  log.info("User found: " + email);
 				  return iuser;
 			  }
 		  }
