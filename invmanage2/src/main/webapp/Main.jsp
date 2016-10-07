@@ -290,7 +290,7 @@
                      else
                      {
                          %>
-                         <p><font color="red">All availabilities in your data equal 0</p>
+                         <p><font color="red">All availabilities in your data equal 0</font></p>
                          <p>You can start over and re-initialize your inventory with new data</p>
                          <%
                      }
