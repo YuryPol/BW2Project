@@ -21,7 +21,7 @@ public class InventroryData implements Serializable {
   "owner": "me",
   "name": "choices for me",
   "update": false,
-  "opportunities": [
+  "segments": [
     {
       "name": "highrollers",
       "creteria": {

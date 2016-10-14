@@ -33,7 +33,6 @@ import java.util.Set;
 //          "child"
 //        ]
 //      },
-//      "goal": 150000
 //    }
     
 public class BaseSet {

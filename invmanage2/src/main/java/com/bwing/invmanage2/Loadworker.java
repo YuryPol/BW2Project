@@ -48,7 +48,7 @@ public class Loadworker  extends HttpServlet
 			}
 			GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 
-			invState.load(readChannel);
+			invState.loadDynamic(readChannel);
 //			con.commit();
 			log.info(file_name + " was parsed successfuly.");
 		} catch (ClassNotFoundException ex) {
