@@ -55,3 +55,4 @@ target
 *.project
 invmanage2/.classpath
 *.classpath
+invmanage2/src/main/sql/test.sql

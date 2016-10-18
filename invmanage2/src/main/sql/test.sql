@@ -9,4 +9,13 @@ UPDATE structured_data_base AS sdbW,
  SET sdbW.capacity = comp.capacity,
      sdbW.availability = comp.availability
  WHERE sdbW.set_key = comp.set_key;
- 
+
+SELECT basesets, criteria, cnt from
+(
+	SELECT basesets, raw_inventory.criteria, count(*) as cnt
+	FROM structured_data_base
+	JOIN raw_inventory
+	ON set_key & basesets != 0
+	GROUP BY basesets
+) tmp
+WHERE cnt < 4;

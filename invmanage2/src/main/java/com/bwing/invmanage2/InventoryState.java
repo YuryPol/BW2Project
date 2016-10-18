@@ -15,6 +15,7 @@ import java.util.BitSet;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -278,19 +279,6 @@ public class InventoryState implements AutoCloseable
         			+ "        AND (unions_last_rank.set_key & ri.basesets) != 0 "
         			+ "        AND (sdbR.set_key_is | unions_last_rank.set_key) != unions_last_rank.set_key "
         			+ "    GROUP BY sdbR.set_key_is | unions_last_rank.set_key;"
-        			
-        			+ " CALL PopulateRankWithNumbers;"
-        			
-        			+ " DELETE FROM structured_data_inc "
-        			+ "    WHERE EXISTS ("
-        			+ "        SELECT * "
-        			+ "        FROM unions_next_rank unr1"
-        			+ "        WHERE (structured_data_inc.set_key & unr1.set_key) = structured_data_inc.set_key "
-        			+ "        AND structured_data_inc.capacity = unr1.capacity); "
-        			
-        			+ " INSERT /*IGNORE*/ INTO structured_data_inc "
-        			+ "    SELECT * FROM unions_next_rank;"
-        			
         			+ "END "
         			);
         	
@@ -714,7 +702,7 @@ public class InventoryState implements AutoCloseable
         Log.info("Inventory for " + customer_name + " was loaded!");
     }
     
-    public void loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
+    public void loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
     {
 
     	clear();
@@ -893,7 +881,8 @@ public class InventoryState implements AutoCloseable
         int cnt = 0;
         int cnt_updated = 0;
         ResultSet rs = null;
-		try (Statement st = con.createStatement()) {
+		try (Statement st0 = con.createStatement()) {
+			Statement st = st0;
 //			do {
 	        for (int ind = 0; ind <= base_segments.size(); ind++) 
 			{
@@ -909,30 +898,83 @@ public class InventoryState implements AutoCloseable
 					Log.info("{call AddUnionsDynamic}");
 					callStatement.executeUpdate();
 				}
+				catch (CommunicationsException ex)
+				{
+					Log.severe("loadDynamic call AddUnionsDynamic thrown " + ex.getMessage()
+					+ " Hopefully MySQL completes it in 1 min.");
+		    		// Reconnect back because the exception closed the connection.
+		        	con = connect(true);
+		        	con.setCatalog(BWdb + customer_name);
+		        	TimeUnit.MINUTES.sleep(1);
+		        	st.close();
+		        	Statement st1 = con.createStatement();
+		        	st = st1;
+				}
+    			
+				try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
+					Log.info("{call PopulateRankWithNumbers}");
+					callStatement.executeUpdate();
+				}
+				catch (CommunicationsException ex)
+				{
+					Log.severe("loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage()
+					+ " Hopefully MySQL completes it in 1 min.");
+		    		// Reconnect back because the exception closed the connection.
+		        	con = connect(true);
+		        	con.setCatalog(BWdb + customer_name);
+		        	TimeUnit.MINUTES.sleep(1);
+		        	st.close();
+		        	Statement st1 = con.createStatement();
+		        	st = st1;
+				}
+   			
+				try {
+					st.executeUpdate(
+						"DELETE FROM structured_data_inc "
+	    			+ "    WHERE EXISTS ("
+	    			+ "        SELECT * "
+	    			+ "        FROM unions_next_rank unr1"
+	    			+ "        WHERE (structured_data_inc.set_key & unr1.set_key) = structured_data_inc.set_key "
+	    			+ "        AND structured_data_inc.capacity = unr1.capacity)");
+				}
+				catch (CommunicationsException ex)
+				{
+					Log.severe("loadDynamic DELETE FROM structured_data_inc thrown " + ex.getMessage()
+					+ " Hopefully MySQL completes it in 1 min.");
+		    		// Reconnect back because the exception closed the connection.
+		        	con = connect(true);
+		        	con.setCatalog(BWdb + customer_name);
+		        	TimeUnit.MINUTES.sleep(1);
+		        	st.close();
+		        	Statement st1 = con.createStatement();
+		        	st = st1;
+				}
+				
+				st.executeUpdate(
+					" INSERT /*IGNORE*/ INTO structured_data_inc "
+    			+ "    SELECT * FROM unions_next_rank");
+    			
 				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
 				if (rs.next()) {
 					cnt_updated = rs.getInt(1);
 				}
 				log.info("cnt=" + String.valueOf(cnt) + ", cnt_updated=" + String.valueOf(cnt_updated));
-				// catch (CommunicationsException ex)
-				// {
-				// // TODO: ignoring it for now until we figure out how to set
-				// // timeout higher than 5 sec.
-				// Log.severe("AddUnionsDynamic thrown " + ex.getMessage());
-				// }
 				rs = st.executeQuery("SELECT count(*) FROM " + unions_next_rank);
 				if (rs.next()) {
 					if (rs.getInt(1) == 0)
 						break;
 				}
 			}
-			//			} while (cnt < cnt_updated);
+//			} while (cnt < cnt_updated);
 
-			st.executeUpdate("DELETE FROM structured_data_inc WHERE capacity IS NULL; ");
-			st.executeUpdate("UPDATE structured_data_base, structured_data_inc "
-			+ " SET structured_data_base.set_key = structured_data_inc.set_key "
-			+ " WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is "
-			+ " AND structured_data_base.capacity = structured_data_inc.capacity; ");
+			try (Statement st2 = con.createStatement()) 
+			{
+				st2.executeUpdate("DELETE FROM structured_data_inc WHERE capacity IS NULL; ");
+				st2.executeUpdate("UPDATE structured_data_base, structured_data_inc "
+				+ " SET structured_data_base.set_key = structured_data_inc.set_key "
+				+ " WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is "
+				+ " AND structured_data_base.capacity = structured_data_inc.capacity; ");
+			}
 		}
 
 		// Validate the data in DB
@@ -944,7 +986,7 @@ public class InventoryState implements AutoCloseable
 		Log.info("Inventory for " + customer_name + " was loaded!");
 	}
     
-    public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException, ClassNotFoundException
+    public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException, ClassNotFoundException, InterruptedException
     {
     	if (amount <= 0)
     	{
@@ -996,10 +1038,11 @@ public class InventoryState implements AutoCloseable
     	}
     	catch (com.mysql.jdbc.exceptions.jdbc4.CommunicationsException ex)
     	{
-    		log.severe("GetItemsFromSD caused an exception. Hopefully it completed." + ex.toString());
+    		log.severe("GetItemsFromSD caused an exception. Hopefully it completes in 1 min. " + ex.toString());
     		// Reconnect back because the exception closed the connection.
         	con = connect(true);
         	con.setCatalog(BWdb + customer_name);
+        	TimeUnit.MINUTES.sleep(1);
     	}
     	
     	try (PreparedStatement statement = con.prepareStatement(

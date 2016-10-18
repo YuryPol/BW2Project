@@ -18,7 +18,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 public class AllocationTest {
 
 	public static void main(String[] args)
-			throws ClassNotFoundException, SQLException, JsonParseException, JsonMappingException, IOException {
+			throws ClassNotFoundException, SQLException, JsonParseException, JsonMappingException, IOException, InterruptedException 
+	{
 		Logger log = Logger.getLogger(AllocationTest.class.getName());
 		log.info("Testing allocations");
 

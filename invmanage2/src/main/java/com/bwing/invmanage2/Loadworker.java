@@ -96,6 +96,9 @@ public class Loadworker  extends HttpServlet
 			ex.printStackTrace();
 			log.severe(customer_name + ex.toString());
 			throw new ServletException(ex);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 		
