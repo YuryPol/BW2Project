@@ -9,6 +9,8 @@ import java.util.Date;
 import java.util.List;
 
 import com.google.appengine.api.users.User;
+
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -25,6 +27,7 @@ public class Customer {
    
   public Customer()
   {
+	  log.setLevel(Level.INFO);
 	  date = new Date();
   }
 

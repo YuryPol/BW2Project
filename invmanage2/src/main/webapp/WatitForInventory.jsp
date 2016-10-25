@@ -50,11 +50,11 @@
             response.sendRedirect("/");
             return;
          }
-         else if (invState.isLoaded() || invState.isWrongFile())
+         else if (invState.isLoaded() || invState.isWrongFile() || invState.isTooMuchData())
          {
              // Return to Select Inventory page
+             log.info("Data are in " + invState.getStatus() + " state, leave wait page");
              invState.close();
-             log.info("Data was doaded, leave wait page");
              response.sendRedirect("/");
              return;
          }

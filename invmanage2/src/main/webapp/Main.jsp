@@ -192,11 +192,11 @@
                     // System.out.println("Customer: " + customer_name);
                     pageContext.setAttribute("customer_name", customer_name);
                     InventoryState invState = new InventoryState(customer_name, true);
-                    log.info("The inventory " + customer_name + " is " + invState.getStatus().name());
+                    log.info("The inventory " + customer_name + " is " + invState.getStatus());
                     if (!invState.isLoaded())
                     {
                         %>
-                        <p>The inventory <%=customer_name%> is <%=invState.getStatus().name()%>>: Return to start page 
+                        <p>The inventory <%=customer_name%> is <%=invState.getStatus()%>>: Return to start page 
                         <form action="/" method="get">
                         <div><input type="submit" value="Return"/></div>
                         </form>
@@ -274,7 +274,7 @@
                 default:
                     // registered user, let her chose/create inventory
                     InventoryState invState2 = new InventoryState(customer_name, true);
-                    log.warning("The inventory " + customer_name + " is " + invState2.getStatus().name());
+                    log.warning("The inventory " + customer_name + " is " + invState2.getStatus());
                     if (invState2.isLoaded())
                     {
                      if (invState2.hasData())

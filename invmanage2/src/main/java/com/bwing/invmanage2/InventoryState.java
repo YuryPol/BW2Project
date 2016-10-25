@@ -12,17 +12,19 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.BitSet;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.utils.SystemProperty;
-import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 
 import java.sql.ResultSet;
@@ -30,16 +32,14 @@ import java.sql.ResultSet;
 
 public class InventoryState implements AutoCloseable
 {
-	private static final Logger log = Logger.getLogger(InventoryState.class.getName());
-
-	public enum Status {
-		clean, invalid, loaded, wrongfile, inconsitent
+	private enum Status {
+		clean, invalid, wrongfile, inconsitent, toomuchdata, loaded
 	}
 
 	String customer_name;
     Connection con;
     private static ObjectMapper mapper = new ObjectMapper();
-    private static final Logger Log = Logger.getLogger(InventoryState.class.getName());
+    private static final Logger log = Logger.getLogger(InventoryState.class.getName());
     
     // DB prefix
     public static final String BWdb = "BWing_";
@@ -56,10 +56,31 @@ public class InventoryState implements AutoCloseable
     static final String inventory_status = "inventory_status";
  
 	static final int BITMAP_SIZE = 20; // max = 64;
+	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
 	
+	private TimeoutHandler timeoutHandler = new TimeoutHandler();
+	
+	public class TimeoutHandler {
+		static final int sleepMin = 1;
+		
+		public void reconnect() throws SQLException, InterruptedException, ClassNotFoundException
+		{
+			// reconnect to db
+	    	log.severe(" Hopefully MySQL completes it in " + String.valueOf(sleepMin) + " min.");
+	    	TimeUnit.MINUTES.sleep(1);
+	    	if (con != null)
+	    	{
+	    		con.close();
+	    	}
+	    	con = connect(true);
+	    	con.setCatalog(InventoryState.BWdb + customer_name);
+		}
+	}
+
 	public static Connection connect(boolean auto) throws ClassNotFoundException, SQLException
 	{
-//		Log.info(Status.loaded.name());
+//		log.info(Status.loaded.name());
+		log.setLevel(Level.INFO);
 		
 		String url;
 		if (SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) 
@@ -369,12 +390,12 @@ public class InventoryState implements AutoCloseable
         }
         catch (CommunicationsException ex)
         {
-        	Log.severe("connection problem: " + ex.getMessage());
+        	log.severe("connection problem: " + ex.getMessage());
         	return false;
         }
     }
 
-    public Status getStatus() throws SQLException // TODO: do we really need it?
+    public String getStatus() throws SQLException // TODO: do we really need it?
     {
         try (Statement st = con.createStatement())
         {
@@ -382,11 +403,12 @@ public class InventoryState implements AutoCloseable
         	if (rs.next())
         	{
 //        		log.info("Status is " + rs.getString(2));
-        		return Status.valueOf(rs.getString(2));
+//        		return Status.valueOf(rs.getString(2));
+        		return rs.getString(2);
         	}
         	else
         	{
-        		return Status.invalid;
+        		return Status.invalid.name();
         	}
         }
     }
@@ -408,7 +430,7 @@ public class InventoryState implements AutoCloseable
         			+ allocation_ledger + " WRITE, "
         			+ inventory_status + " WRITE "
       			);
-        	Log.warning("tables were locked");
+        	log.warning("tables were locked");
         }
     }
     
@@ -431,7 +453,7 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	st.executeQuery("UNLOCK TABLES");
-        	Log.info("databases unlocked");
+        	log.info("databases unlocked");
        }
     }
     
@@ -440,7 +462,7 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.invalid.name() + "')");
-        	Log.info("status invalidated");
+        	log.info("status invalidated");
         }
     }
     
@@ -449,7 +471,7 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.inconsitent.name() + "')");
-        	Log.info("status inconsitent");
+        	log.info("status inconsitent");
         }
     }
 
@@ -458,22 +480,22 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.wrongfile.name() + "')");
-        	Log.info("status set to wrong file");
+        	log.info("status set to wrong file");
         }
     }
     
-    
-    public boolean isLoaded() throws SQLException
+    public void toomuchdata() throws SQLException
     {
-    	if (getStatus() == Status.loaded)
-    		return true;
-    	else
-    		return false;
+        try (Statement st = con.createStatement())
+        {
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.toomuchdata.name() + "')");
+        	log.info("status set to too much data");
+        }
     }
-    
+       
     public boolean isValid() throws SQLException
     {
-    	if (getStatus() == Status.invalid)
+    	if (Status.valueOf(getStatus()) == Status.invalid)
     		return false;
     	else
     		return true;
@@ -481,7 +503,15 @@ public class InventoryState implements AutoCloseable
            
     public boolean isWrongFile() throws SQLException
     {
-    	if (getStatus() == Status.wrongfile)
+    	if (Status.valueOf(getStatus()) == Status.wrongfile)
+    		return true;
+    	else
+    		return false;
+    }
+    
+    public boolean isTooMuchData() throws SQLException
+    {
+    	if (Status.valueOf(getStatus()) == Status.toomuchdata)
     		return true;
     	else
     		return false;
@@ -489,13 +519,21 @@ public class InventoryState implements AutoCloseable
     
     public boolean isClean() throws SQLException
     {
-    	if (getStatus() == Status.clean)
+    	if (Status.valueOf(getStatus()) == Status.clean)
     		return true;
     	else
     		return false;
     	
     }
 
+    public boolean isLoaded() throws SQLException
+    {
+    	if (Status.valueOf(getStatus()) == Status.loaded)
+    		return true;
+    	else
+    		return false;
+    }
+    
     public void load(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
     	clear();
@@ -503,7 +541,7 @@ public class InventoryState implements AutoCloseable
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 		if (inventorydata.getSegments().length > BITMAP_SIZE)
 		{
-			Log.severe("There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+			log.severe("There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
 			wrongFile();
 			return;
 		}
@@ -544,7 +582,7 @@ public class InventoryState implements AutoCloseable
 		}
 		if (highBit == 0)
 		{
-			Log.severe("no data in inventory sets in " + readChannel.toString());
+			log.severe("no data in inventory sets in " + readChannel.toString());
 			wrongFile();
 			return;
 		}			
@@ -589,7 +627,7 @@ public class InventoryState implements AutoCloseable
 		}
 		if (base_segments.isEmpty())
 		{
-			Log.severe("no data in segments " + readChannel.toString());
+			log.severe("no data in segments " + readChannel.toString());
 		}
 
 		//
@@ -619,7 +657,7 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory 
         		+ " SET basesets = ?, count = ?, criteria = ?, weight = ? ON DUPLICATE KEY UPDATE count = VALUES(count) + count" ))
         {
-        	Log.info("INSERT INTO "  + raw_inventory);
+        	log.info("INSERT INTO "  + raw_inventory);
 	        for (BaseSegement bs1 : base_segments.values()) {
 	        	insertStatement.setLong(1, bs1.getKeyBin()[0]);
 	        	insertStatement.setInt(2, bs1.getcapacity());
@@ -645,7 +683,7 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement st = con.prepareStatement("UPDATE " + raw_inventory
         		+ " SET weight = @n := @n + " + raw_inventory + ".count"))
         {
-        	Log.info("UPDATE " + raw_inventory);
+        	log.info("UPDATE " + raw_inventory);
         	st.execute();
         }
 
@@ -664,7 +702,7 @@ public class InventoryState implements AutoCloseable
         			+ " SET sdbW.capacity = comp.capacity, "
         			+ " sdbW.availability = comp.availability "
         			+ " WHERE sdbW.set_key = comp.set_key");
-        	Log.info("UPDATE " + structured_data_base);
+        	log.info("UPDATE " + structured_data_base);
         	
         	// populate inventory sets table
         	st.executeUpdate("INSERT INTO " 
@@ -672,47 +710,51 @@ public class InventoryState implements AutoCloseable
         			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
         			+ structured_data_base 
         			+ " WHERE capacity IS NOT NULL");
-        	Log.info("INSERT INTO " + structured_data_inc);
+        	log.info("INSERT INTO " + structured_data_inc);
         }
         
         // start union_next_rank table
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + unions_next_rank
         		+ " SELECT * FROM " + structured_data_inc))
         {
-        	Log.info("INSERT INTO " + unions_next_rank);
+        	log.info("INSERT INTO " + unions_next_rank);
         	insertStatement.execute();        	
         }
         
         // adds unions of higher ranks for all nodes to structured_data_inc
         try (CallableStatement callStatement = con.prepareCall("{call AddUnions}"))
         {
-        	Log.info("{call AddUnions}");
+        	log.info("{call AddUnions}");
            	callStatement.executeUpdate();
         }
         catch (CommunicationsException ex)
         {
         	// TODO: ignoring it for now until we figure out how to set timeout higher than 5 sec.
-        	Log.severe("AddUnions thrown " + ex.getMessage());
+        	log.severe("AddUnions thrown " + ex.getMessage());
         }
 //        catch (Exception ex)
 //        {
-//        	Log.severe(ex.getMessage());
+//        	log.severe(ex.getMessage());
 //        	throw ex;
 //        }
-        Log.info("Inventory for " + customer_name + " was loaded!");
+        log.info("Inventory for " + customer_name + " was loaded!");
     }
     
-    public void loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
+    public boolean loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
     {
+		Calendar starting = new GregorianCalendar();
+		Long startTime = starting.getTimeInMillis();
 
-    	clear();
+		if (readChannel != null)
+		{
+		clear();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 		if (inventorydata.getSegments().length > BITMAP_SIZE)
 		{
-			Log.severe("There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+			log.severe("There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
 			wrongFile();
-			return;
+			return true;
 		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
@@ -740,9 +782,9 @@ public class InventoryState implements AutoCloseable
 		}
 		if (highBit == 0)
 		{
-			Log.severe("no data in inventory sets in " + readChannel.toString());
+			log.severe("no data in inventory sets in " + readChannel.toString());
 			wrongFile();
-			return;
+			return true;
 		}			
 		
 		// Create segments' raw data. TODO: write into DB from the start
@@ -785,7 +827,7 @@ public class InventoryState implements AutoCloseable
 		}
 		if (base_segments.isEmpty())
 		{
-			Log.severe("no data in segments " + readChannel.toString());
+			log.severe("no data in segments " + readChannel.toString());
 		}
 
 		//
@@ -815,7 +857,7 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory 
         		+ " SET basesets = ?, count = ?, criteria = ?, weight = ? ON DUPLICATE KEY UPDATE count = VALUES(count) + count" ))
         {
-        	Log.info("INSERT INTO "  + raw_inventory);
+        	log.info("INSERT INTO "  + raw_inventory);
 	        for (BaseSegement bs1 : base_segments.values()) {
 	        	insertStatement.setLong(1, bs1.getKeyBin()[0]);
 	        	insertStatement.setInt(2, bs1.getcapacity());
@@ -841,7 +883,7 @@ public class InventoryState implements AutoCloseable
         try (PreparedStatement st = con.prepareStatement("UPDATE " + raw_inventory
         		+ " SET weight = @n := @n + " + raw_inventory + ".count"))
         {
-        	Log.info("UPDATE " + raw_inventory);
+        	log.info("UPDATE " + raw_inventory);
         	st.execute();
         }
 
@@ -859,7 +901,7 @@ public class InventoryState implements AutoCloseable
         			+ " SET sdbW.capacity = comp.capacity, "
         			+ " sdbW.availability = comp.availability "
         			+ " WHERE sdbW.set_key = comp.set_key");
-        	Log.info("UPDATE " + structured_data_base);
+        	log.info("UPDATE " + structured_data_base);
         	
         	// populate inventory sets table
         	st.executeUpdate("INSERT INTO " 
@@ -867,93 +909,103 @@ public class InventoryState implements AutoCloseable
         			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
         			+ structured_data_base 
         			+ " WHERE capacity IS NOT NULL");
-        	Log.info("INSERT INTO " + structured_data_inc);
+        	log.info("INSERT INTO " + structured_data_inc);
         }
         
         // start union_next_rank table
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + unions_next_rank
         		+ " SELECT * FROM " + structured_data_inc))
         {
-        	Log.info("INSERT INTO " + unions_next_rank);
+        	log.info("INSERT INTO " + unions_next_rank);
         	insertStatement.execute();        	
         }
+		}
         
         int cnt = 0;
         int cnt_updated = 0;
         ResultSet rs = null;
-		try (Statement st0 = con.createStatement()) {
-			Statement st = st0;
+		int base_segments_size = 0;
+		try (Statement st = con.createStatement()) 
+		{
 //			do {
-	        for (int ind = 0; ind <= base_segments.size(); ind++) 
-			{
+			rs = st.executeQuery("SELECT count(*) FROM " + raw_inventory);
+			if (rs.next()) {
+				cnt = rs.getInt(1);
+			}
+		}
+			
+        for (int ind = 0; ind <= base_segments_size; ind++) 
+		{
+            Calendar currentTime = new GregorianCalendar();
+            Long interval = currentTime.getTimeInMillis() - startTime;
+            if (interval >= RESTART_INTERVAL)
+            {
+            	log.warning("Restarting the loading inventory after " + interval.toString() + " msec.");
+            	return false;
+            }	            	
+        	
+    		try (Statement st = con.createStatement()) {
 				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
 				if (rs.next()) {
-					cnt = rs.getInt(1);
+					base_segments_size = rs.getInt(1);
 				}
 				st.executeUpdate("TRUNCATE unions_last_rank;");
 				st.executeUpdate("INSERT INTO unions_last_rank SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
-				// adds unions of higher rank for nodes to of structured_data_inc
-				try (CallableStatement callStatement = con.prepareCall("{call AddUnionsDynamic}")) {
-					Log.info("{call AddUnionsDynamic}");
-					callStatement.executeUpdate();
-				}
-				catch (CommunicationsException ex)
-				{
-					Log.severe("loadDynamic call AddUnionsDynamic thrown " + ex.getMessage()
-					+ " Hopefully MySQL completes it in 1 min.");
-		    		// Reconnect back because the exception closed the connection.
-		        	con = connect(true);
-		        	con.setCatalog(BWdb + customer_name);
-		        	TimeUnit.MINUTES.sleep(1);
-		        	st.close();
-		        	Statement st1 = con.createStatement();
-		        	st = st1;
-				}
+    		}
+			// adds unions of higher rank for nodes to of structured_data_inc
+			try (CallableStatement callStatement = con.prepareCall("{call AddUnionsDynamic}")) {
+				log.info("{call AddUnionsDynamic}");
+				callStatement.executeUpdate();
+			}
+			catch (CommunicationsException ex)
+			{
+				log.severe("loadDynamic call AddUnionsDynamic thrown " + ex.getMessage());
+	    		// Reconnect back because the exception closed the connection.
+				timeoutHandler.reconnect();
+			}
     			
-				try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
-					Log.info("{call PopulateRankWithNumbers}");
-					callStatement.executeUpdate();
-				}
-				catch (CommunicationsException ex)
-				{
-					Log.severe("loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage()
-					+ " Hopefully MySQL completes it in 1 min.");
-		    		// Reconnect back because the exception closed the connection.
-		        	con = connect(true);
-		        	con.setCatalog(BWdb + customer_name);
-		        	TimeUnit.MINUTES.sleep(1);
-		        	st.close();
-		        	Statement st1 = con.createStatement();
-		        	st = st1;
-				}
-   			
-				try {
-					st.executeUpdate(
-						"DELETE FROM structured_data_inc "
-	    			+ "    WHERE EXISTS ("
-	    			+ "        SELECT * "
-	    			+ "        FROM unions_next_rank unr1"
-	    			+ "        WHERE (structured_data_inc.set_key & unr1.set_key) = structured_data_inc.set_key "
-	    			+ "        AND structured_data_inc.capacity = unr1.capacity)");
-				}
-				catch (CommunicationsException ex)
-				{
-					Log.severe("loadDynamic DELETE FROM structured_data_inc thrown " + ex.getMessage()
-					+ " Hopefully MySQL completes it in 1 min.");
-		    		// Reconnect back because the exception closed the connection.
-		        	con = connect(true);
-		        	con.setCatalog(BWdb + customer_name);
-		        	TimeUnit.MINUTES.sleep(1);
-		        	st.close();
-		        	Statement st1 = con.createStatement();
-		        	st = st1;
-				}
-				
+			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
+				log.info("{call PopulateRankWithNumbers}");
+				callStatement.executeUpdate();
+			}
+			catch (CommunicationsException ex)
+			{
+				log.severe("loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage());
+	    		// Reconnect back because the exception closed the connection.
+				timeoutHandler.reconnect();
+			}
+		
+			try (Statement st = con.createStatement()) {
 				st.executeUpdate(
-					" INSERT /*IGNORE*/ INTO structured_data_inc "
+					"DELETE FROM structured_data_inc "
+    			+ "    WHERE EXISTS ("
+    			+ "        SELECT * "
+    			+ "        FROM unions_next_rank unr1"
+    			+ "        WHERE (structured_data_inc.set_key & unr1.set_key) = structured_data_inc.set_key "
+    			+ "        AND structured_data_inc.capacity = unr1.capacity)");
+			}
+			catch (CommunicationsException ex)
+			{
+				log.severe("loadDynamic DELETE FROM structured_data_inc thrown " + ex.getMessage());
+	    		// Reconnect back because the exception closed the connection.
+				timeoutHandler.reconnect();
+			}
+				
+	   			
+			try (Statement st = con.createStatement()) {
+				st.executeUpdate(
+				" INSERT /*IGNORE*/ INTO structured_data_inc "
     			+ "    SELECT * FROM unions_next_rank");
+			}
+			catch (CommunicationsException ex)
+			{
+				log.severe("loadDynamic INSERT /*IGNORE*/ INTO structured_data_inc thrown " + ex.getMessage());
+	    		// Reconnect back because the exception closed the connection.
+				timeoutHandler.reconnect();
+			}
     			
+			try (Statement st = con.createStatement()) {
 				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
 				if (rs.next()) {
 					cnt_updated = rs.getInt(1);
@@ -967,13 +1019,29 @@ public class InventoryState implements AutoCloseable
 			}
 //			} while (cnt < cnt_updated);
 
-			try (Statement st2 = con.createStatement()) 
+			try (Statement st = con.createStatement()) 
 			{
-				st2.executeUpdate("DELETE FROM structured_data_inc WHERE capacity IS NULL; ");
-				st2.executeUpdate("UPDATE structured_data_base, structured_data_inc "
+				st.executeUpdate("DELETE FROM structured_data_inc WHERE capacity IS NULL; ");
+			}
+			catch (CommunicationsException ex)
+			{
+				log.severe("DELETE FROM structured_data_inc WHERE capacity IS NULL thrown " + ex.getMessage());
+	    		// Reconnect back because the exception closed the connection.
+				timeoutHandler.reconnect();
+			}
+			
+			try (Statement st = con.createStatement()) 
+			{
+				st.executeUpdate("UPDATE structured_data_base, structured_data_inc "
 				+ " SET structured_data_base.set_key = structured_data_inc.set_key "
 				+ " WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is "
 				+ " AND structured_data_base.capacity = structured_data_inc.capacity; ");
+			}
+			catch (CommunicationsException ex)
+			{
+				log.severe("UPDATE structured_data_base, structured_data_inc thrown " + ex.getMessage());
+	    		// Reconnect back because the exception closed the connection.
+				timeoutHandler.reconnect();
 			}
 		}
 
@@ -983,14 +1051,15 @@ public class InventoryState implements AutoCloseable
 			st.executeUpdate(" REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "');");      			
 		}
 
-		Log.info("Inventory for " + customer_name + " was loaded!");
+		log.info("Inventory for " + customer_name + " was loaded!");
+		return true;
 	}
     
     public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException, ClassNotFoundException, InterruptedException
     {
     	if (amount <= 0)
     	{
-			Log.severe("wrong allocation = " + Integer.toString(amount));
+			log.severe("wrong allocation = " + Integer.toString(amount));
 			return false;
     	}
     	if (advertiserID.length() == 0)
@@ -1019,13 +1088,12 @@ public class InventoryState implements AutoCloseable
 	        }
     	}
     	
-    	CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?, ?)}");
-     	boolean returnValue = false;
-		callStatement.setLong(1, set_key_is);
-		callStatement.setInt(2, amount);
-		callStatement.registerOutParameter(3, Types.BOOLEAN);
-    	try 
+    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?, ?)}"))
     	{
+	     	boolean returnValue = false;
+			callStatement.setLong(1, set_key_is);
+			callStatement.setInt(2, amount);
+			callStatement.registerOutParameter(3, Types.BOOLEAN);
     		// GetItemsFromSD can fail because of 5 msec limit on GAE connection
     		callStatement.executeUpdate();
     		returnValue = callStatement.getBoolean(3);
@@ -1036,13 +1104,11 @@ public class InventoryState implements AutoCloseable
      			return false; // TODO: we probably need some diagnostic for UI
     		}
     	}
-    	catch (com.mysql.jdbc.exceptions.jdbc4.CommunicationsException ex)
+    	catch (CommunicationsException ex)
     	{
-    		log.severe("GetItemsFromSD caused an exception. Hopefully it completes in 1 min. " + ex.toString());
+    		log.severe("GetItemsFromSD caused an exception " + ex.getMessage());
     		// Reconnect back because the exception closed the connection.
-        	con = connect(true);
-        	con.setCatalog(BWdb + customer_name);
-        	TimeUnit.MINUTES.sleep(1);
+			timeoutHandler.reconnect();
     	}
     	
     	try (PreparedStatement statement = con.prepareStatement(

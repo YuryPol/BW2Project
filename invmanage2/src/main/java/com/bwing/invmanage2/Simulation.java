@@ -134,10 +134,10 @@ public class Simulation extends HttpServlet {
         catch (CommunicationsException | DeadlineExceededException ex)
         {
         	// Caused by DeadlineExceededException
+        	log.severe("Caused by DeadlineExceededException " + ex.getMessage());
 			// And queue the task to continue after it timed out
 	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
-        	log.severe("Caused by DeadlineExceededException " + ex.getMessage());
         }
 		catch (ClassNotFoundException | SQLException ex) {
 			log.severe(ex.getMessage());

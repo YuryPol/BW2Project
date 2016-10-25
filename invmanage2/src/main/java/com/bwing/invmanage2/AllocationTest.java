@@ -46,7 +46,7 @@ public class AllocationTest {
 				log.info(file_name + " was parsed successfuly.");
 
 				if (!invState.isLoaded()) {
-					log.warning("The inventory " + customer_name + " is " + invState.getStatus().name()
+					log.warning("The inventory " + customer_name + " is " + invState.getStatus()
 							+ ". Nothing to allocate");
 				} else {
 					Statement st = invState.getConnection().createStatement();
