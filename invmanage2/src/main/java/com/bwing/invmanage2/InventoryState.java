@@ -33,7 +33,7 @@ import java.sql.ResultSet;
 public class InventoryState implements AutoCloseable
 {
 	private enum Status {
-		clean, invalid, wrongfile, inconsitent, toomuchdata, loaded
+		clean, loadstarted, loadinprogress, wrongfile, inconsitent, toomuchdata, loaded
 	}
 
 	String customer_name;
@@ -139,7 +139,7 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("DROP TABLE IF EXISTS " + inventory_status);
         	st.executeUpdate("CREATE TABLE " + inventory_status 
         	+ " (fake_key INT DEFAULT 1, "
-        	+ " status VARCHAR(200) DEFAULT '" + Status.invalid.name()
+        	+ " status VARCHAR(200) DEFAULT '" + Status.clean.name()
         	+ "', PRIMARY KEY(fake_key))");
 
         	// create raw_inventory table to fill up by impressions' counts
@@ -408,7 +408,7 @@ public class InventoryState implements AutoCloseable
         	}
         	else
         	{
-        		return Status.invalid.name();
+        		return Status.loadinprogress.name();
         	}
         }
     }
@@ -457,11 +457,11 @@ public class InventoryState implements AutoCloseable
        }
     }
     
-    public void invalidate() throws SQLException
+    public void loadinvalid() throws SQLException
     {
         try (Statement st = con.createStatement())
         {
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.invalid.name() + "')");
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loadinprogress.name() + "')");
         	log.info("status invalidated");
         }
     }
@@ -484,6 +484,15 @@ public class InventoryState implements AutoCloseable
         }
     }
     
+    public void loadstarted() throws SQLException
+    {
+        try (Statement st = con.createStatement())
+        {
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loadstarted.name() + "')");
+        	log.info("status set load started");
+        }
+    }
+       
     public void toomuchdata() throws SQLException
     {
         try (Statement st = con.createStatement())
@@ -492,15 +501,15 @@ public class InventoryState implements AutoCloseable
         	log.info("status set to too much data");
         }
     }
-       
-    public boolean isValid() throws SQLException
+
+    public boolean isLoadInProgress() throws SQLException
     {
-    	if (Status.valueOf(getStatus()) == Status.invalid)
-    		return false;
-    	else
+    	if (Status.valueOf(getStatus()) == Status.loadinprogress)
     		return true;
+    	else
+    		return false;
     }
-           
+    
     public boolean isWrongFile() throws SQLException
     {
     	if (Status.valueOf(getStatus()) == Status.wrongfile)
@@ -534,6 +543,14 @@ public class InventoryState implements AutoCloseable
     		return false;
     }
     
+     public boolean isLoadStarted() throws SQLException
+    {
+    	if (Status.valueOf(getStatus()) == Status.loadstarted)
+    		return true;
+    	else
+    		return false;
+    }
+   
     public void load(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException
     {
     	clear();
@@ -740,21 +757,22 @@ public class InventoryState implements AutoCloseable
         log.info("Inventory for " + customer_name + " was loaded!");
     }
     
-    public boolean loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
+    public void loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
     {
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
 
-		if (readChannel != null)
+		if (!isLoadInProgress())
 		{
 		clear();
+		loadstarted();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 		if (inventorydata.getSegments().length > BITMAP_SIZE)
 		{
 			log.severe("There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
 			wrongFile();
-			return true;
+			return;
 		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
@@ -784,7 +802,7 @@ public class InventoryState implements AutoCloseable
 		{
 			log.severe("no data in inventory sets in " + readChannel.toString());
 			wrongFile();
-			return true;
+			return;
 		}			
 		
 		// Create segments' raw data. TODO: write into DB from the start
@@ -920,6 +938,9 @@ public class InventoryState implements AutoCloseable
         	insertStatement.execute();        	
         }
 		}
+		
+		// We can restart from here 
+		loadinvalid();
         
         int cnt = 0;
         int cnt_updated = 0;
@@ -938,11 +959,11 @@ public class InventoryState implements AutoCloseable
 		{
             Calendar currentTime = new GregorianCalendar();
             Long interval = currentTime.getTimeInMillis() - startTime;
-            if (interval >= RESTART_INTERVAL)
-            {
-            	log.warning("Restarting the loading inventory after " + interval.toString() + " msec.");
-            	return false;
-            }	            	
+//            if (interval >= RESTART_INTERVAL)
+//            {
+//            	log.warning("Restarting the loading inventory after " + interval.toString() + " msec.");
+//            	return false;
+//            }	            	
         	
     		try (Statement st = con.createStatement()) {
 				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
@@ -1052,7 +1073,7 @@ public class InventoryState implements AutoCloseable
 		}
 
 		log.info("Inventory for " + customer_name + " was loaded!");
-		return true;
+//		return true;
 	}
     
     public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException, ClassNotFoundException, InterruptedException

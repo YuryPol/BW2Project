@@ -53,10 +53,10 @@
             response.sendRedirect("/");
             return;
         }
-        else if (!invState.isValid()) 
+        else if (!invState.isLoaded()) 
         {
             %>
-            <p>Inventory is locked</p>
+            <p>Inventory is not loaded</p>
             <form action="/" method="get">
             Return to start page<input type="submit" value="Return" />
             </form>

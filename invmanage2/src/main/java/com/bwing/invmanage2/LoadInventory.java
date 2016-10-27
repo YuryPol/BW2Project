@@ -25,9 +25,9 @@ public class LoadInventory extends HttpServlet
         String file_name = request.getParameter("file_name");
 
 		try (InventoryState invState = new InventoryState(customer_name, true)) {
-			if (!invState.isValid())
+			if (invState.isLoadStarted() || invState.isLoadInProgress())
 			{
-		    	log.warning(customer_name + " inventory is locked");
+		    	log.warning(customer_name + " inventory is loading");
 				// go back
 				response.sendRedirect("/WatitForInventory.jsp");
 				return;
@@ -35,7 +35,7 @@ public class LoadInventory extends HttpServlet
 			else
 			{
 				// Process the file
-				invState.invalidate();
+				invState.loadstarted();
 		    	Queue queue = QueueFactory.getDefaultQueue();
 		    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("file", file_name).param("customer_name", customer_name)
 		    			//.header("Host", ModulesServiceFactory.getModulesService().getVersionHostname(null, null)));

@@ -50,10 +50,10 @@
             response.sendRedirect("/");
             return;
          }
-         else if (invState.isLoaded() || invState.isWrongFile() || invState.isTooMuchData())
+         else if (!(invState.isLoadInProgress() || invState.isLoadStarted()))
          {
              // Return to Select Inventory page
-             log.info("Data are in " + invState.getStatus() + " state, leave wait page");
+             log.info("Inventory is in " + invState.getStatus() + " state, leave wait page");
              invState.close();
              response.sendRedirect("/");
              return;

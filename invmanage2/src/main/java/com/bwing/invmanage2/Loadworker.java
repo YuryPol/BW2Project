@@ -10,9 +10,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.appengine.tools.cloudstorage.GcsInputChannel;
 import com.google.appengine.tools.cloudstorage.GcsService;
@@ -54,11 +51,7 @@ public class Loadworker  extends HttpServlet
 				readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 			}
 
-			if (!invState.loadDynamic(readChannel))
-			{
-    	    	Queue queue = QueueFactory.getDefaultQueue();
-    	    	queue.add(TaskOptions.Builder.withUrl("/loadwork").param("customer_name", customer_name));
-			}
+			invState.loadDynamic(readChannel);
 //			con.commit();
 		} catch (ClassNotFoundException ex) {
 			// TODO Auto-generated catch block
