@@ -4,9 +4,12 @@
     <version>1</version>
     <threadsafe>true</threadsafe>
     <sessions-enabled>true</sessions-enabled>
-    
-    <system-properties>
-        <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
-        <property name="appengine.api.urlfetch.defaultDeadline" value="60"/>
-    </system-properties>    
+<basic-scaling>
+    <max-instances>3</max-instances>
+    <idle-timeout>10m</idle-timeout>
+</basic-scaling>    
+<system-properties>
+    <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
+    <property name="appengine.api.urlfetch.defaultDeadline" value="60"/>
+</system-properties>    
 </appengine-web-app>

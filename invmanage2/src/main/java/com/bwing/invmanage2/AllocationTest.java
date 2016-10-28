@@ -42,7 +42,7 @@ public class AllocationTest {
 				// returns ReadableByteChannel instance to read the file
 				readChannel = Channels.newChannel(in);
 
-				invState.load(readChannel);
+				invState.loadDynamic(readChannel);
 				log.info(file_name + " was parsed successfuly.");
 
 				if (!invState.isLoaded()) {

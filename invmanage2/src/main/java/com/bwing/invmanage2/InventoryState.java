@@ -757,7 +757,7 @@ public class InventoryState implements AutoCloseable
         log.info("Inventory for " + customer_name + " was loaded!");
     }
     
-    public void loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
+    public boolean loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
     {
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
@@ -772,7 +772,7 @@ public class InventoryState implements AutoCloseable
 		{
 			log.severe("There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
 			wrongFile();
-			return;
+			return false;
 		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
@@ -802,7 +802,7 @@ public class InventoryState implements AutoCloseable
 		{
 			log.severe("no data in inventory sets in " + readChannel.toString());
 			wrongFile();
-			return;
+			return true;
 		}			
 		
 		// Create segments' raw data. TODO: write into DB from the start
@@ -959,11 +959,12 @@ public class InventoryState implements AutoCloseable
 		{
             Calendar currentTime = new GregorianCalendar();
             Long interval = currentTime.getTimeInMillis() - startTime;
-//            if (interval >= RESTART_INTERVAL)
-//            {
-//            	log.warning("Restarting the loading inventory after " + interval.toString() + " msec.");
-//            	return false;
-//            }	            	
+            if (interval >= RESTART_INTERVAL)
+            {
+            	log.warning("Restarting the loading inventory after " + interval.toString() + " msec.");
+            	rs.close();
+            	return false;
+            }	            	
         	
     		try (Statement st = con.createStatement()) {
 				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
@@ -985,7 +986,8 @@ public class InventoryState implements AutoCloseable
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
-    			
+    		// AddUnionsDynamic completed	
+			
 			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
 				log.info("{call PopulateRankWithNumbers}");
 				callStatement.executeUpdate();
@@ -996,15 +998,16 @@ public class InventoryState implements AutoCloseable
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
+			// PopulateRankWithNumbers completed
 		
 			try (Statement st = con.createStatement()) {
 				st.executeUpdate(
-					"DELETE FROM structured_data_inc "
+					"DELETE FROM " + structured_data_inc
     			+ "    WHERE EXISTS ("
     			+ "        SELECT * "
-    			+ "        FROM unions_next_rank unr1"
-    			+ "        WHERE (structured_data_inc.set_key & unr1.set_key) = structured_data_inc.set_key "
-    			+ "        AND structured_data_inc.capacity = unr1.capacity)");
+    			+ "        FROM " + unions_next_rank + " unr1"
+    			+ "        WHERE (" + structured_data_inc + ".set_key & unr1.set_key) = " + structured_data_inc + ".set_key "
+    			+ "        AND " + structured_data_inc + ".capacity = unr1.capacity)");
 			}
 			catch (CommunicationsException ex)
 			{
@@ -1012,12 +1015,12 @@ public class InventoryState implements AutoCloseable
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
-				
+			// deletion unneeded nodes completed	
 	   			
 			try (Statement st = con.createStatement()) {
 				st.executeUpdate(
-				" INSERT /*IGNORE*/ INTO structured_data_inc "
-    			+ "    SELECT * FROM unions_next_rank");
+				" INSERT /*IGNORE*/ INTO " + structured_data_inc
+    			+ "    SELECT * FROM " + unions_next_rank);
 			}
 			catch (CommunicationsException ex)
 			{
@@ -1042,7 +1045,7 @@ public class InventoryState implements AutoCloseable
 
 			try (Statement st = con.createStatement()) 
 			{
-				st.executeUpdate("DELETE FROM structured_data_inc WHERE capacity IS NULL; ");
+				st.executeUpdate("DELETE FROM " + structured_data_inc + " WHERE capacity IS NULL; ");
 			}
 			catch (CommunicationsException ex)
 			{
@@ -1053,10 +1056,10 @@ public class InventoryState implements AutoCloseable
 			
 			try (Statement st = con.createStatement()) 
 			{
-				st.executeUpdate("UPDATE structured_data_base, structured_data_inc "
-				+ " SET structured_data_base.set_key = structured_data_inc.set_key "
-				+ " WHERE structured_data_base.set_key_is & structured_data_inc.set_key = structured_data_base.set_key_is "
-				+ " AND structured_data_base.capacity = structured_data_inc.capacity; ");
+				st.executeUpdate("UPDATE " + structured_data_base + "," + structured_data_inc
+				+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
+				+ " WHERE " + structured_data_base + ".set_key_is & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key_is "
+				+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
 			}
 			catch (CommunicationsException ex)
 			{
@@ -1073,7 +1076,7 @@ public class InventoryState implements AutoCloseable
 		}
 
 		log.info("Inventory for " + customer_name + " was loaded!");
-//		return true;
+		return true;
 	}
     
     public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException, ClassNotFoundException, InterruptedException
