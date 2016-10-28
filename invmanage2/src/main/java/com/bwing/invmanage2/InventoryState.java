@@ -959,7 +959,8 @@ public class InventoryState implements AutoCloseable
 		{
             Calendar currentTime = new GregorianCalendar();
             Long interval = currentTime.getTimeInMillis() - startTime;
-            if (interval >= RESTART_INTERVAL)
+            if (!(SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) && 
+            		interval >= RESTART_INTERVAL)
             {
             	log.warning("Restarting the loading inventory after " + interval.toString() + " msec.");
             	rs.close();
