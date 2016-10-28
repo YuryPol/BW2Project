@@ -1,10 +1,7 @@
 A. Code:
 Immediate:
 1. Remove Main.jsp from url.
-2. Figure out why info logging doesn't show up in Logs view. 
-3. Increase segments max and make them more intersecting.
-4. Make inventory load task to restart before timeout.
-5. Add more inventory states.
+2. Improve logging: add more info, add user identifcation to each record. 
 
 Future:
 1. Pull InventorySet into a library to share.
