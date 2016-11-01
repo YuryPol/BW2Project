@@ -15,6 +15,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Random;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -25,6 +26,7 @@ import javax.servlet.http.HttpServletResponse;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.appengine.api.utils.SystemProperty;
 import com.google.apphosting.api.DeadlineExceededException;
 import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 
@@ -40,6 +42,7 @@ public class Simulation extends HttpServlet {
 		Long start = starting.getTimeInMillis();
 		Long interval;
 		String customer_name = request.getParameter("customer_name");
+		log.setLevel(Level.INFO);
 		try (InventoryState invState = new InventoryState(customer_name, true)) {
 //			invState.lock();
 			Connection con = invState.getConnection();
@@ -112,7 +115,8 @@ public class Simulation extends HttpServlet {
 	            }
 	            Calendar current = new GregorianCalendar();
 	            interval = current.getTimeInMillis() - start;
-	            if (interval >= RESTART_INTERVAL)
+	            if (!(SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) && 
+	            		interval >= RESTART_INTERVAL)
 	            {
 	    	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));

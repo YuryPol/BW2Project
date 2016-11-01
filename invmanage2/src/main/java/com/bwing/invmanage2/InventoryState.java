@@ -1155,22 +1155,38 @@ public class InventoryState implements AutoCloseable
     	{
     		log.severe("GetItemsFromSD caused an exception " + ex.getMessage());
     		// Reconnect back because the exception closed the connection.
-			timeoutHandler.reconnect();
+			// timeoutHandler.reconnect();
+    		return false;
     	}
     	
     	try (PreparedStatement statement = con.prepareStatement(
     	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal, alloc_key) VALUES ('"
-    	+ String.valueOf(set_key_is) + "','" 
-    	+ set_name + "','"
-    	+ String.valueOf(capacity) + "','" 
-    	+ String.valueOf(availability) + "','" 
-    	+ advertiserID + "','" 
-    	+ String.valueOf(amount)  + "','"
-    	+ advertiserID + " | " + set_name
-    	+ "') ON DUPLICATE KEY UPDATE goal = VALUES(goal) + goal" ))
+		    	+ String.valueOf(set_key_is) + "','" 
+		    	+ set_name + "','"
+		    	+ String.valueOf(capacity) + "','" 
+		    	+ String.valueOf(availability) + "','" 
+		    	+ advertiserID + "','" 
+		    	+ String.valueOf(amount)  + "','"
+		    	+ advertiserID + " | " + set_name
+		    	+ "') ON DUPLICATE KEY UPDATE goal = VALUES(goal) + goal" ))
     	{
     		statement.executeUpdate();
     	}
+    	catch (CommunicationsException ex)
+    	{
+    		log.severe("INSERT INTO allocation_ledger caused an exception " + ex.getMessage());
+    		// Reconnect back because the exception closed the connection.
+    		return false;
+    	}
+    	log.info("Allocated "
+    	    	+ String.valueOf(set_key_is) + "','" 
+    	    	+ set_name + "','"
+    	    	+ String.valueOf(capacity) + "','" 
+    	    	+ String.valueOf(availability) + "','" 
+    	    	+ advertiserID + "','" 
+    	    	+ String.valueOf(amount)  + "','"
+    	    	+ advertiserID + " | " + set_name
+    			);
     	return true;
     }
     
