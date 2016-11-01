@@ -11,5 +11,7 @@
 <system-properties>
     <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
     <property name="appengine.api.urlfetch.defaultDeadline" value="60"/>
+    <!--  property name="ae-cloudsql.cloudsql-database-url" value="jdbc:google:mysql://bw2project:us-central1:bwing2gen?user=root&amp;password=IraAnna12"/>
+    <property name="ae-cloudsql.local-database-url" value="jdbc:mysql://localhost:3306?user=root&amp;PASSWORD=IraAnna12"/ -->
 </system-properties>    
 </appengine-web-app>

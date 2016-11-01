@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.ServletException;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -88,7 +90,8 @@ public class InventoryState implements AutoCloseable
 			// Load the class that provides the new "jdbc:google:mysql://"
 			// prefix.
 			Class.forName("com.mysql.jdbc.GoogleDriver");
-			url = "jdbc:google:mysql://bw2project:bw2project?user=root&password=IraAnna12";
+//			url = "jdbc:google:mysql://bw2project:bw2project?user=root&password=IraAnna12";
+			url = "jdbc:google:mysql://bw2project:us-central1:bwing2gen?user=root&password=IraAnna12";			
 		} 
 		else 
 		{
@@ -96,6 +99,25 @@ public class InventoryState implements AutoCloseable
 			Class.forName("com.mysql.jdbc.Driver"); // can't find the class
 			url = "jdbc:mysql://localhost:3306?user=root&password=IraAnna12";
 		}
+
+//	    if (System
+//	            .getProperty("com.google.appengine.runtime.version").startsWith("Google App Engine/")) {
+//	          // Check the System properties to determine if we are running on appengine or not
+//	          // Google App Engine sets a few system properties that will reliably be present on a remote
+//	          // instance.
+//	          url = System.getProperty("ae-cloudsql.cloudsql-database-url");
+//	          try {
+//	            // Load the class that provides the new "jdbc:google:mysql://" prefix.
+//	            Class.forName("com.mysql.jdbc.GoogleDriver");
+//	          } catch (ClassNotFoundException e) {
+//	        	  log.severe(e.fillInStackTrace().toString());
+//	        	  e.printStackTrace();
+//	          }
+//	        } else {
+//	          // Set the url with the local MySQL database connection url when running locally
+//	          url = System.getProperty("ae-cloudsql.local-database-url");
+//	        }
+		
 		Properties info = new Properties();
 		info.setProperty("connectTimeout", "0");
 		info.setProperty("socketTimeout", "0");
@@ -153,7 +175,7 @@ public class InventoryState implements AutoCloseable
         	// create structured data table
         	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_inc);
         	st.executeUpdate("CREATE TABLE " +  structured_data_inc
-    	    + " (set_key BIGINT DEFAULT NULL, "
+    	    + " (set_key BIGINT DEFAULT 0, "
     	    + "set_name VARCHAR(20) DEFAULT NULL, "
     	    + "capacity INT DEFAULT NULL, " 
     	    + "availability INT DEFAULT NULL, " 
@@ -163,7 +185,7 @@ public class InventoryState implements AutoCloseable
         	// create inventory sets table
         	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_base);
         	st.executeUpdate("CREATE TABLE " + structured_data_base 
-        	+ " (set_key_is BIGINT DEFAULT NULL, "
+        	+ " (set_key_is BIGINT DEFAULT 0, "
 		    + "set_key BIGINT DEFAULT NULL, "
 		    + "set_name VARCHAR(20) DEFAULT NULL, "
 		    + "capacity INT DEFAULT NULL, "
@@ -175,7 +197,7 @@ public class InventoryState implements AutoCloseable
         	// create temporary table to insert next rank rows
         	st.executeUpdate("DROP TABLE IF EXISTS " + unions_last_rank);
         	st.executeUpdate("CREATE TABLE " +  unions_last_rank
-    	    + " (set_key BIGINT DEFAULT NULL, "
+    	    + " (set_key BIGINT DEFAULT 0, "
     	    + "set_name VARCHAR(20) DEFAULT NULL, "
     	    + "capacity INT DEFAULT NULL, " 
     	    + "availability INT DEFAULT NULL, " 
@@ -184,7 +206,7 @@ public class InventoryState implements AutoCloseable
         	
         	st.executeUpdate("DROP TABLE IF EXISTS " + unions_next_rank);
         	st.executeUpdate("CREATE TABLE " + unions_next_rank
-    	    + " (set_key BIGINT DEFAULT NULL, "
+    	    + " (set_key BIGINT DEFAULT 0, "
     	    + "set_name VARCHAR(20) DEFAULT NULL, "
     	    + "capacity INT DEFAULT NULL, " 
     	    + "availability INT DEFAULT NULL, " 
@@ -199,7 +221,7 @@ public class InventoryState implements AutoCloseable
             	    + "availability INT DEFAULT NULL, " 
             	    + "advertiserID  VARCHAR(80) DEFAULT NULL, "
             	    + "goal INT DEFAULT 0, "
-            	    + "alloc_key VARCHAR(40) DEFAULT NULL, "
+            	    + "alloc_key VARCHAR(40) DEFAULT '', "
             	    + "PRIMARY KEY(alloc_key))");
         	
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving);
@@ -331,7 +353,7 @@ public class InventoryState implements AutoCloseable
         			+ "     UPDATE structured_data_inc "
         			+ "        SET availability = availability - amount "
         			+ "        WHERE (set_key & iset) = iset; "
-        			+ "       DELETE FROM structured_data_inc WHERE set_key = ANY ( "
+        			+ "     DELETE FROM structured_data_inc WHERE set_key = ANY ( "
         			+ "       SELECT set_key FROM ( "
         			+ "          SELECT sd1.set_key "
         			+ "          FROM structured_data_inc sd1 JOIN structured_data_inc sd2 "
