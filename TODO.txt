@@ -1,7 +1,8 @@
 A. Code:
 Immediate:
 1. Remove Main.jsp from url.
-2. Improve logging: add more info, add user identifcation to each record. 
+2. Improve logging: add more info, add user identification to each record.
+3. Wait page for allocation.
 
 Future:
 1. Pull InventorySet into a library to share.
