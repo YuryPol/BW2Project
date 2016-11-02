@@ -78,11 +78,12 @@
                 String bis_email = request.getParameter("bis_email");
                 String company = request.getParameter("company");
                 
-                if (first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
+                if (Customer.getCustomer(company) != null) 
+                	// || first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
                 {
-                    log.info("Correcting Account info for " + gUser.getNickname());
+                    log.warning("Organization " + company + " already exists, tried to create by " + gUser.getNickname());
                     %>
-                    <p>Please enter correct data</p>
+                    <p>Organization <%=company%> already exists, try another organization name</p>
 	                <form action="/" method="post">
 	                <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
 	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
@@ -98,6 +99,10 @@
                 {
                     // Create Customer and primary user
                     // TODO: make it into transacton 
+                    if (Customer.getCustomer(company) != null)
+                    {
+                    	// the customer already exists
+                    }
                     log.info("Creating Account for " + gUser.getNickname());
                     Customer customer = new Customer(company, gUser);
                     ObjectifyService.ofy().save().entity(customer).now();

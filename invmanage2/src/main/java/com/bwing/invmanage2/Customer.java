@@ -41,7 +41,7 @@ public class Customer {
 	  founder = user;
   }
   
-  static public Customer findCustomer(List<Customer> customers, String theCompany)
+  static public Customer findCustomer(List<Customer> customers, String theCompany) // use getCustomer() instead 
   {
 	  if (customers.isEmpty())
 	  {
