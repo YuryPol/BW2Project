@@ -62,7 +62,7 @@ public class FileServlet extends HttpServlet {
  
                 if (item.getName().isEmpty())
                 {
-                	log.severe("File was not selected");
+                	log.severe(customer_name + " : File was not selected");
                     response.sendRedirect("/");
                     return;
                 }
@@ -71,14 +71,14 @@ public class FileServlet extends HttpServlet {
 
                 if (item.isFormField()) 
                 {
-                    log.info("Got a form field: " + item.getFieldName());
+                    log.info(customer_name + " : Got an uploaded file: " + item.getFieldName() +
+                            ", name = " + item.getName());
                 } 
                 else 
                 {
                   try (InventoryState invState = new InventoryState(customer_name, true))
                   {
-                    log.info("Got an uploaded file: " + item.getFieldName() +
-                            ", name = " + item.getName());
+                    log.info(customer_name + " : Got an uploaded file = " + item.getName());
 
                     sctype = item.getContentType();
 
@@ -102,7 +102,6 @@ public class FileServlet extends HttpServlet {
             }
         } catch (Exception ex) {
 			ex.printStackTrace();
-        	log.severe(ex.toString());
             throw new ServletException(ex);
         }
     }
@@ -111,6 +110,7 @@ public class FileServlet extends HttpServlet {
     public void doGet( HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
     {
         String customer_name = request.getParameter("customer_name");
+        Logger log = Logger.getLogger(FileServlet.class.getName() + " : " + customer_name);
 
         // You must tell the browser the file type you are going to send
         // for example application/pdf, text/plain, text/html, image/jpg
@@ -118,6 +118,7 @@ public class FileServlet extends HttpServlet {
 
         // Make sure to show the download dialog
         response.setHeader("Content-disposition","attachment; filename=" + customer_name + ".json");
+        log.info(customer_name + " : Downloading inventory file");
 
         try 
         {
@@ -125,11 +126,12 @@ public class FileServlet extends HttpServlet {
             GcsFilename gcsfileName = new GcsFilename(InventoryFile.bucketName, customer_name);
             GcsInputChannel readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
             copy(Channels.newInputStream(readChannel), response.getOutputStream());
+            log.info(customer_name + " : the file sent to browser");
         } 
         catch (Exception ex) 
         {
 			ex.printStackTrace();
-        	log.severe(ex.toString());
+        	log.severe(customer_name + " : " + ex.toString());
             throw new ServletException(ex);
         }
    }
@@ -144,7 +146,6 @@ public class FileServlet extends HttpServlet {
           {
           	if (length > MAX_FILE_LENGTH)
         	{
-          		log.severe("Inventory file length exceeds " + Integer.toString(MAX_FILE_LENGTH) + " bytes");
           		ret = false;
           		break;
         	}

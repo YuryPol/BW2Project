@@ -85,7 +85,7 @@ public class InventoryUser {
 				  return iuser;
 			  }
 		  }
-		  log.warning("No such User exists: " + email);
+		  log.warning("No " + email + " User exists");
 		  return null;
 	  }
 	  
@@ -133,5 +133,10 @@ public class InventoryUser {
 	  public Key<Customer> getCustomerKey()
 	  {
 		  return theCustomer.getKey();
+	  }
+	  
+	  public String getCompanyName()
+	  {
+		  return theCustomer.get().company;
 	  }
 }

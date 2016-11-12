@@ -87,7 +87,7 @@ public class Simulation extends HttpServlet {
 	            rs = getRequest.executeQuery();
 	            if (!rs.next()) // should not happen
 	            {
-	            	log.severe("no datga for weight = " + String.valueOf(rand_weight));
+	            	log.severe(customer_name + " : no datga for weight = " + String.valueOf(rand_weight));
 	            	continue;
 	            }
 	            long basesets = rs.getLong(1);
@@ -109,7 +109,7 @@ public class Simulation extends HttpServlet {
 	            // increment served_count in result_serving
 	            if (served_count != 0 && served_count % 10000 == 0)
 	            {
-	            	log.info(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
+	            	log.info(customer_name + " : " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
 	            			+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" 
 	                        + String.valueOf(missed_count) + "\r");
 	            }
@@ -120,31 +120,31 @@ public class Simulation extends HttpServlet {
 	            {
 	    	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
-	            	log.warning("Restarting the simuilation after " + interval.toString() + " msec.");
+	            	log.warning(customer_name + " : Restarting the simuilation after " + interval.toString() + " msec.");
 	            	return;
 	            }	            	
             }
             st.executeUpdate("CREATE TABLE result_serving_copy ENGINE=MEMORY AS SELECT * FROM result_serving");
             st.executeUpdate("DROP TABLE IF EXISTS result_serving");
-            log.info(new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
+            log.info(customer_name + " : " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
             		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));            	            
 		} 
 		catch (com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException ex)
 		{
 			// May happen when user cancels simulation
-			log.severe("Excepton " + ex.getMessage() + ". May happen when user cancels simulation");
+			log.severe(customer_name + " : Excepton " + ex.getMessage() + ". May happen when user cancels simulation");
 			ex.printStackTrace();			
 		}
         catch (CommunicationsException | DeadlineExceededException ex)
         {
         	// Caused by DeadlineExceededException
-        	log.severe("Caused by DeadlineExceededException " + ex.getMessage());
+        	log.severe(customer_name + " : Caused by DeadlineExceededException " + ex.getMessage());
 			// And queue the task to continue after it timed out
 	    	Queue queue = QueueFactory.getDefaultQueue();
 	    	queue.add(TaskOptions.Builder.withUrl("/simulate").param("customer_name", customer_name));
         }
 		catch (ClassNotFoundException | SQLException ex) {
-			log.severe(ex.getMessage());
+			log.severe(customer_name + " : " + ex.getMessage());
 			throw new ServletException(ex);
 		}
 	}

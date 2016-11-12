@@ -134,7 +134,7 @@
             switch (mode) 
             {
 	            case createAccount:
-	                log.info("Entering secondary Account info by " + customer_name);
+	                log.info(customer_name + " : Entering secondary Account info");
 	                %>
 	                <p>You can enter identifying information to create account for secondary user with whom you share your organization's data</p>
 	                <form action="/" method="post">
@@ -159,7 +159,7 @@
                      
                     if (first_name == "Jerk" || last_name == "" || phone == "" || bis_email == "") // TODO: add real parameters' checks
                     {
-                        log.info("Correcting secondary Account info by " + customer_name);
+                        log.info(customer_name + " : Correcting secondary Account info");
                         %>
                         <p>Please correct wrong data</p>
 	                    <form action="/" method="post">
@@ -177,7 +177,7 @@
                     {
                         // Create secondary user
                         // Add the user and fill his properties
-                        log.info("Creating secondary Account " + first_name + " " + last_name);
+                        log.info(customer_name + " : Creating secondary Account " + first_name + " " + last_name);
                         Ref<Customer> customerKey = iuser.theCustomer;
                         InventoryUser newuser = new InventoryUser(customerKey, new Email(email), first_name, last_name, new PhoneNumber(phone), bis_email, false);
                         ObjectifyService.ofy().save().entity(newuser).now();
@@ -197,7 +197,7 @@
                     // System.out.println("Customer: " + customer_name);
                     pageContext.setAttribute("customer_name", customer_name);
                     InventoryState invState = new InventoryState(customer_name, true);
-                    log.info("The inventory " + customer_name + " is " + invState.getStatus());
+                    log.info(customer_name + " : The inventory is " + invState.getStatus());
                     if (!invState.isLoaded())
                     {
                         %>
@@ -221,9 +221,9 @@
                     if (alloc_Amount > 0 && set_name.length() > 0)
                     {
                         if (invState.GetItems(set_name, advertiserID, alloc_Amount))
-                        	log.info("Allocated " + set_name + " : " + Integer.toString(alloc_Amount));
+                        	log.info(customer_name + " : Allocated " + set_name + " : " + Integer.toString(alloc_Amount));
                         else
-                            log.severe("Allocation failed for " + set_name + " of " + Integer.toString(alloc_Amount));
+                            log.severe(customer_name + " : Allocation failed for " + set_name + " of " + Integer.toString(alloc_Amount));
                     }
                     // build availabilities forms
                     // TODO: check inventory status first
@@ -236,7 +236,7 @@
                         int capacity = rs.getInt(2);
                         int goal = rs.getInt(3);
                         int availability = rs.getInt(4);
-                        log.info(set_name.toString() + ", " + Integer.toString(capacity) + ", " + Integer.toString(goal)  + ", " + Integer.toString(availability));
+                        log.info(customer_name + " : " + set_name.toString() + ", " + Integer.toString(capacity) + ", " + Integer.toString(goal)  + ", " + Integer.toString(availability));
                         pageContext.setAttribute("availability", availability);
                         %>
                         <tr>
@@ -279,7 +279,7 @@
                 default:
                     // registered user, let her chose/create inventory
                     InventoryState invState2 = new InventoryState(customer_name, true);
-                    log.warning("The inventory " + customer_name + " is " + invState2.getStatus());
+                    log.warning(customer_name + " : The inventory is " + invState2.getStatus());
                     if (invState2.isLoaded())
                     {
                      if (invState2.hasData())
@@ -383,7 +383,9 @@
     else 
     {
 	    %>
-	    <p><a href="<%= userService.createLoginURL(request.getRequestURI()) %>">Sign in</a> with your Google email.</p>
+	    <p>AdAllocator is the next-generation engine for booking online advertising campaigns.</p>
+	    <p>It solves the major challenge posed before businesses buying and selling targeted online media, which is determining advertising opportunities available for guaranteed booking, while taking into account all the bookings already made.</p>
+	    <p>To find out more read White Paper and <a href="<%= userService.createLoginURL(request.getRequestURI()) %>">Sign in</a> with your Google email.</p>
 	    <%
     }
     %>

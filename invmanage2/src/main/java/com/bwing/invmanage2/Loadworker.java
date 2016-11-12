@@ -2,6 +2,7 @@ package com.bwing.invmanage2;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -36,6 +37,7 @@ public class Loadworker  extends HttpServlet
 	{
 		String file_name = request.getParameter("file");
 		String customer_name = request.getParameter("customer_name");
+		log.setLevel(Level.INFO);
 		
 //		Connection con = null;
 		GcsInputChannel readChannel = null;
