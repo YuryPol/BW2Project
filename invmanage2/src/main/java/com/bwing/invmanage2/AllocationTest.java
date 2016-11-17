@@ -25,6 +25,14 @@ public class AllocationTest {
 
 		String file_name = args[0];
 		String customer_name = args[1];
+		boolean invOnly = false;
+		if (args.length > 2 && args[2] == "only")
+		{
+			invOnly = true;
+		}
+		InputStream in = null;
+		ReadableByteChannel readChannel = null;
+		ResultSet rs = null;
 
 		try {
 			for (int ind = 0; ind < 100; ind++) {
@@ -33,9 +41,6 @@ public class AllocationTest {
 				invState.clear();
 				// Process the file
 
-				InputStream in = null;
-				ReadableByteChannel readChannel = null;
-				ResultSet rs = null;
 				// opens a file to read from the given location
 				in = new FileInputStream(file_name);
 
@@ -48,7 +53,16 @@ public class AllocationTest {
 				if (!invState.isLoaded()) {
 					log.warning("The inventory " + customer_name + " is " + invState.getStatus()
 							+ ". Nothing to allocate");
-				} else {
+					invState.close();
+					return;
+				}
+				else if (invOnly)
+				{
+					log.info("Inventory build only, exiting");
+				}
+				else 
+				{
+					log.info("Running allocations");
 					Statement st = invState.getConnection().createStatement();
 					st.execute("USE " + InventoryState.BWdb + customer_name);
 					while (true) {
@@ -57,35 +71,50 @@ public class AllocationTest {
 						int count = rs.getInt(1);
 						if (count == 0) {
 							log.info("Allocations completed sucessfuly");
-
-							// check totals
-							rs.close();
-							rs = st.executeQuery("SELECT SUM(goal) FROM structured_data_base");
-							rs.next();
-							int totalGoal = rs.getInt(1);
-							rs = st.executeQuery("SELECT SUM(availability) FROM structured_data_base");
-							rs.next();
-							int total_availability = rs.getInt(1);
-							rs = st.executeQuery("SELECT SUM(count) FROM raw_inventory");
-							rs.next();
-							int total_capacity = rs.getInt(1);
-							if (total_capacity != totalGoal + total_availability) {
-								log.severe("But there is a problem with capacity, goal, availability");
-								log.severe(Integer.toString(total_capacity) + ", " + Integer.toString(totalGoal) + ", "
-										+ Integer.toString(total_availability));
-
-							}
 							invState.close();
-							rs.close();
 							break;
 						}
+
+						// check totals
+						rs = st.executeQuery("SELECT SUM(goal) FROM structured_data_base");
+						rs.next();
+						int totalGoal = rs.getInt(1);
+						rs = st.executeQuery("SELECT SUM(availability) FROM structured_data_base");
+						rs.next();
+						int total_availability = rs.getInt(1);
+						rs = st.executeQuery("SELECT SUM(capacity) FROM structured_data_base");
+						rs.next();
+						int total_capacity = rs.getInt(1);
+						if (total_capacity < totalGoal + total_availability) 
+						{
+							log.severe("There is a problem with capacity, goal, availability");
+							log.severe(Integer.toString(total_capacity) + ", " + Integer.toString(totalGoal) + ", "
+									+ Integer.toString(total_availability));
+							invState.close();
+							in.close();
+							rs.close();
+							return;
+						}
+						rs = st.executeQuery("SELECT SUM(count) FROM raw_inventory");
+						rs.next();
+						int total_inventory = rs.getInt(1);
+						if (total_inventory < totalGoal)
+						{
+							log.severe("There is a problem with inventory, goal");
+							log.severe(Integer.toString(total_inventory) + ", " + Integer.toString(totalGoal));
+							invState.close();
+							in.close();
+							rs.close();
+							return;
+						}
+
 						int current = ThreadLocalRandom.current().nextInt(1, count + 1);
-						rs.close();
 						rs = st.executeQuery(
 								"SELECT set_name, capacity, availability, goal FROM structured_data_base WHERE availability > 0");
 						if (!rs.next()) {
 							log.severe("something bad happen");
 							invState.close();
+							in.close();
 							rs.close();
 							return;
 						}
@@ -102,15 +131,23 @@ public class AllocationTest {
 
 						rs = st.executeQuery("SELECT set_name FROM structured_data_base WHERE availability < 0");
 						if (rs.next()) {
+							log.severe("Availabilites went negative");
 							log.severe("name, capacity, goal, availability");
 							do {
 								log.severe(rs.getString(1) + " , " + Integer.toString(rs.getInt(2)) + " , "
 										+ Integer.toString(rs.getInt(3)) + " , " + Integer.toString(rs.getInt(4)));
 							} while (rs.next());
+							invState.close();
+							in.close();
+							rs.close();
+							return;
 						}
-						rs.close();
 					}
 				}
+				invState.close();
+				in.close();
+				if (rs != null)
+					rs.close();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

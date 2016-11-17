@@ -965,7 +965,6 @@ public class InventoryState implements AutoCloseable
         int cnt = 0;
         int cnt_updated = 0;
         ResultSet rs = null;
-		int base_segments_size = 0;
 		try (Statement st = con.createStatement()) 
 		{
 //			do {
@@ -974,8 +973,9 @@ public class InventoryState implements AutoCloseable
 				cnt = rs.getInt(1);
 			}
 		}
-			
-        for (int ind = 0; ind <= base_segments_size; ind++) 
+		
+		log.info(customer_name + " : Starting filling up the tables");
+        for (int ind = 0; ; ind++) 
 		{
             Calendar currentTime = new GregorianCalendar();
             Long interval = currentTime.getTimeInMillis() - startTime;
@@ -988,17 +988,13 @@ public class InventoryState implements AutoCloseable
             }	            	
         	
     		try (Statement st = con.createStatement()) {
-				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
-				if (rs.next()) {
-					base_segments_size = rs.getInt(1);
-				}
 				st.executeUpdate("TRUNCATE unions_last_rank;");
 				st.executeUpdate("INSERT INTO unions_last_rank SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
     		}
 			// adds unions of higher rank for nodes to of structured_data_inc
 			try (CallableStatement callStatement = con.prepareCall("{call AddUnionsDynamic}")) {
-				log.info(customer_name + " : {call AddUnionsDynamic}");
+				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " {call AddUnionsDynamic}");
 				callStatement.executeUpdate();
 			}
 			catch (CommunicationsException ex)
@@ -1022,6 +1018,7 @@ public class InventoryState implements AutoCloseable
 			// PopulateRankWithNumbers completed
 		
 			try (Statement st = con.createStatement()) {
+				log.info(customer_name + " : DELETE FROM structured_data_inc what is to be replaced");
 				st.executeUpdate(
 					"DELETE FROM " + structured_data_inc
     			+ "    WHERE EXISTS ("
@@ -1039,6 +1036,7 @@ public class InventoryState implements AutoCloseable
 			// deletion unneeded nodes completed	
 	   			
 			try (Statement st = con.createStatement()) {
+				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
 				st.executeUpdate(
 				" INSERT /*IGNORE*/ INTO " + structured_data_inc
     			+ "    SELECT * FROM " + unions_next_rank);
@@ -1081,6 +1079,7 @@ public class InventoryState implements AutoCloseable
 				+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
 				+ " WHERE " + structured_data_base + ".set_key_is & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key_is "
 				+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
+				log.info(customer_name + " : UPDATE " + structured_data_base + " with ne inserts");
 			}
 			catch (CommunicationsException ex)
 			{
