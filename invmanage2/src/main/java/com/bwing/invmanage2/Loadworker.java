@@ -57,7 +57,7 @@ public class Loadworker  extends HttpServlet
 				readChannel = gcsService.openPrefetchingReadChannel(gcsfileName, 0, BUFFER_SIZE);
 			}
 
-			if (!invState.loadDynamic(readChannel)
+			if (!invState.loadDynamic(readChannel, true)
 					&& !(SystemProperty.environment.value() == SystemProperty.Environment.Value.Production))
 			{
 				Queue queue = QueueFactory.getDefaultQueue();

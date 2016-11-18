@@ -777,7 +777,7 @@ public class InventoryState implements AutoCloseable
         log.info(customer_name + " : Inventory was loaded!");
     }
     
-    public boolean loadDynamic(ReadableByteChannel readChannel) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
+    public boolean loadDynamic(ReadableByteChannel readChannel, boolean reloadable) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
     {
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
@@ -979,7 +979,7 @@ public class InventoryState implements AutoCloseable
 		{
             Calendar currentTime = new GregorianCalendar();
             Long interval = currentTime.getTimeInMillis() - startTime;
-            if (!(SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) && 
+            if (reloadable && !(SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) && 
             		interval >= RESTART_INTERVAL)
             {
             	log.warning(customer_name + " : Restarting the loading inventory after " + interval.toString() + " msec.");
