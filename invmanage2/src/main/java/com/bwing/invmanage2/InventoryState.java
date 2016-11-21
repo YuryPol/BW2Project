@@ -988,8 +988,8 @@ public class InventoryState implements AutoCloseable
             }	            	
         	
     		try (Statement st = con.createStatement()) {
-				st.executeUpdate("TRUNCATE unions_last_rank;");
-				st.executeUpdate("INSERT INTO unions_last_rank SELECT * FROM " + unions_next_rank);
+				st.executeUpdate("TRUNCATE " + unions_last_rank);
+				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
     		}
 			// adds unions of higher rank for nodes to of structured_data_inc

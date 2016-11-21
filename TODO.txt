@@ -1,12 +1,14 @@
 A. Code:
 Immediate:
 1. Remove Main.jsp from url.
-2. Improve logging: add more info, add user identification to each record.
-3. Wait page for allocation.
+2. Improve performance for SQL hogs:
+	a) DELETE FROM structured_data_inc what is to be replaced (InventoryState.java:1021) up to 1 hour.
+	b) the rest.
 
 Future:
 1. Pull InventorySet into a library to share.
 2. Pull utils into separate project.
+3. Wait page for allocation.
 
 Long shot:
 1. Dynamic inventory buildup.

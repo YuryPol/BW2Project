@@ -59,6 +59,7 @@ public class AllocationTest {
 				else if (invOnly)
 				{
 					log.info("Inventory build only, exiting");
+					return;
 				}
 				else 
 				{
@@ -126,8 +127,12 @@ public class AllocationTest {
 						int availability = rs.getInt("availability");
 						int alloc_Amount = ThreadLocalRandom.current().nextInt(1, availability + 1);
 
-						log.info(set_name + " : " + Integer.toString(alloc_Amount));
-						invState.GetItems(set_name, "", alloc_Amount);
+						log.info("Allocate on " + set_name + " : " + Integer.toString(alloc_Amount));
+						boolean success = invState.GetItems(set_name, "", alloc_Amount);
+						if (success)
+							log.info("ammount=" + Integer.toString(alloc_Amount) + " was allocated successfuly");
+						else
+							log.severe("allocation of ammount=" + Integer.toString(alloc_Amount) + " failed");
 
 						rs = st.executeQuery("SELECT set_name FROM structured_data_base WHERE availability < 0");
 						if (rs.next()) {
