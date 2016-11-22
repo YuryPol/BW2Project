@@ -229,23 +229,23 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
         	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
         			+ "BEGIN "
-        			+ " UPDATE unions_next_rank, "
+        			+ " UPDATE " + unions_next_rank + ", "
         			+ " (SELECT "
         			+ "    set_key, "
         			+ "    SUM(capacity) as capacity, "
         			+ "    SUM(availability) as availability "
         			+ "  FROM ("
         			+ "   SELECT unr1.set_key, ri.count as capacity, ri.count as availability "
-        			+ "    FROM unions_next_rank unr1"
-        			+ "    JOIN raw_inventory ri "
+        			+ "    FROM " + unions_next_rank + " unr1"
+        			+ "    JOIN " + raw_inventory + " ri "
         			+ "    ON unr1.set_key & ri.basesets != 0 "
         			+ "    WHERE unr1.capacity is NULL "
         			+ "    ) blownUp "
         			+ "  GROUP BY set_key"
         			+ " ) comp "
-        			+ " SET unions_next_rank.capacity = comp.capacity,"
-        			+ "     unions_next_rank.availability = comp.availability "
-        			+ " WHERE unions_next_rank.set_key = comp.set_key; "
+        			+ " SET " + unions_next_rank + ".capacity = comp.capacity, "
+        			+   unions_next_rank + ".availability = comp.availability "
+        			+ " WHERE " + unions_next_rank + ".set_key = comp.set_key; "
         			+ " END "
         			);
         	
@@ -311,15 +311,16 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("DROP PROCEDURE IF EXISTS AddUnionsDynamic"); //Add Unions Dynamically 
         	st.executeUpdate("CREATE PROCEDURE AddUnionsDynamic() "
         			+ " BEGIN "
-        			+ " INSERT /*IGNORE*/ INTO unions_next_rank "
-        			+ "    SELECT sdbR.set_key_is | unions_last_rank.set_key, NULL, NULL, NULL, 0 "
-        			+ "	   FROM unions_last_rank "
-        			+ "    JOIN structured_data_base sdbR "
-        			+ "	   JOIN raw_inventory ri "
+        			+ " INSERT /*IGNORE*/ INTO " + unions_next_rank
+        			+ "    SELECT sdbR.set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
+        			+ "	   FROM " + unions_last_rank
+        			+ "    JOIN " + structured_data_base + " sdbR "
+        			+ "	   JOIN " + raw_inventory + " ri "
         			+ "    ON  (sdbR.set_key_is & ri.basesets != 0) "
-        			+ "        AND (unions_last_rank.set_key & ri.basesets) != 0 "
-        			+ "        AND (sdbR.set_key_is | unions_last_rank.set_key) != unions_last_rank.set_key "
-        			+ "    GROUP BY sdbR.set_key_is | unions_last_rank.set_key;"
+        			+ "        AND (" + unions_last_rank + ".set_key & ri.basesets) != 0 "
+        			+ "        AND (sdbR.set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
+        			+ "    WHERE BIT_COUNT(sdbR.set_key_is | " + unions_last_rank + ".set_key) > BIT_COUNT(sdbR.set_key_is)"
+        			+ "    GROUP BY sdbR.set_key_is | " + unions_last_rank + ".set_key;"
         			+ "END "
         			);
         	
@@ -941,18 +942,21 @@ public class InventoryState implements AutoCloseable
         			+ " WHERE sdbW.set_key = comp.set_key");
         	log.info(customer_name + " : UPDATE " + structured_data_base);
         	
-        	// populate inventory sets table
-        	st.executeUpdate("INSERT INTO " 
-        			+ structured_data_inc
-        			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
-        			+ structured_data_base 
-        			+ " WHERE capacity IS NOT NULL");
-        	log.info(customer_name + " : INSERT INTO " + structured_data_inc);
+//        	// populate inventory sets table
+//        	st.executeUpdate("INSERT INTO " 
+//        			+ structured_data_inc
+//        			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
+//        			+ structured_data_base 
+//        			+ " WHERE capacity IS NOT NULL");
+//        	log.info(customer_name + " : INSERT INTO " + structured_data_inc);
         }
         
         // start union_next_rank table
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + unions_next_rank
-        		+ " SELECT * FROM " + structured_data_inc))
+//        		+ " SELECT * FROM structured_data_inc"))
+    			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
+    			+ structured_data_base 
+    			+ " WHERE capacity IS NOT NULL"))
         {
         	log.info(customer_name + " :  INSERT INTO " + unions_next_rank);
         	insertStatement.execute();        	
@@ -1016,20 +1020,27 @@ public class InventoryState implements AutoCloseable
 				timeoutHandler.reconnect();
 			}
 			// PopulateRankWithNumbers completed
-		
+			
 			try (Statement st = con.createStatement()) {
-				log.info(customer_name + " : DELETE FROM structured_data_inc what is to be replaced");
+				log.info(customer_name + " : DELETE FROM unions_last_rank what is to be replaced");
+//				st.executeUpdate(
+//					"DELETE FROM " + unions_last_rank
+//    			+ "    WHERE EXISTS ("
+//    			+ "        SELECT * "
+//    			+ "        FROM " + unions_next_rank + " unr1"
+//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
+//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity)");
+				
 				st.executeUpdate(
-					"DELETE FROM " + structured_data_inc
-    			+ "    WHERE EXISTS ("
-    			+ "        SELECT * "
-    			+ "        FROM " + unions_next_rank + " unr1"
-    			+ "        WHERE (" + structured_data_inc + ".set_key & unr1.set_key) = " + structured_data_inc + ".set_key "
-    			+ "        AND " + structured_data_inc + ".capacity = unr1.capacity)");
+					"DELETE " + unions_last_rank + " FROM " + unions_last_rank
+    			+ "        INNER JOIN " + unions_next_rank + " unr1"
+    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
+    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity");
+
 			}
 			catch (CommunicationsException ex)
 			{
-				log.severe(customer_name + " : loadDynamic DELETE FROM structured_data_inc thrown " + ex.getMessage());
+				log.severe(customer_name + " : loadDynamic DELETE FROM unions_last_rank thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
@@ -1039,7 +1050,7 @@ public class InventoryState implements AutoCloseable
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
 				st.executeUpdate(
 				" INSERT /*IGNORE*/ INTO " + structured_data_inc
-    			+ "    SELECT * FROM " + unions_next_rank);
+    			+ "    SELECT * FROM " + unions_last_rank);
 			}
 			catch (CommunicationsException ex)
 			{
