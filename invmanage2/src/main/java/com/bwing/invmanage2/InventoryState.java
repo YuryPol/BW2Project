@@ -58,6 +58,7 @@ public class InventoryState implements AutoCloseable
     static final String inventory_status = "inventory_status";
  
 	static final int BITMAP_SIZE = 20; // max = 64;
+	static final int INVENTORY_OVERLAP = 250;
 	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
@@ -200,16 +201,16 @@ public class InventoryState implements AutoCloseable
     	    + "capacity INT DEFAULT NULL, " 
     	    + "availability INT DEFAULT NULL, " 
     	    + "goal INT DEFAULT 0, "
-    	    + "PRIMARY KEY(set_key))");
+    	    + "PRIMARY KEY(set_key)) ENGINE=MEMORY");
         	
         	st.executeUpdate("DROP TABLE IF EXISTS " + unions_next_rank);
-        	st.executeUpdate("CREATE TABLE " + unions_next_rank
+        	st.executeUpdate("CREATE TABLE " + unions_next_rank 
     	    + " (set_key BIGINT DEFAULT 0, "
     	    + "set_name VARCHAR(20) DEFAULT NULL, "
     	    + "capacity INT DEFAULT NULL, " 
     	    + "availability INT DEFAULT NULL, " 
     	    + "goal INT DEFAULT 0, "
-    	    + "PRIMARY KEY(set_key))");
+    	    + "PRIMARY KEY(set_key)) ENGINE=MEMORY");
         	
         	st.executeUpdate("DROP TABLE IF EXISTS " + allocation_ledger);
         	st.executeUpdate("CREATE TABLE " + allocation_ledger
@@ -582,12 +583,12 @@ public class InventoryState implements AutoCloseable
     	clear();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
-		if (inventorydata.getSegments().length > BITMAP_SIZE)
-		{
-			log.severe(customer_name + " :  There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
-			wrongFile();
-			return;
-		}
+//		if (inventorydata.getSegments().length > BITMAP_SIZE)
+//		{
+//			log.severe(customer_name + " :  There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+//			wrongFile();
+//			return;
+//		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
@@ -671,6 +672,14 @@ public class InventoryState implements AutoCloseable
 		if (base_segments.isEmpty())
 		{
 			log.severe(customer_name + " :  no data in segments " + readChannel.toString());
+			wrongFile();
+			return;
+		}
+		else if (base_segments.size() > INVENTORY_OVERLAP)
+		{
+			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+			wrongFile();
+			return;
 		}
 
 		//
@@ -794,12 +803,12 @@ public class InventoryState implements AutoCloseable
 		loadstarted();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
-		if (inventorydata.getSegments().length > BITMAP_SIZE)
-		{
-			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
-			wrongFile();
-			return true;
-		}
+//		if (inventorydata.getSegments().length > BITMAP_SIZE)
+//		{
+//			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+//			wrongFile();
+//			return true;
+//		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
@@ -872,6 +881,14 @@ public class InventoryState implements AutoCloseable
 		if (base_segments.isEmpty())
 		{
 			log.severe(customer_name + " : no data in segments " + readChannel.toString());
+			wrongFile();
+			return true;
+		}
+		else if (base_segments.size() > INVENTORY_OVERLAP)
+		{
+			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+			wrongFile();
+			return true;
 		}
 
 		//

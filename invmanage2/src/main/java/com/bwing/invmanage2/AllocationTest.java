@@ -26,7 +26,7 @@ public class AllocationTest {
 		String file_name = args[0];
 		String customer_name = args[1];
 		boolean invOnly = false;
-		if (args.length > 2 && args[2] == "only")
+		if (args.length > 2 && args[2].equals("only"))
 		{
 			invOnly = true;
 		}
