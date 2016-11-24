@@ -583,12 +583,12 @@ public class InventoryState implements AutoCloseable
     	clear();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
-//		if (inventorydata.getSegments().length > BITMAP_SIZE)
-//		{
-//			log.severe(customer_name + " :  There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
-//			wrongFile();
-//			return;
-//		}
+		if (inventorydata.getSegments().length > BITMAP_SIZE)
+		{
+			log.severe(customer_name + " :  There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+			wrongFile();
+			return;
+		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
@@ -803,12 +803,12 @@ public class InventoryState implements AutoCloseable
 		loadstarted();
     	//convert json input to InventroryData object
 		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
-//		if (inventorydata.getSegments().length > BITMAP_SIZE)
-//		{
-//			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
-//			wrongFile();
-//			return true;
-//		}
+		if (inventorydata.getSegments().length > BITMAP_SIZE)
+		{
+			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+			wrongFile();
+			return true;
+		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
@@ -1028,6 +1028,13 @@ public class InventoryState implements AutoCloseable
 				log.severe(customer_name + " : loadDynamic call AddUnionsDynamic thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
+			}
+			catch (java.sql.SQLException ex)
+			{
+				log.severe(customer_name + " : loadDynamic call AddUnionsDynamic thrown " + ex.getMessage());
+				wrongFile();
+				rs.close();
+				return true;
 			}
     		// AddUnionsDynamic completed	
 			
