@@ -56,5 +56,3 @@ target
 invmanage2/.classpath
 *.classpath
 invmanage2/src/main/sql/test.sql
-invmanage2/.settings/org.eclipse.jdt.core.prefs
-*.classpath
