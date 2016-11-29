@@ -353,6 +353,7 @@ public class InventoryState implements AutoCloseable
         			+ "     UPDATE structured_data_inc "
         			+ "        SET availability = availability - amount "
         			+ "        WHERE (set_key & iset) = iset; "
+        			// this is a first attempt to clean the structured data. It takes too much time
 //        			+ "     DELETE FROM structured_data_inc WHERE set_key = ANY ( "
 //        			+ "       SELECT set_key FROM ( "
 //        			+ "          SELECT sd1.set_key "
@@ -361,6 +362,7 @@ public class InventoryState implements AutoCloseable
 //        			+ "          AND sd2.set_key & sd1.set_key = sd1.set_key "
 //        			+ "          AND sd1.availability >= sd2.availability) AS stmp "
 //        			+ "       ); "
+					// This is a second attempt to clean the structured data. It takes too much time
 					+ "     DELETE sd1 FROM structured_data_inc sd1 "
 					+ "		INNER JOIN structured_data_inc sd2 "
 					+ "          ON sd2.set_key > sd1.set_key "
@@ -1155,10 +1157,10 @@ public class InventoryState implements AutoCloseable
     	long set_key_is = 0;
     	long capacity = 0;
     	long availability = 0;
-    	String query = "SELECT set_key_is, capacity, availability FROM structured_data_base WHERE set_name = '" + set_name + "'";
+    	int structured_data_size = 0;
     	try (Statement statement = con.createStatement())
     	{
-    		ResultSet rs = statement.executeQuery(query);
+    		ResultSet rs = statement.executeQuery("SELECT set_key_is, capacity, availability FROM structured_data_base WHERE set_name = '" + set_name + "'");
 	        if (rs.next())
 	        {
 	    		set_key_is = rs.getLong(1);
@@ -1170,9 +1172,15 @@ public class InventoryState implements AutoCloseable
 	        	log.severe(customer_name + " : " + set_name + " set wasn't found");
 	        	return false;
 	        }
+	        rs = statement.executeQuery("SELECT COUNT(*) FROM " + structured_data_inc);
+	        if (rs.next())
+	        {
+	        	structured_data_size = rs.getInt(1);
+	        }
     	}
     	
-    	log.info(customer_name + " : Trying allocate for set_key_is=" + set_key_is + " amount=" + amount);    	
+    	log.info(customer_name + " : Trying allocate for set_key_is=" + set_key_is + " amount=" + amount 
+    			+ " while " + structured_data_inc + " size=" + Integer.toString(structured_data_size));    	
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".GetItemsFromSD(?, ?, ?)}"))
     	{
 	     	boolean returnValue = false;
@@ -1196,6 +1204,7 @@ public class InventoryState implements AutoCloseable
 			// timeoutHandler.reconnect();
     		return false;
     	}
+    	log.info(customer_name + " : Allocation for set_key_is=" + set_key_is + " amount=" + amount + " was completed");    	
     	
     	try (PreparedStatement statement = con.prepareStatement(
     	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal, alloc_key) VALUES ('"
