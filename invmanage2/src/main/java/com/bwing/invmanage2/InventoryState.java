@@ -57,8 +57,8 @@ public class InventoryState implements AutoCloseable
     public static final String result_serving_copy = "result_serving_copy";
     static final String inventory_status = "inventory_status";
  
-	static final int BITMAP_SIZE = 20; // max = 64;
-	static final int INVENTORY_OVERLAP = 250;
+	static final public int BITMAP_SIZE = 20; // max = 64;
+	static final public int INVENTORY_OVERLAP = 250;
 	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
