@@ -610,7 +610,7 @@ public class InventoryState implements AutoCloseable
 					continue;
 				}
 				else */
-				if (criteria.equals(bs1.getCriteria(), is.getcriteria()))
+				if (criteria.equals(bs1.getCriteria(), is.getCriteria()))
 				{
 					match_found = true;
 					break;
@@ -622,7 +622,7 @@ public class InventoryState implements AutoCloseable
 			BaseSet tmp = new BaseSet(BITMAP_SIZE);
 			tmp.setkey(highBit);
 			tmp.setname(is.getName());
-			tmp.setCriteria(is.getcriteria());
+			tmp.setCriteria(is.getCriteria());
 			base_sets.put(tmp.getkey(), tmp);
 			highBit++;
 		}
@@ -804,7 +804,17 @@ public class InventoryState implements AutoCloseable
 		clear();
 		loadstarted();
     	//convert json input to InventroryData object
-		InventroryData inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
+		InventroryData inventorydata = null;
+		try 
+		{
+			inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
+		}
+		catch (Exception ex)
+		{
+			log.severe(customer_name + " : There was an excetption " + ex.getMessage());
+			wrongFile();
+			return true;
+		}
 		if (inventorydata.getSegments().length > BITMAP_SIZE)
 		{
 			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
@@ -816,12 +826,21 @@ public class InventoryState implements AutoCloseable
 		int highBit = 0;
 		for (segment is : inventorydata.getSegments())
 		{
+			log.info(customer_name + " processing segment " + is.getName() + " with criteria " + is.getCriteria().toString());
+			if (is.getName() == null)
+			{
+				log.severe(customer_name + " : segment has invalid name " + is.getName());
+				wrongFile();
+				return true;
+			}
 			boolean match_found = false;
+			// check if the set differs from existing sets
 			for (BaseSet bs1 : base_sets.values())
 			{
-				if (criteria.equals(bs1.getCriteria(), is.getcriteria()))
+				if (criteria.equals(bs1.getCriteria(), is.getCriteria()))
 				{
 					match_found = true;
+					log.warning(customer_name + " " + is.getName() + " repeats " + bs1.getname() + " with criteria: " + bs1.getCriteria().toString());
 					break;
 				}
 			}
@@ -831,9 +850,10 @@ public class InventoryState implements AutoCloseable
 			BaseSet tmp = new BaseSet(BITMAP_SIZE);
 			tmp.setkey(highBit);
 			tmp.setname(is.getName());
-			tmp.setCriteria(is.getcriteria());
+			tmp.setCriteria(is.getCriteria());
 			base_sets.put(tmp.getkey(), tmp);
 			highBit++;
+			log.info(customer_name + " added set " + tmp.getname() + " with criteria " + tmp.getCriteria().toString());
 		}
 		if (highBit == 0)
 		{

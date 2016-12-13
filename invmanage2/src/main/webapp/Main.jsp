@@ -287,7 +287,7 @@
                         %>
                         <form action="/" method="post">
                         <input type="hidden" name="mode" value="<%=UIhelper.Mode.Allocate.toString()%>"/>
-                        Allocate impressions from the inventory <input type="submit" value="Allocate"/>
+                        Your can allocate impressions from <%=customer_name%> inventory <input type="submit" value="Allocate"/>
                         </form>
                         <p>Or you can start over and re-initialize your inventory with new data</p>
                         <%
@@ -360,7 +360,7 @@
                     %>
                     <form action="/" method="post">
                     <input type="hidden" name="mode" value="<%=UIhelper.Mode.createAccount.toString()%>"/>
-                    Create or modify a secondary user account for your organization <input type="submit" value="Create account"/>
+                    Create a secondary user account for your organization <input type="submit" value="Create account"/>
                     </form>
                     <%
                     }

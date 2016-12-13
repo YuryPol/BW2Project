@@ -31,7 +31,7 @@ public class criteria extends HashMap<String, HashSet<String>> implements Serial
 
 	criteria(segment is)
 	{
-		putAll(is.getcriteria());
+		putAll(is.getCriteria());
 	}
 
 /*	public boolean matches(criteria another) {
