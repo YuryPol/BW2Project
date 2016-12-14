@@ -76,7 +76,7 @@
                 String last_name = request.getParameter("last_name");
                 String phone = request.getParameter("phone");
                 String bis_email = request.getParameter("bis_email");
-                String company = request.getParameter("company");
+                String company = request.getParameter("company").replaceAll("[^A-Za-z0-9]", "_");
                 
                 if (Customer.getCustomer(company) != null) 
                 	// || first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
@@ -99,10 +99,6 @@
                 {
                     // Create Customer and primary user
                     // TODO: make it into transacton 
-                    if (Customer.getCustomer(company) != null)
-                    {
-                    	// the customer already exists
-                    }
                     log.info("Creating Account for " + gUser.getNickname());
                     Customer customer = new Customer(company, gUser);
                     ObjectifyService.ofy().save().entity(customer).now();
@@ -389,7 +385,7 @@
 	    <%
     }
     %>
-	<p><a href="/BookAdvertisingCampaignsInstantly.html" target="_blank">Read White Paper</a></p>
-	<p><a href="/EUA.html" target="_blank">Read Terms of Service</a></p>
+	<p><a href="/BookAdvertisingCampaignsInstantly.pdf" target="_blank">Read White Paper</a></p>
+	<p><a href="/EUA.pdf" target="_blank">Read Terms of Service</a></p>
 </body>
 </html>

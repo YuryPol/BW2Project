@@ -91,9 +91,15 @@ public class FileServlet extends HttpServlet {
                             gcsService.createOrReplace(gcsfileName, options);
 
                     if (copy(stream, Channels.newOutputStream(outputChannel)))
+                    {
+                        log.info(customer_name + " : file = " + item.getName() + " was uploaded successfuly");
                     	invState.inconsitent(); // File was uploaded but inventory not initialized yet.
+                    }
                     else
+                    {
+                        log.severe(customer_name + " : size of file " + item.getName() + " exeeds " + Integer.toString(MAX_FILE_LENGTH) + " bites.");
                     	invState.wrongFile();
+                    }
 
                     response.sendRedirect("/");
                     return; // We don't want to upload multiple files for now
