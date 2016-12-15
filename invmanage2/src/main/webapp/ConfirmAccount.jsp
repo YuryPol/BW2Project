@@ -14,15 +14,12 @@
     <p>Thank you for creating user account.</p>
     <%
     UserService userService = UserServiceFactory.getUserService();
-    %>
-    <p>You can <a href="<%= userService.createLogoutURL(request.getRequestURI()) %>">sign out.</a></p>
-    <%
     // check if the user was created
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser != null)
     {
-	    %>
-	    <p>Or you can work with available inventories, or upload a new inventory.</p>
+        %>
+ 	    <p>You can return to start page and work with available inventories, or upload a new inventory.</p>
 	    <form action="/" method="get">
 	    <div><input type="submit" value="Return to start page"/></div>
 	    </form>
@@ -31,7 +28,7 @@
     else
     {
     	%>
-        <p>or wait until we save your data</p>
+        <p>Wait until we save your data</p>
     	<%
         response.setIntHeader("Refresh", 3);
     }

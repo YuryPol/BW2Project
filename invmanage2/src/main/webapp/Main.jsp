@@ -274,7 +274,26 @@
                 	break;
                 default:
                     // registered user, let her chose/create inventory
-                    InventoryState invState2 = new InventoryState(customer_name, true);
+                    InventoryState invState2 = null;
+                    try 
+                    {
+                    	invState2 = new InventoryState(customer_name, true);
+                    }
+                    catch (com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException ex)
+                    {
+                        log.severe(customer_name + " : exception when connecting to db: " + ex.getMessage());
+                    }
+                    catch (Exception ex)
+                    {
+                    	log.severe(customer_name + " : exception " + ex.getMessage());
+                    }
+                    if (invState2 == null)
+                    {
+                        %>
+                        <p><font color="red">Data is corrupted. Contact <a href="mailto:admin@butterflywing.net">Support</a></font></p>
+                        <%
+                        return;
+                    }
                     log.warning(customer_name + " : The inventory is " + invState2.getStatus());
                     if (invState2.isLoaded())
                     {
