@@ -1,7 +1,9 @@
 A. Code:
 Immediate:
 1. Remove Main.jsp from url.
-2. Optimize structured inventory for sets with no direct overlap..
+2. Optimize structured inventory for sets with no direct overlap.
+3. Add 'capacities' column to simulation report.
+4. Add simulation to allocation test.
 
 Future:
 1. Pull InventorySet into a library to share.
