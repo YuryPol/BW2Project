@@ -1,17 +1,20 @@
 A. Code:
 Immediate:
 1. Remove Main.jsp from url.
-2. Improve performance for SQL hogs:
-	a) DELETE FROM structured_data_inc what is to be replaced (InventoryState.java:1021) up to 1 hour.
-	b) the rest.
+2. Optimize structured inventory for sets with no direct overlap.
+3. Add 'capacities' column to simulation report.
+4. Add simulation to allocation test.
 
 Future:
 1. Pull InventorySet into a library to share.
 2. Pull utils into separate project.
 3. Wait page for allocation.
+4. Implement simulation with memchecked for speed.
 
 Long shot:
 1. Dynamic inventory buildup.
 
 
 B. Docs:
+1. Add marketing section: targeting/direct/programmatic.
+2. Add data limitation for free version.

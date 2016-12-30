@@ -1,0 +1,119 @@
+{
+  "version": 0,
+  "owner": null,
+  "name": null,
+  "update": null,
+  "segments": [
+    {
+      "name": "A",
+      "criteria": {
+        "letters": [
+          "a"
+        ]
+      }
+    },
+    {
+      "name": "B",
+      "criteria": {
+        "letters": [
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "C",
+      "criteria": {
+        "letters": [
+          "c"
+        ]
+      }
+    },
+    {
+      "name": "D",
+      "criteria": {
+        "letters": [
+          "d"
+        ]
+      }
+    },
+    {
+      "name": "E",
+      "criteria": {
+        "letters": [
+          "e"
+        ]
+      }
+    },
+    {
+      "name": "F",
+      "criteria": {
+        "letters": [
+          "f"
+        ]
+      }
+    }
+  ],
+  "opportunities": [
+    {
+      "count": 521,
+      "criteria": {
+        "letters": [
+          "a"
+        ]
+      }
+    },
+    {
+      "count": 759,
+      "criteria": {
+        "letters": [
+          "b"
+        ]
+      }
+    },
+    {
+      "count": 1458,
+      "criteria": {
+        "letters": [
+          "c"
+        ]
+      }
+    },
+    {
+      "count": 2049,
+      "criteria": {
+        "letters": [
+          "d"
+        ]
+      }
+    },
+    {
+      "count": 521,
+      "criteria": {
+        "letters": [
+          "e"
+        ]
+      }
+    },
+    {
+      "count": 799,
+      "criteria": {
+        "letters": [
+          "f"
+        ]
+      }
+    },
+    {
+      "count": 3887,
+      "criteria": {
+        "letters": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+          "f"
+        ]
+      }
+    }
+  ]
+}

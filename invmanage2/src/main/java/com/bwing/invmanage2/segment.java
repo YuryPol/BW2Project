@@ -70,7 +70,7 @@ public class segment implements Serializable {
 	/**
 	 * @return the criteria
 	 */
-	public criteria getcriteria() {
+	public criteria getCriteria() {
 		return this_criteria;
 	}
 

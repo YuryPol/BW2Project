@@ -58,13 +58,13 @@
         		%>
 	            <p>You can enter identifying information to create user account</p>
                 <form action="/" method="post">
-                <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
+                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
                 <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
                 <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
                 <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
-                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
+                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/> This will be used to identify your dataset</div>
                 <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
-                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
+                <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->
                 </form>
 	            <%
 	            break;
@@ -76,7 +76,7 @@
                 String last_name = request.getParameter("last_name");
                 String phone = request.getParameter("phone");
                 String bis_email = request.getParameter("bis_email");
-                String company = request.getParameter("company");
+                String company = request.getParameter("company").replaceAll("[^A-Za-z0-9]", "_");
                 
                 if (Customer.getCustomer(company) != null) 
                 	// || first_name == "Jerk" || last_name == "" || phone == "" || company == "" || bis_email == "") // TODO: add real parameters' checks
@@ -85,13 +85,13 @@
                     %>
                     <p>Organization <%=company%> already exists, try another organization name</p>
 	                <form action="/" method="post">
-	                <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
+	                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
 	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
 	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
-	                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/></div>
+	                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/> This will be used to identify your dataset</div>
 	                <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
-	                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below                
+	                <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->                
 	                </form>
                     <%
                 }
@@ -99,10 +99,6 @@
                 {
                     // Create Customer and primary user
                     // TODO: make it into transacton 
-                    if (Customer.getCustomer(company) != null)
-                    {
-                    	// the customer already exists
-                    }
                     log.info("Creating Account for " + gUser.getNickname());
                     Customer customer = new Customer(company, gUser);
                     ObjectifyService.ofy().save().entity(customer).now();
@@ -139,12 +135,12 @@
 	                <p>You can enter identifying information to create account for secondary user with whom you share your organization's data</p>
 	                <form action="/" method="post">
                     <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
-	                <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
+	                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
 	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
 	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
 	                <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
-	                <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
+	                <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->
 	                </form>
 	                <% 
 	                break;
@@ -164,12 +160,12 @@
                         <p>Please correct wrong data</p>
 	                    <form action="/" method="post">
 	                    <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
-	                    <div>Business email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
+	                    <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
 	                    <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
 	                    <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
 	                    <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
 	                    <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
-	                    <input type="submit" value="Create Account"/> By creating the account you accept the Terms of Service below
+	                    <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->
 	                    </form>
                         <%
                     }
@@ -278,7 +274,26 @@
                 	break;
                 default:
                     // registered user, let her chose/create inventory
-                    InventoryState invState2 = new InventoryState(customer_name, true);
+                    InventoryState invState2 = null;
+                    try 
+                    {
+                    	invState2 = new InventoryState(customer_name, true);
+                    }
+                    catch (com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException ex)
+                    {
+                        log.severe(customer_name + " : exception when connecting to db: " + ex.getMessage());
+                    }
+                    catch (Exception ex)
+                    {
+                    	log.severe(customer_name + " : exception " + ex.getMessage());
+                    }
+                    if (invState2 == null)
+                    {
+                        %>
+                        <p><font color="red">Data is corrupted. Contact <a href="mailto:admin@butterflywing.net">Support</a></font></p>
+                        <%
+                        return;
+                    }
                     log.warning(customer_name + " : The inventory is " + invState2.getStatus());
                     if (invState2.isLoaded())
                     {
@@ -287,7 +302,7 @@
                         %>
                         <form action="/" method="post">
                         <input type="hidden" name="mode" value="<%=UIhelper.Mode.Allocate.toString()%>"/>
-                        Allocate impressions from the inventory <input type="submit" value="Allocate"/>
+                        Your can allocate impressions from <%=customer_name%> inventory <input type="submit" value="Allocate"/>
                         </form>
                         <p>Or you can start over and re-initialize your inventory with new data</p>
                         <%
@@ -360,7 +375,7 @@
                     %>
                     <form action="/" method="post">
                     <input type="hidden" name="mode" value="<%=UIhelper.Mode.createAccount.toString()%>"/>
-                    Create or modify a secondary user account for your organization <input type="submit" value="Create account"/>
+                    Create a secondary user account for your organization <input type="submit" value="Create account"/>
                     </form>
                     <%
                     }
@@ -389,7 +404,7 @@
 	    <%
     }
     %>
-	<p><a href="/BookAdvertisingCampaignsInstantly.html" target="_blank">Read White Paper</a></p>
-	<p><a href="/EUA.html" target="_blank">Read Terms of Service</a></p>
+	<p><a href="/BookAdvertisingCampaignsInstantly.pdf" target="_blank">Read White Paper</a></p>
+	<!-- Don't show it for now <p><a href="/EUA.pdf" target="_blank">Read Terms of Service</a></p> -->
 </body>
 </html>

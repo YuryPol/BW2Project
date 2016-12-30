@@ -1,4 +1,4 @@
-package com.bwing.invmanage2;
+package invmanage2;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -8,10 +8,11 @@ import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.sql.ResultSet;
-
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
+import com.bwing.invmanage2.InventoryState;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -33,9 +34,23 @@ public class AllocationTest {
 		InputStream in = null;
 		ReadableByteChannel readChannel = null;
 		ResultSet rs = null;
-
+		if (file_name.length() == 0)
+		{
+			file_name = "..\\Test.json";
+		}
+		int repeats =  Integer.parseInt(args[3]);
+		
 		try {
-			for (int ind = 0; ind < 100; ind++) {
+			for (int ind = 0; ind < repeats; ind++) {
+				if (file_name.equals("..\\Test.json"))
+				{
+			        Random rand = new Random();
+					int inventorysets_count = rand.nextInt(InventoryState.BITMAP_SIZE -5) + 5;
+					int segments_count = rand.nextInt(5000 - 10) + 10;
+					int max_segment_count = rand.nextInt(500);
+
+					InventoryGenerator.doIt(inventorysets_count, segments_count, max_segment_count);
+				}
 				// Initialize inventory
 				InventoryState invState = new InventoryState(customer_name, true);
 				invState.clear();
@@ -51,14 +66,15 @@ public class AllocationTest {
 				log.info(file_name + " was parsed successfuly.");
 
 				if (!invState.isLoaded()) {
-					log.warning("The inventory " + customer_name + " is " + invState.getStatus()
+					log.severe("The inventory " + customer_name + " is " + invState.getStatus()
 							+ ". Nothing to allocate");
 					invState.close();
-					return;
+					continue;
 				}
 				else if (invOnly)
 				{
 					log.info("Inventory build only, exiting");
+					invState.close();
 					return;
 				}
 				else 
@@ -109,17 +125,31 @@ public class AllocationTest {
 							return;
 						}
 
-						int current = ThreadLocalRandom.current().nextInt(1, count + 1);
 						rs = st.executeQuery(
-								"SELECT set_name, capacity, availability, goal FROM structured_data_base WHERE availability > 0");
-						if (!rs.next()) {
-							log.severe("something bad happen");
+								"SELECT set_name, capacity, availability, goal FROM structured_data_base WHERE availability < 0");
+						boolean somethingwrong = false;
+						while (rs.next()) 
+						{
+							somethingwrong = true;
+							String set_name = rs.getString(1);
+							int capacity = rs.getInt(2);
+							int availability = rs.getInt(3);
+							log.severe(set_name + " with capacity " + Integer.toString(capacity) 
+							+ " have negative availability=" + Integer.toString(availability));
+						}
+						if (somethingwrong)
+						{
 							invState.close();
 							in.close();
 							rs.close();
 							return;
 						}
+						
 						// get one
+						rs = st.executeQuery(
+								"SELECT set_name, capacity, availability, goal FROM structured_data_base WHERE availability > 0");
+						rs.next();
+						int current = ThreadLocalRandom.current().nextInt(1, count + 1);
 						if (current > 1) {
 							rs.relative(current - 1);
 						}
