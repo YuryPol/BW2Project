@@ -250,22 +250,6 @@ public class InventoryState implements AutoCloseable
         			+ " END "
         			);
         	        	
-        	st.executeUpdate("DROP PROCEDURE IF EXISTS AddUnionsDynamic"); //Add Unions Dynamically 
-        	st.executeUpdate("CREATE PROCEDURE AddUnionsDynamic() "
-        			+ " BEGIN "
-        			+ " INSERT /*IGNORE*/ INTO " + unions_next_rank
-        			+ "    SELECT sdbR.set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
-        			+ "	   FROM " + unions_last_rank
-        			+ "    JOIN " + structured_data_base + " sdbR "
-        			+ "	   JOIN " + raw_inventory + " ri "
-        			+ "    ON  (sdbR.set_key_is & ri.basesets != 0) "
-        			+ "        AND (" + unions_last_rank + ".set_key & ri.basesets) != 0 "
-        			+ "        AND (sdbR.set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
-        			+ "    WHERE BIT_COUNT(sdbR.set_key_is | " + unions_last_rank + ".set_key) > BIT_COUNT(sdbR.set_key_is)"
-        			+ "    GROUP BY sdbR.set_key_is | " + unions_last_rank + ".set_key;"
-        			+ "END "
-        			);
-        	
         	st.executeUpdate("DROP FUNCTION IF EXISTS BookItemsFromIS");
         	st.executeUpdate("CREATE FUNCTION BookItemsFromIS(iset BIGINT, amount INT) "
         			+ "RETURNS BOOLEAN "
@@ -774,26 +758,33 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("TRUNCATE " + unions_last_rank);
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
-    		}
-			// adds unions of higher rank for nodes to of structured_data_inc
-			try (CallableStatement callStatement = con.prepareCall("{call AddUnionsDynamic}")) {
-				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " {call AddUnionsDynamic}");
-				callStatement.executeUpdate();
+				// adds unions of higher rank for nodes to of structured_data_inc
+				String addUnions = " INSERT /*IGNORE*/ INTO " + unions_next_rank
+    			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
+    			+ "	   FROM " + unions_last_rank
+    			+ "    JOIN " + structured_data_base
+    			+ "	   JOIN " + raw_inventory
+    			+ "    ON  (" + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0) "
+    			+ "        AND (" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets) != 0 "
+    			+ "        AND (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
+    			+ "        AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + structured_data_base + ".set_key_is"
+    			+ "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key;";
+				st.executeUpdate(addUnions);
+				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
 			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : loadDynamic call AddUnionsDynamic thrown " + ex.getMessage());
+    		catch (CommunicationsException ex)
+    		{			
+				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
 			catch (java.sql.SQLException ex)
 			{
-				log.severe(customer_name + " : loadDynamic call AddUnionsDynamic thrown " + ex.getMessage());
+				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
 				wrongFile();
 				rs.close();
 				return true;
 			}
-    		// AddUnionsDynamic completed	
 			
 			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
 				log.info(customer_name + " : {call PopulateRankWithNumbers}");

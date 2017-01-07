@@ -1,11 +1,13 @@
 A. Code:
 Immediate:
 1. Remove Main.jsp from url.
-2. Optimize structured inventory for sets with no direct overlap.
+2. Make wrong file diagnostics specific. 
 3. Add 'capacities' column to simulation report.
 4. Add simulation to allocation test.
+5. Replace stored proc with queries.
 
-Future:
+Future (deploy in new instance):
+0. Implement approximation for highly overlapped inventory.
 1. Pull InventorySet into a library to share.
 2. Pull utils into separate project.
 3. Wait page for allocation.

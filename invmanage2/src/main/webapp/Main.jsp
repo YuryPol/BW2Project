@@ -56,7 +56,7 @@
                 case createAccount:
                 log.info("Entering account info by " + gUser.getNickname());
         		%>
-	            <p>You can enter identifying information to create user account</p>
+	            <p>Enter identifying information to create user account</p>
                 <form action="/" method="post">
                 <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
                 <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
@@ -132,7 +132,7 @@
 	            case createAccount:
 	                log.info(customer_name + " : Entering secondary Account info");
 	                %>
-	                <p>You can enter identifying information to create account for secondary user with whom you share your organization's data</p>
+	                <p>Enter identifying information to create account for secondary user with whom you share your organization's data</p>
 	                <form action="/" method="post">
                     <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
 	                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
