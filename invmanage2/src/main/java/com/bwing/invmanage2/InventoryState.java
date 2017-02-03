@@ -57,7 +57,7 @@ public class InventoryState implements AutoCloseable
     static final String inventory_status = "inventory_status";
  
 	static final public int BITMAP_SIZE = 20; // max = 64;
-//	static final public int INVENTORY_OVERLAP = 250;
+	static final public int INVENTORY_OVERLAP = 250;
 	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
@@ -678,12 +678,12 @@ public class InventoryState implements AutoCloseable
 			noData();
 			return true;
 		}
-//		else if (base_segments.size() > INVENTORY_OVERLAP)
-//		{
-//			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
-//			manySegmens();
-//			return true;
-//		}
+		else if (base_segments.size() > INVENTORY_OVERLAP)
+		{
+			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+			highOverlap();
+			return true;
+		}
 
 		//
 		// Populate all tables 
