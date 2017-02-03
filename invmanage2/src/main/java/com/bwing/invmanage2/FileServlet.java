@@ -98,7 +98,7 @@ public class FileServlet extends HttpServlet {
                     else
                     {
                         log.severe(customer_name + " : size of file " + item.getName() + " exeeds " + Integer.toString(MAX_FILE_LENGTH) + " bites.");
-                    	invState.wrongFile();
+                    	invState.toomuchdata();
                     }
 
                     response.sendRedirect("/");

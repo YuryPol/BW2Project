@@ -4,7 +4,7 @@ Immediate:
 2. Make wrong file diagnostics specific. 
 3. Add 'capacities' column to simulation report.
 4. Add simulation to allocation test.
-5. Replace stored proc with queries.
+5. Add to check for inventory file size max overlap check.
 
 Future (deploy in new instance):
 0. Implement approximation for highly overlapped inventory.
@@ -12,6 +12,7 @@ Future (deploy in new instance):
 2. Pull utils into separate project.
 3. Wait page for allocation.
 4. Implement simulation with memchecked for speed.
+5. Optimize structured inventory size for sets with no direct overlap.
 
 Long shot:
 1. Dynamic inventory buildup.
@@ -19,4 +20,5 @@ Long shot:
 
 B. Docs:
 1. Add marketing section: targeting/direct/programmatic.
-2. Add data limitation for free version.
+2. Explain overlapping inventory in more details.
+3. Specify errors in inventory file.

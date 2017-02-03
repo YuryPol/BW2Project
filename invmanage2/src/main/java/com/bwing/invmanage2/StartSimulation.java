@@ -3,7 +3,6 @@ package com.bwing.invmanage2;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -29,7 +28,6 @@ public class StartSimulation extends HttpServlet {
 		// Start simulation task
 		String customer_name = request.getParameter("customer_name");
 		try (InventoryState invState = new InventoryState(customer_name, true)) {
-//			invState.lock();
 			Connection con = invState.getConnection();
 
 			DatabaseMetaData dbm = con.getMetaData();

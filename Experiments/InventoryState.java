@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.ServletException;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,9 +34,8 @@ import java.sql.ResultSet;
 
 public class InventoryState implements AutoCloseable
 {
-	public enum Status {
+	private enum Status {
 		clean, loadstarted, loadinprogress, wrongfile, inconsitent, toomuchdata, loaded
-		, highoverlap, manysegmens, nosegments, nodata, unknown
 	}
 
 	String customer_name = "";
@@ -57,7 +58,7 @@ public class InventoryState implements AutoCloseable
     static final String inventory_status = "inventory_status";
  
 	static final public int BITMAP_SIZE = 20; // max = 64;
-//	static final public int INVENTORY_OVERLAP = 250;
+	static final public int INVENTORY_OVERLAP = 250;
 	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
@@ -249,6 +250,32 @@ public class InventoryState implements AutoCloseable
         			+ " END "
         			);
         	        	
+        	st.executeUpdate("DROP PROCEDURE IF EXISTS AddUnionsDynamic"); //Add Unions Dynamically 
+        	st.executeUpdate("CREATE PROCEDURE AddUnionsDynamic() "
+        			+ " BEGIN "
+        			+ " INSERT IGNORE INTO " + unions_next_rank
+        			+ "  SELECT set_key, NULL, NULL, NULL, 0"
+        			+ "  FROM("
+        			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key AS set_key"
+        			+ "    , MIN(BIT_COUNT(" + structured_data_base + ".set_key_is & " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets)) as min_cnt"
+        			+ "	   FROM " + unions_last_rank
+        			+ "    JOIN " + structured_data_base 
+        			+ "	   JOIN " + raw_inventory
+        			+ "        ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0"
+        			+ "        AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0"
+        			+ "        AND (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key != " + unions_last_rank + ".set_key"
+        			+ "        OR BIT_COUNT(" + unions_last_rank + ".set_key) = 1)"
+        			// exclude multiple overlaps
+        			// this doesn't work
+//        			+ "        AND !(" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets" 
+//        			+ "         =    " + unions_last_rank + ".set_key | " + raw_inventory + ".basesets" 
+//        			+ "        AND   " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets > 1);"
+        			// this might work
+        			+ "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) tmp"
+        			+ "  WHERE min_cnt = 1;"
+        			+ "END "
+        			);
+        	
         	st.executeUpdate("DROP FUNCTION IF EXISTS BookItemsFromIS");
         	st.executeUpdate("CREATE FUNCTION BookItemsFromIS(iset BIGINT, amount INT) "
         			+ "RETURNS BOOLEAN "
@@ -368,7 +395,7 @@ public class InventoryState implements AutoCloseable
     {
         try (Statement st = con.createStatement())
         {
-        	st.execute("LOCK TABLES "
+        	boolean res = st.execute("LOCK TABLES "
         			+ raw_inventory + " WRITE, "
         			+ structured_data_inc + " WRITE, "
         			+ structured_data_base + " WRITE, "
@@ -431,55 +458,10 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.wrongfile.name() + "')");
-        	log.severe(customer_name + " : status set to wrong file");
+        	log.info(customer_name + " : status set to wrong file");
         }
     }
     
-    public void noData() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.nodata.name() + "')");
-        	log.severe(customer_name + " : status set to no data for segments in the inventory");
-        }
-    }
-    
-    public void manySegmens() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.manysegmens.name() + "')");
-        	log.severe(customer_name + " : status set to too many segmens in the inventory");
-        }
-    }
-    
-    public void highOverlap() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.highoverlap.name() + "')");
-        	log.severe(customer_name + " : status set to too high segmens overlap");
-        }
-    }
-   
-    public void noSegments() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.nosegments.name() + "')");
-        	log.severe(customer_name + " : status set no segmens in the inventory");
-        }
-    }
-    
-    public void unknownError() throws SQLException
-    {
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.unknown.name() + "')");
-        	log.severe(customer_name + " : status set to unknown error");
-        }
-    }
-
     public void loadstarted() throws SQLException
     {
         try (Statement st = con.createStatement())
@@ -504,7 +486,7 @@ public class InventoryState implements AutoCloseable
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.toomuchdata.name() + "')");
-        	log.severe(customer_name + " : status set to too much data");
+        	log.info(customer_name + " : status set to too much data");
         }
     }
 
@@ -516,25 +498,20 @@ public class InventoryState implements AutoCloseable
     		return false;
     }
     
-    public boolean isSomethngWrong() throws SQLException
+    public boolean isWrongFile() throws SQLException
     {
-    	switch (Status.valueOf(getStatus()))
-    	{
-    	case wrongfile:
-    	case highoverlap:
-    	case manysegmens:
-    	case nosegments:
-    	case nodata:
-    	case toomuchdata:
-    	case unknown: 
+    	if (Status.valueOf(getStatus()) == Status.wrongfile)
     		return true;
-    	default:
+    	else
     		return false;
-    	}
-//    	if (Status.valueOf(getStatus()) == Status.wrongfile)
-//    		return true;
-//    	else
-//    		return false;
+    }
+    
+    public boolean isTooMuchData() throws SQLException
+    {
+    	if (Status.valueOf(getStatus()) == Status.toomuchdata)
+    		return true;
+    	else
+    		return false;
     }
     
     public boolean isClean() throws SQLException
@@ -585,8 +562,8 @@ public class InventoryState implements AutoCloseable
 		}
 		if (inventorydata.getSegments().length > BITMAP_SIZE)
 		{
-			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than bitmap can handle " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
-			manySegmens();
+			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than allowed " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+			wrongFile();
 			return true;
 		}
 		// Create inventory sets data. TODO: write into DB from the start
@@ -625,7 +602,8 @@ public class InventoryState implements AutoCloseable
 		}
 		if (highBit == 0)
 		{
-			noSegments();
+			log.severe(customer_name + " : no data in inventory sets in " + readChannel.toString());
+			wrongFile();
 			return true;
 		}			
 		
@@ -652,12 +630,6 @@ public class InventoryState implements AutoCloseable
 				else if (criteria.matches(bs1.getCriteria(), tmp.getCriteria()))
 				{
 					tmp.getkey().or(bs1.getkey());
-					if (tmp.getkey().cardinality() >= BITMAP_SIZE - 5)
-					{
-						// overlap exceeds half of allowed number of inventory sets
-						highOverlap();
-						return true;
-					}
 					match_found = true;
 				}
 			}
@@ -675,15 +647,16 @@ public class InventoryState implements AutoCloseable
 		}
 		if (base_segments.isEmpty())
 		{
-			noData();
+			log.severe(customer_name + " : no data in segments " + readChannel.toString());
+			wrongFile();
 			return true;
 		}
-//		else if (base_segments.size() > INVENTORY_OVERLAP)
-//		{
-//			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
-//			manySegmens();
-//			return true;
-//		}
+		else if (base_segments.size() > INVENTORY_OVERLAP)
+		{
+			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+			wrongFile();
+			return true;
+		}
 
 		//
 		// Populate all tables 
@@ -807,37 +780,47 @@ public class InventoryState implements AutoCloseable
             	return false;
             }	            	
         	
+			// adds unions of higher rank for nodes to of structured_data_inc
     		try (Statement st = con.createStatement()) {
 				st.executeUpdate("TRUNCATE " + unions_last_rank);
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
-				// adds unions of higher rank for nodes to of structured_data_inc
-				String addUnions = " INSERT /*IGNORE*/ INTO " + unions_next_rank
-    			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
+				StringBuilder sb = new StringBuilder(
+				"INSERT IGNORE INTO " + unions_next_rank
+    			+ "  SELECT set_key, NULL, NULL, NULL, 0"
+    			+ "  FROM("
+    			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key AS set_key"
+    			+ "    , MIN(BIT_COUNT(" + structured_data_base + ".set_key_is & " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets)) as min_cnt"
     			+ "	   FROM " + unions_last_rank
-    			+ "    JOIN " + structured_data_base
+    			+ "    JOIN " + structured_data_base 
     			+ "	   JOIN " + raw_inventory
-    			+ "    ON  (" + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0) "
-    			+ "        AND (" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets) != 0 "
-    			+ "        AND (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
-    			+ "        AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + structured_data_base + ".set_key_is"
-    			+ "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key;";
-				st.executeUpdate(addUnions);
-				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
-			}
-    		catch (CommunicationsException ex)
-    		{			
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
+    			+ "        ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0"
+    			+ "        AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0");
+    			if (ind > 0) {sb.append(
+    			  "        AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key != " + unions_last_rank + ".set_key");}
+    			sb.append(
+    			  "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) tmp"
+    			+ "  WHERE min_cnt = 1");
+    			st.executeUpdate(sb.toString());
+    		}
+//			try (CallableStatement callStatement = con.prepareCall("{call AddUnionsDynamic}")) {
+//				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " {call AddUnionsDynamic}");
+//				callStatement.executeUpdate();
+//			}
+			catch (CommunicationsException ex)
+			{
+				log.severe(customer_name + " : loadDynamic call AddUnionsDynamic thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
 			catch (java.sql.SQLException ex)
 			{
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
-				unknownError();
+				log.severe(customer_name + " : loadDynamic call AddUnionsDynamic thrown " + ex.getMessage());
+				wrongFile();
 				rs.close();
 				return true;
 			}
+    		// AddUnionsDynamic completed	
 			
 			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
 				log.info(customer_name + " : {call PopulateRankWithNumbers}");
@@ -853,13 +836,6 @@ public class InventoryState implements AutoCloseable
 			
 			try (Statement st = con.createStatement()) {
 				log.info(customer_name + " : DELETE FROM unions_last_rank what is to be replaced");
-//				st.executeUpdate(
-//					"DELETE FROM " + unions_last_rank
-//    			+ "    WHERE EXISTS ("
-//    			+ "        SELECT * "
-//    			+ "        FROM " + unions_next_rank + " unr1"
-//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
-//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity)");
 				
 				st.executeUpdate(
 					"DELETE " + unions_last_rank + " FROM " + unions_last_rank

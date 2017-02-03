@@ -1,6 +1,7 @@
 <%@ page import="com.bwing.invmanage2.UIhelper" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
 <%@ page import="com.bwing.invmanage2.InventoryState" %>
+<%@ page import="com.bwing.invmanage2.InventoryState.Status" %>
 <%@ page import="com.bwing.invmanage2.InventoryFile" %>
 <%@ page import="com.googlecode.objectify.Key" %>
 <%@ page import="com.bwing.invmanage2.InventoryUser" %>
@@ -315,11 +316,51 @@
                          <%
                      }
                     }
-                    else if (invState2.isWrongFile())
+                    else if (invState2.isSomethngWrong())
                     {
-                        %>
-                        <p><font color="red">Uploaded inventory file is wrong. Upload correct file and re-initialize the inventory</font></p>
-                        <%
+                    	switch (Status.valueOf(invState2.getStatus()))
+                    	{
+                        case wrongfile:
+                            %>
+                            <p><font color="red">Uploaded inventory file has wrong format. Upload corrected file and re-initialize the inventory</font></p>
+                            <%
+                            break;
+                        case highoverlap:
+                            %>
+                            <p><font color="red">Degree of segments overlap exceeds the limit. Upload corrected file and re-initialize the inventory</font></p>
+                            <%
+                            break;
+                        case manysegmens:
+                            %>
+                            <p><font color="red">Too many segments were specified. Upload corrected file and re-initialize the inventory</font></p>
+                            <%
+                            break;
+                        case nosegments:
+                            %>
+                            <p><font color="red">No segments were specified. Upload corrected file and re-initialize the inventory</font></p>
+                            <%
+                            break;
+                        case toomuchdata:
+                            %>
+                            <p><font color="red">Uploaded inventory file is over size limit. Upload corrected file and re-initialize the inventory</font></p>
+                            <%
+                            break;
+                        case nodata:
+                            %>
+                            <p><font color="red">Uploaded inventory file does not have data matching segments. Upload correct file and re-initialize the inventory</font></p>
+                            <%
+                            break;
+                        case unknown:
+                            %>
+                            <p><font color="red">Unknown error. Contact <a href="mailto:admin@butterflywing.net">Support</a></font></p>
+                            <%
+                            break;
+                        default:
+                            %>
+                            <p><font color="red">Unknown error. Contact <a href="mailto:admin@butterflywing.net">Support</a></font></p>
+                            <%
+                            break;
+                    	}
                     }
                     else 
                     {
@@ -345,7 +386,7 @@
                     <%
                     }
                     InventoryFile invFile = new InventoryFile(customer_name);
-                    if (invFile.isLoaded() && !invState2.isWrongFile()) 
+                    if (invFile.isLoaded() && !invState2.isSomethngWrong()) 
                     {        
                     %>
                         <form action="/load" method="get">

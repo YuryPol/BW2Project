@@ -47,7 +47,7 @@ public class segment implements Serializable {
 	 */
 	
 	private String name;
-	private criteria this_criteria;
+	private criteria this_criteria = new criteria();
 
 	public segment() {
 		// goal = 0;
@@ -57,7 +57,7 @@ public class segment implements Serializable {
 	 * @return the name
 	 */
 	public String getName() {
-		return name;
+		return (name == null) ? "" : name;
 	}
 
 	/**

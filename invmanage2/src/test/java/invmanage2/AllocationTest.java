@@ -13,6 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
 import com.bwing.invmanage2.InventoryState;
+import com.bwing.invmanage2.RunSimualation;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -88,7 +89,7 @@ public class AllocationTest {
 						int count = rs.getInt(1);
 						if (count == 0) {
 							log.info("Allocations completed sucessfuly");
-							invState.close();
+//							invState.close();
 							break;
 						}
 
@@ -178,13 +179,21 @@ public class AllocationTest {
 							return;
 						}
 					}
+					// TODO: Run simulation
+					if (!RunSimualation.runIt(invState, true))
+					{
+						invState.close();
+						in.close();
+						rs.close();
+						return;
+					}
 				}
 				invState.close();
 				in.close();
 				if (rs != null)
 					rs.close();
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
