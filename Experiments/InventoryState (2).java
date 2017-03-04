@@ -21,6 +21,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.sql.rowset.JoinRowSet;
+import javax.sql.rowset.RowSetFactory;
+import javax.sql.rowset.RowSetProvider;
+
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +32,6 @@ import com.google.appengine.api.utils.SystemProperty;
 import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 
 import java.sql.ResultSet;
-;
 
 public class InventoryState implements AutoCloseable
 {
@@ -630,6 +633,7 @@ public class InventoryState implements AutoCloseable
 		}			
 		
 		// Create segments' raw data. TODO: write into DB from the start
+		int max_cardinality = 0;
 		HashMap<BitSet, BaseSegement> base_segments = new HashMap<BitSet, BaseSegement>();
 		for (opportunity opp : inventorydata.getOpportunities())
 		{
@@ -652,7 +656,7 @@ public class InventoryState implements AutoCloseable
 				else if (criteria.matches(bs1.getCriteria(), tmp.getCriteria()))
 				{
 					tmp.getkey().or(bs1.getkey());
-					if (tmp.getkey().cardinality() > BITMAP_SIZE / 2)
+					if (tmp.getkey().cardinality() >= BITMAP_SIZE - 5)
 					{
 						// overlap exceeds half of allowed number of inventory sets
 						highOverlap();
@@ -671,8 +675,13 @@ public class InventoryState implements AutoCloseable
 				}
 				tmp.setcapacity(capacity);
 				base_segments.put(tmp.getkey(), tmp);
+				if (tmp.getkey().cardinality() > max_cardinality)
+				{
+					max_cardinality = tmp.getkey().cardinality();
+				}
 			}
 		}
+		log.info(customer_name + " : set has cardinatity = " + String.valueOf(max_cardinality));
 		if (base_segments.isEmpty())
 		{
 			noData();
@@ -812,16 +821,34 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
 				// adds unions of higher rank for nodes to of structured_data_inc
-				String addUnions = " INSERT /*IGNORE*/ INTO " + unions_next_rank
-    			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
-    			+ "	   FROM " + unions_last_rank
-    			+ "    JOIN " + structured_data_base
-    			+ "	   JOIN " + raw_inventory
-    			+ "    ON  (" + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0) "
-    			+ "        AND (" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets) != 0 "
-    			+ "        AND (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
-    			+ "        AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + structured_data_base + ".set_key_is"
-    			+ "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key;";
+				
+//				RowSetFactory rowSetFactory = RowSetProvider.newFactory();
+//				JoinRowSet rowSet = rowSetFactory.createJoinRowSet();
+
+				
+				String addUnions = " INSERT IGNORE INTO " + unions_next_rank + "\n"
+				+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 \n"
+    			+ "	   FROM " + unions_last_rank + "\n"
+    			+ "    JOIN " + structured_data_base + "\n"
+    			+ "	   JOIN " + raw_inventory + " ri1 \n"
+    			+ "	   JOIN " + raw_inventory + " ri2 \n"
+    			+ "    ON  " + structured_data_base + ".set_key_is & " + unions_last_rank + ".set_key = 0 \n" // the base set wasn't included in last rank
+    			+ "    AND " + structured_data_base + ".set_key_is & ri1.basesets != 0 \n"   // intersection of base set with raw inventory
+    			+ "    AND " + unions_last_rank + ".set_key & ri1.basesets != 0 \n"          // intersection of last rank with raw inventory   			
+    			+ "    AND " + structured_data_base + ".set_key_is & ri2.basesets != 0 \n" // intersection of base set with raw inventory
+    			+ "    AND " + unions_last_rank + ".set_key & ri2.basesets = 0 \n"         // but not with last rank
+    			
+//    			+ "    AND (" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets) \n" 
+//    			+ "           & (" + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets) \n" 
+//    			+ "           != " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets \n"
+    			
+//    			+ "    AND " + structured_data_base + ".set_key_is IN \n"
+//    			+ "           ( SELECT set_key_is \n" 
+//    			+ "             FROM " + structured_data_base + " JOIN " + raw_inventory + " JOIN " + unions_last_rank + "\n"
+//    			+ "             ON "   + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets & " + unions_last_rank + ".set_key > 0) \n"
+    			
+//    			+ "    GROUP BY (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key)"  // exclude duplicates
+    			;
 				st.executeUpdate(addUnions);
 				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
 			}
@@ -853,33 +880,12 @@ public class InventoryState implements AutoCloseable
 			
 			try (Statement st = con.createStatement()) {
 				log.info(customer_name + " : DELETE FROM unions_last_rank what is to be replaced");
-//				st.executeUpdate(
-//					"DELETE FROM " + unions_last_rank
-//    			+ "    WHERE EXISTS ("
-//    			+ "        SELECT * "
-//    			+ "        FROM " + unions_next_rank + " unr1"
-//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
-//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity)");
 				
-//				st.executeUpdate(
-//					"DELETE QUICK " + unions_last_rank + " FROM " + unions_last_rank
-//    			+ "        INNER JOIN " + unions_next_rank + " unr1"
-//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
-//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity");
-				
-				st.executeUpdate("DROP TABLE IF EXISTS toInsert");
-				st.executeUpdate("CREATE TEMPORARY TABLE toInsert AS SELECT \n" 
-				+ unions_last_rank + ".set_key, "
-				+ unions_last_rank + ".set_name, "
-				+ unions_last_rank + ".capacity, " 
-				+ unions_last_rank + ".availability, " 
-				+ unions_last_rank + ".goal "
-				+ " FROM " + unions_last_rank + "\n"
-    			+ " LEFT OUTER JOIN " + unions_next_rank + "\n"
-    			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
-    			+ "      AND   " + unions_last_rank + ".capacity = " + unions_next_rank + ".capacity \n"
-				+ "      WHERE " + unions_next_rank + ".set_key IS NULL \n");
-
+				st.executeUpdate(
+					"DELETE " + unions_last_rank + " FROM " + unions_last_rank
+    			+ "        INNER JOIN " + unions_next_rank + " unr1"
+    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
+    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity");
 			}
 			catch (CommunicationsException ex)
 			{
@@ -893,7 +899,7 @@ public class InventoryState implements AutoCloseable
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
 				st.executeUpdate(
 				" INSERT /*IGNORE*/ INTO " + structured_data_inc
-    			+ "    SELECT * FROM toInsert");
+    			+ "    SELECT * FROM " + unions_last_rank);
 			}
 			catch (CommunicationsException ex)
 			{

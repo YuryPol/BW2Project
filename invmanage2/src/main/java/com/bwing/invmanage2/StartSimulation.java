@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -26,6 +27,7 @@ public class StartSimulation extends HttpServlet {
 	@Override
 	public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		// Start simulation task
+		log.setLevel(Level.INFO);
 		String customer_name = request.getParameter("customer_name");
 		try (InventoryState invState = new InventoryState(customer_name, true)) {
 			Connection con = invState.getConnection();

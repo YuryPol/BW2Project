@@ -19,6 +19,7 @@
 <%@ page import="java.sql.ResultSet" %>
 <%@ page import="java.sql.Statement" %>
 <%@ page import="java.util.logging.Logger" %>
+<%@ page import="java.util.logging.Level" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ include file="PreventCache.jsp" %>
 
@@ -33,6 +34,7 @@
 
 <%
     Logger log = Logger.getLogger(this.getClass().getName());
+    log.setLevel(Level.INFO);
     UserService userService = UserServiceFactory.getUserService();
     User gUser = userService.getCurrentUser();
     String modeStr = request.getParameter("mode");
@@ -154,10 +156,11 @@
                     String phone = request.getParameter("phone");
                     String bis_email = request.getParameter("bis_email");
                      
-                    if (first_name == "Jerk" || last_name == "" || phone == "" || bis_email == "") // TODO: add real parameters' checks
+                    if (InventoryUser.getGmailUser(email) != null) // TODO: add real parameters' checks
                     {
                         log.info(customer_name + " : Correcting secondary Account info");
                         %>
+                        <p><font color="red">An account with this g-mail for login already exists</font></p>
                         <p>Please correct wrong data</p>
 	                    <form action="/" method="post">
 	                    <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
@@ -445,7 +448,8 @@
 	    <%
     }
     %>
-	<p><a href="/BookAdvertisingCampaignsInstantly.pdf" target="_blank">Read White Paper</a></p>
+    <p><a href="/BookAdvertisingCampaignsInstantly.pdf" target="_blank">Read White Paper</a></p>
+    <p><a href="/TestInventory.json" target="_blank">Download sample inventory file</a></p>
 	<!-- Don't show it for now <p><a href="/EUA.pdf" target="_blank">Read Terms of Service</a></p> -->
 </body>
 </html>

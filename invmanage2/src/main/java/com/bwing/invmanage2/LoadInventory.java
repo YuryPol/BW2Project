@@ -1,5 +1,6 @@
 package com.bwing.invmanage2;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -22,6 +23,7 @@ public class LoadInventory extends HttpServlet
     {
         String customer_name = request.getParameter("customer_name");
         String file_name = request.getParameter("file_name");
+		log.setLevel(Level.INFO);
 
 		try (InventoryState invState = new InventoryState(customer_name, true)) {
 			if (invState.isLoadStarted() || invState.isLoadInProgress())

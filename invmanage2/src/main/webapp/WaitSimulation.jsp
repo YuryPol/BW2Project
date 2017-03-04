@@ -3,6 +3,7 @@
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.util.logging.Logger" %>
+<%@ page import="java.util.logging.Level" %>
 <%@ page import="com.google.appengine.api.taskqueue.Queue"%>
 <%@ page import="com.google.appengine.api.taskqueue.QueueFactory"%>
 <%@ page import="com.google.appengine.api.taskqueue.TaskOptions"%>
@@ -22,6 +23,7 @@
 <body>
     <%
     Logger log = Logger.getLogger(this.getClass().getName());
+    log.setLevel(Level.INFO);
     // log.info("Now waiting for simulation to complete");
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();

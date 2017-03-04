@@ -3,6 +3,7 @@
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.util.logging.Logger" %>
+<%@ page import="java.util.logging.Level" %>
 <%@ include file="PreventCache.jsp" %>
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -12,6 +13,7 @@
 <body>
 	<%
     Logger log = Logger.getLogger(this.getClass().getName());
+    log.setLevel(Level.INFO);
 	// log.info("Now waiting for inventory to load");
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();

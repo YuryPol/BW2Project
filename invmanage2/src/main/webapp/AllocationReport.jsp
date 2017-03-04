@@ -8,6 +8,7 @@
 <%@ page import="com.google.appengine.api.blobstore.BlobstoreServiceFactory" %>
 <%@ page import="com.google.appengine.api.blobstore.BlobstoreService" %>
 <%@ page import="java.util.logging.Logger" %>
+<%@ page import="java.util.logging.Level" %>
 <%@ page import="java.util.Date" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
@@ -21,6 +22,7 @@
 <body>
 <%
     Logger log = Logger.getLogger(this.getClass().getName());
+    log.setLevel(Level.INFO);
     // check the user
     InventoryUser iuser = InventoryUser.getCurrentUser();
     if (iuser == null)

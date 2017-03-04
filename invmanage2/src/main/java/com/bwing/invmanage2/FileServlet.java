@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -47,7 +48,9 @@ public class FileServlet extends HttpServlet {
         FileItemIterator iterator;
         FileItemStream item;
         InputStream stream = null;
-        try 
+		log.setLevel(Level.INFO);
+
+		try 
         {
             upload = new ServletFileUpload();
             response.setContentType("text/plain");
