@@ -1,24 +1,22 @@
-A. Code:
 Immediate:
-1. Remove Main.jsp from url.
-2. Make wrong file diagnostics specific. 
+0. Implement approximation for highly overlapped inventory.
 3. Add 'capacities' column to simulation report.
-4. Add simulation to allocation test.
-5. Add to check for inventory file size max overlap check.
+4. Run simulation of raw inventory with criteria, not matching sets
+5. Move private availability to structured data base.
+6. Add progress and warning massage to WatitForInventory.jsp
+7. Kill load worker task on sign out.
+8. Add avialability column allocation report.
 
 Future (deploy in new instance):
-0. Implement approximation for highly overlapped inventory.
 1. Pull InventorySet into a library to share.
 2. Pull utils into separate project.
 3. Wait page for allocation.
 4. Implement simulation with memchecked for speed.
-5. Optimize structured inventory size for sets with no direct overlap.
+5. Remove Main.jsp from url.
 
 Long shot:
 1. Dynamic inventory buildup.
 
-
-B. Docs:
+Docs:
 1. Add marketing section: targeting/direct/programmatic.
 2. Explain overlapping inventory in more details.
-3. Specify errors in inventory file.
