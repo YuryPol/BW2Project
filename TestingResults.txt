@@ -1,0 +1,16 @@
+CARDINALITY_LIMIT = 4;
+BASE_SETS_OVERLAPS_LIMIT = 100;
+Inventory   C:\B2Wing\BW2Project\TestHighOverlap.json
+Loading 1hour+
+longest iteration = 9, 11:34:23 - 11:42:18
+Result table size  17,319
+GetItems, 11:52:02 - 11:53:40 
+
+
+CARDINALITY_LIMIT = 10
+INVENTORY_OVERLAP = 500;
+Inventory   C:\B2Wing\BW2Project\TestHighOverlap.json
+Loading 
+longest iteration = 13 min
+Result table size  61,350
+Allocation 21 min

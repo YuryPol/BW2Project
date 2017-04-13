@@ -38,7 +38,7 @@ import java.util.Set;
 public class BaseSet {
 	private String name=null;
 	private criteria this_criteria;
-	private int availablity = 0;
+	private int private_availability = 0;
 	private int goal=0;
 	private BitSet key;
 	
@@ -109,16 +109,16 @@ public class BaseSet {
 		return (tmp == key);
 	}
 	
-	boolean modifyAvailablity(int change)
+/*	public void setPrivateAvailablity(int value)
 	{
-		if (availablity + change >= 0)
-		{
-			availablity += change;
-			return true;
-		}
-		else return false;
+		private_availability = value;
 	}
 	
+	public int getPrivateAvailablity()
+	{
+		return private_availability;
+	}
+*/
 	void unionWith(BaseSet another)
 	{
 		key.or(another.key);

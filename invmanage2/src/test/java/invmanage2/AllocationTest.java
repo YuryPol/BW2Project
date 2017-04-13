@@ -66,6 +66,14 @@ public class AllocationTest {
 				invState.loadDynamic(readChannel, false);
 				log.info(file_name + " was parsed successfuly.");
 
+				Statement st = invState.getConnection().createStatement();
+				rs = st.executeQuery("SELECT SUM(count) FROM raw_inventory");
+				rs.next();
+				int total_inventory = rs.getInt(1);
+				rs = st.executeQuery("SELECT SUM(private_availability) FROM structured_data_base");
+				rs.next();
+				total_inventory += rs.getInt(1);
+
 				if (!invState.isLoaded()) {
 					log.severe("The inventory " + customer_name + " is " + invState.getStatus()
 							+ ". Nothing to allocate");
@@ -81,7 +89,6 @@ public class AllocationTest {
 				else 
 				{
 					log.info("Running allocations");
-					Statement st = invState.getConnection().createStatement();
 					st.execute("USE " + InventoryState.BWdb + customer_name);
 					while (true) {
 						rs = st.executeQuery("SELECT count(*) FROM structured_data_base WHERE availability > 0");
@@ -113,9 +120,6 @@ public class AllocationTest {
 							rs.close();
 							return;
 						}
-						rs = st.executeQuery("SELECT SUM(count) FROM raw_inventory");
-						rs.next();
-						int total_inventory = rs.getInt(1);
 						if (total_inventory < totalGoal)
 						{
 							log.severe("There is a problem with inventory, goal");

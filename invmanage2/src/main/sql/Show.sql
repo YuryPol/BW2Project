@@ -16,7 +16,7 @@ ON structured_data_base.set_key_is & raw_inventory.basesets & unions_last_rank.s
 
 
 select lpad(bin(set_key_is), 20, '0') as set_key_is, lpad(bin(set_key), 20, '0') as set_key, set_name, capacity, availability, goal, criteria from structured_data_base;
-select lpad(bin(set_key), 20, '0') as set_key, set_name, capacity, availability, goal from structured_data_inc order by set_key
+select lpad(bin(set_key), 20, '0') as set_key, set_name, capacity, availability, goal from structured_data_inc order by set_key;
 ;
 
 select set_key_is, set_name, capacity, availability, goal from structured_data_base;
@@ -77,3 +77,16 @@ ON  (structured_data_base.set_key_is & raw_inventory.basesets != 0)
 AND (unions_last_rank.set_key & raw_inventory.basesets) != 0         
 AND (structured_data_base.set_key_is & unions_last_rank.set_key) == 0     
 GROUP BY structured_data_base.set_key_is | unions_last_rank.set_key;
+
+SELECT   
+  unions_last_rank.set_key,  
+  unions_last_rank.set_name,  
+  unions_last_rank.capacity,   
+  unions_last_rank.availability,   
+  unions_last_rank.goal  
+    FROM    unions_last_rank  
+  LEFT OUTER JOIN    unions_next_rank  
+       ON    unions_last_rank.set_key & unions_next_rank.set_key = unions_last_rank.set_key  
+       AND    unions_last_rank.capacity = unions_next_rank.capacity  
+  WHERE    unions_next_rank.set_key IS NULL;
+  

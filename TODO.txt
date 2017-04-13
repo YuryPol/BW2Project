@@ -20,3 +20,6 @@ Long shot:
 Docs:
 1. Add marketing section: targeting/direct/programmatic.
 2. Explain overlapping inventory in more details.
+3. Explain how it works with search/keyword ads.
+4. Elaborate on how important it is for progammatic as by knowing availabilities in advance the advertizer can devlop better strategies and target creatives to most available audiences.
+

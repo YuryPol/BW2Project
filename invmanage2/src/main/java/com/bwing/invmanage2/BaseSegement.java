@@ -49,12 +49,14 @@ public class BaseSegement {
 	public void setcapacity(int cp) {
 		capacity = cp;
 	};
+	public void addcapacity(int cp) {
+		capacity += cp;
+	};
 	
 	boolean contains(BaseSegement another)
 	{
-		BitSet tmp = key;
-		tmp.or(another.key);
-		return (tmp == key);
+		// the segment contains another
+		return key_contains(key, another.getkey());
 	}
 	
 
@@ -86,5 +88,23 @@ public class BaseSegement {
 	 
 	public BitSet setKeyVarBin(long[] words) {
 	    return BitSet.valueOf(words);
+	}
+	
+	public static boolean key_contains(BitSet superset, BitSet subset)
+	{
+		// super set contains sub set
+		BitSet tmp = (BitSet) superset.clone();
+		tmp.or(subset);
+		return (tmp.equals(superset));
+	}
+
+	public int compareTo(BaseSegement another) {
+		// Compare capacities
+		if (this.key.cardinality() > another.key.cardinality())
+			return 1;
+		else if (this.key.cardinality() < another.key.cardinality())
+			return -1; 
+		else 
+			return 0;
 	}
 }
