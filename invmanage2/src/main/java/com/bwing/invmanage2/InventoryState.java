@@ -575,7 +575,7 @@ public class InventoryState implements AutoCloseable
     		return false;
     }
    
-    public boolean loadDynamic(ReadableByteChannel readChannel, boolean reloadable) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
+    public boolean loadDynamic(ReadableByteChannel readChannel, boolean reloadable) throws IOException, SQLException, ClassNotFoundException, InterruptedException
     {
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
@@ -590,7 +590,7 @@ public class InventoryState implements AutoCloseable
 		{
 			inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 		}
-		catch (Exception ex)
+		catch (JsonParseException | JsonMappingException ex)
 		{
 			log.severe(customer_name + " : There was an excetption " + ex.getMessage());
 			wrongFile();
@@ -710,7 +710,7 @@ public class InventoryState implements AutoCloseable
         // populate structured data with inventory sets
         try (Statement st = con.createStatement())
         {
-        	// recreate the table here for backward compatibility as we changed the schema 
+        	// recreate the tables and procedures here for backward compatibility as we changed the schema 
         	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_base);
         	st.executeUpdate("CREATE TABLE " + structured_data_base 
         	+ " (set_key_is BIGINT DEFAULT 0, " // one bit identifying inventory set
@@ -722,7 +722,37 @@ public class InventoryState implements AutoCloseable
 		    + "goal INT DEFAULT 0, "
 		    + "criteria VARCHAR(200) DEFAULT NULL, "
 		    + "PRIMARY KEY(set_key_is))");
+        	
+        	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
+        	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
+        			+ "BEGIN "
+        			+ " UPDATE " + unions_next_rank + ", "
+        			+ " (SELECT "
+        			+ "    set_key, "
+        			+ "    SUM(capacity) as capacity, "
+        			+ "    SUM(availability) as availability "
+        			+ "  FROM ("
+        			+ "   SELECT " + unions_next_rank + ".set_key, " +  raw_inventory + ".count as capacity, " + raw_inventory + ".count as availability "
+        			+ "    FROM " + unions_next_rank 
+        			+ "    JOIN " + raw_inventory 
+        			+ "    ON " + unions_next_rank + ".set_key & " + raw_inventory + ".basesets != 0 "
+        			+ "    WHERE " + unions_next_rank + ".capacity is NULL "
+        			+ "    ) blownUp "
+        			+ "  GROUP BY set_key"
+        			+ " ) comp "
+        			+ " SET " + unions_next_rank + ".capacity = comp.capacity, "
+        			+   unions_next_rank + ".availability = comp.availability "
+        			+ " WHERE " + unions_next_rank + ".set_key = comp.set_key; "
+        			+ " END "
+        			);
         }
+        
+        // thrown The table 'unions_next_rank' is full
+//     	if (unions_next_rank.size() > max_heap_table_size = 16777216)
+//     	{
+//     		do something ;
+//     	}
+
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT IGNORE INTO "  + structured_data_base 
         		+ " SET set_key = ?, set_name = ?, set_key_is = ?, criteria = ?, private_availability = ?"))
         {
@@ -841,15 +871,28 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
 				// adds unions of higher rank for nodes to of structured_data_inc
 				String addUnions = " INSERT /*IGNORE*/ INTO " + unions_next_rank
-    			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
+    			+ " SELECT "
+    			+ "    set_key, "
+    			+ "    NULL as set_name, "
+    			+ "    SUM(capacity) as capacity, "
+    			+ "    SUM(availability) as availability, "
+    			+ "    0 as goal "
+    			+ " FROM ("
+    			+ "  SELECT *, " + raw_inventory + ".count as capacity, " + raw_inventory + ".count as availability "
+    			+ "  FROM ("    			
+    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key "
     			+ "	   FROM " + unions_last_rank
     			+ "    JOIN " + structured_data_base
     			+ "	   JOIN " + raw_inventory
-    			+ "    ON  (" + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0) "
-    			+ "        AND (" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets) != 0 "
-    			+ "        AND (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
-    			+ "        AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + structured_data_base + ".set_key_is"
-    			+ "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key;";
+    			+ "         ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0 "
+    			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 "
+    			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key "
+    			+ "   ) un_sk "
+    			+ "   JOIN " + raw_inventory 
+    			+ "   ON un_sk.set_key & " + raw_inventory + ".basesets != 0 "
+    			+ " ) un_r"
+    			+ " GROUP BY set_key"
+    			;
 				st.executeUpdate(addUnions);
 				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
 			}
@@ -867,16 +910,16 @@ public class InventoryState implements AutoCloseable
 				return true;
 			}
 			
-			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
-				log.info(customer_name + " : {call PopulateRankWithNumbers}");
-				callStatement.executeUpdate();
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
+//			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
+//				log.info(customer_name + " : {call PopulateRankWithNumbers}");
+//				callStatement.executeUpdate();
+//			}
+//			catch (CommunicationsException ex)
+//			{
+//				log.severe(customer_name + " : loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage());
+//	    		// Reconnect back because the exception closed the connection.
+//				timeoutHandler.reconnect();
+//			}
 			// PopulateRankWithNumbers completed
 			
 			try (Statement st = con.createStatement()) {

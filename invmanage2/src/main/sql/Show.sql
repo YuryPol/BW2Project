@@ -90,3 +90,5 @@ SELECT
        AND    unions_last_rank.capacity = unions_next_rank.capacity  
   WHERE    unions_next_rank.set_key IS NULL;
   
+  SELECT sum(BIT_COUNT(basesets)) FROM raw_inventory;
+  

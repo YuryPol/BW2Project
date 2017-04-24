@@ -63,8 +63,17 @@ public class AllocationTest {
 				// returns ReadableByteChannel instance to read the file
 				readChannel = Channels.newChannel(in);
 
-				invState.loadDynamic(readChannel, false);
-				log.info(file_name + " was parsed successfuly.");
+				if (invState.loadDynamic(readChannel, false))
+				{
+					log.info(file_name + " was parsed successfuly.");
+				}
+				else
+				{
+					log.severe("The inventory " + customer_name + " was not parsed. The status is " + invState.getStatus()
+					+ ". Nothing to allocate");
+					invState.close();
+					continue;					
+				}
 
 				Statement st = invState.getConnection().createStatement();
 				rs = st.executeQuery("SELECT SUM(count) FROM raw_inventory");
@@ -169,7 +178,7 @@ public class AllocationTest {
 						else
 							log.severe("allocation of ammount=" + Integer.toString(alloc_Amount) + " failed");
 
-						rs = st.executeQuery("SELECT set_name FROM structured_data_base WHERE availability < 0");
+						rs = st.executeQuery("SELECT set_name, capacity, goal, availability FROM structured_data_base WHERE availability < 0");
 						if (rs.next()) {
 							log.severe("Availabilites went negative");
 							log.severe("name, capacity, goal, availability");

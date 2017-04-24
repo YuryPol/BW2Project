@@ -21,5 +21,7 @@ Docs:
 1. Add marketing section: targeting/direct/programmatic.
 2. Explain overlapping inventory in more details.
 3. Explain how it works with search/keyword ads.
-4. Elaborate on how important it is for progammatic as by knowing availabilities in advance the advertizer can devlop better strategies and target creatives to most available audiences.
+4. Elaborate on how important it is for progammatic as by knowing availabilities in advance 
+the advertizer can devlop better strategies and target creatives to most available audiences.
+Also they can chose which audience segment to target at time frame when it is least expencieve.
 

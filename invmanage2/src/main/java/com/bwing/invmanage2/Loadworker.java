@@ -10,7 +10,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
@@ -69,23 +68,6 @@ public class Loadworker  extends HttpServlet
 			ex.printStackTrace();
 			log.severe(customer_name + ex.toString());
 			throw new ServletException(ex);
-		}
-		catch (JsonParseException ex) 
-		{
-//			try 
-//			{
-//				if (con != null)
-//					con.rollback();
-//			} 
-			log.severe(customer_name + ex.toString());			
-			ex.printStackTrace();
-			try (InventoryState invState = new InventoryState(customer_name, true)) {
-				invState.wrongFile();
-			} 
-			catch (SQLException | ClassNotFoundException ex1) {
-				// TODO Auto-generated catch block
-				ex1.printStackTrace();
-			}			
 		}
 //		catch (CommunicationsException ex) Should be handled in load()
 //		{
