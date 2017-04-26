@@ -71,6 +71,7 @@ public class InventoryState implements AutoCloseable
 	static final public int INVENTORY_OVERLAP = 500;
 	static final public int BASE_SETS_OVERLAPS_LIMIT = 100;
 	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
+	private static final int MAX_ROW_SIZE = 3000;
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
 	
@@ -237,31 +238,7 @@ public class InventoryState implements AutoCloseable
         	
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving);
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving_copy);
-        	
-        	
-        	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
-        	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
-        			+ "BEGIN "
-        			+ " UPDATE " + unions_next_rank + ", "
-        			+ " (SELECT "
-        			+ "    set_key, "
-        			+ "    SUM(capacity) as capacity, "
-        			+ "    SUM(availability) as availability "
-        			+ "  FROM ("
-        			+ "   SELECT unr1.set_key, ri.count as capacity, ri.count as availability "
-        			+ "    FROM " + unions_next_rank + " unr1"
-        			+ "    JOIN " + raw_inventory + " ri "
-        			+ "    ON unr1.set_key & ri.basesets != 0 "
-        			+ "    WHERE unr1.capacity is NULL "
-        			+ "    ) blownUp "
-        			+ "  GROUP BY set_key"
-        			+ " ) comp "
-        			+ " SET " + unions_next_rank + ".capacity = comp.capacity, "
-        			+   unions_next_rank + ".availability = comp.availability "
-        			+ " WHERE " + unions_next_rank + ".set_key = comp.set_key; "
-        			+ " END "
-        			);
-        	        	
+        	        	        	
         	st.executeUpdate("DROP FUNCTION IF EXISTS BookItemsFromIS");
         	st.executeUpdate("CREATE FUNCTION BookItemsFromIS(iset BIGINT, amount INT) "
         			+ "RETURNS BOOLEAN "
@@ -721,30 +698,7 @@ public class InventoryState implements AutoCloseable
 		    + "private_availability INT DEFAULT NULL, " 
 		    + "goal INT DEFAULT 0, "
 		    + "criteria VARCHAR(200) DEFAULT NULL, "
-		    + "PRIMARY KEY(set_key_is))");
-        	
-        	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
-        	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
-        			+ "BEGIN "
-        			+ " UPDATE " + unions_next_rank + ", "
-        			+ " (SELECT "
-        			+ "    set_key, "
-        			+ "    SUM(capacity) as capacity, "
-        			+ "    SUM(availability) as availability "
-        			+ "  FROM ("
-        			+ "   SELECT " + unions_next_rank + ".set_key, " +  raw_inventory + ".count as capacity, " + raw_inventory + ".count as availability "
-        			+ "    FROM " + unions_next_rank 
-        			+ "    JOIN " + raw_inventory 
-        			+ "    ON " + unions_next_rank + ".set_key & " + raw_inventory + ".basesets != 0 "
-        			+ "    WHERE " + unions_next_rank + ".capacity is NULL "
-        			+ "    ) blownUp "
-        			+ "  GROUP BY set_key"
-        			+ " ) comp "
-        			+ " SET " + unions_next_rank + ".capacity = comp.capacity, "
-        			+   unions_next_rank + ".availability = comp.availability "
-        			+ " WHERE " + unions_next_rank + ".set_key = comp.set_key; "
-        			+ " END "
-        			);
+		    + "PRIMARY KEY(set_key_is))");        	
         }
         
         // thrown The table 'unions_next_rank' is full
@@ -843,6 +797,7 @@ public class InventoryState implements AutoCloseable
         
         int cnt = 0;
         int cnt_updated = 0;
+        int size = 0;
         ResultSet rs = null;
 		try (Statement st = con.createStatement()) 
 		{
@@ -869,7 +824,7 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("TRUNCATE " + unions_last_rank);
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
-				// adds unions of higher rank for nodes to of structured_data_inc
+				// adds unions of higher rank for nodes to structured_data_inc
 				String addUnions = " INSERT /*IGNORE*/ INTO " + unions_next_rank
     			+ " SELECT "
     			+ "    set_key, "
@@ -893,37 +848,14 @@ public class InventoryState implements AutoCloseable
     			+ " ) un_r"
     			+ " GROUP BY set_key"
     			;
-				st.executeUpdate(addUnions);
 				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
-			}
-    		catch (CommunicationsException ex)
-    		{			
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			catch (java.sql.SQLException ex) // TODO: do the handling in the caller
-			{
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
-				unknownError();
-				rs.close();
-				return true;
-			}
-			
-//			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
-//				log.info(customer_name + " : {call PopulateRankWithNumbers}");
-//				callStatement.executeUpdate();
-//			}
-//			catch (CommunicationsException ex)
-//			{
-//				log.severe(customer_name + " : loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage());
-//	    		// Reconnect back because the exception closed the connection.
-//				timeoutHandler.reconnect();
-//			}
-			// PopulateRankWithNumbers completed
-			
-			try (Statement st = con.createStatement()) {
-				log.info(customer_name + " : DELETE FROM unions_last_rank what is to be replaced");
+				st.executeUpdate(addUnions);
+				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
+				if (rs.next()) {
+					size = rs.getInt(1);
+				}
+				log.info(customer_name + " : size of " + unions_next_rank + " = " + String.valueOf(size));
+
 				// if superset has the same capacity as the subset keep only the superset
 				st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
 				st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions + " AS SELECT \n" 
@@ -938,6 +870,33 @@ public class InventoryState implements AutoCloseable
     			+ "      AND   " + unions_last_rank + ".capacity = " + unions_next_rank + ".capacity \n"
 				+ "      WHERE " + unions_next_rank + ".set_key IS NULL \n");				
 				// if sets in the superset don't overlap they won't make it in				
+				rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
+				if (rs.next()) 
+				{
+					size = rs.getInt(1);
+				}
+				log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(size));
+				// copy to unions_last_rank
+				st.executeUpdate("TRUNCATE " + unions_last_rank);
+				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
+				// deletion unneeded nodes completed	
+				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
+				st.executeUpdate(
+				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
+    			+ "    SELECT * FROM " + unions_last_rank);
+				
+//				if (size > MAX_ROW_SIZE)
+//				{
+//					// Eliminate weakly overlapping unions from unions_next_rank
+//					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
+//					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions
+//					+ " AS SELECT * "
+//					+ " FROM " + unions_last_rank
+//					+ " JOIN " + unions_next_rank
+//					+ " JOIN " + structured_data_base
+//					+ "       ON  " + unions_last_rank + ".set_key ^ " + unions_next_rank + ".set_key = " + structured_data_base + ".set_key_is"
+//					+ "       AND " + unions_next_rank + ".capacity - " + unions_last_rank + ".capacity < "  + structured_data_base + ".capacity * 0.2 ");
+//				}
 			}
 			catch (CommunicationsException ex)
 			{
@@ -945,21 +904,14 @@ public class InventoryState implements AutoCloseable
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
-			// deletion unneeded nodes completed	
-	   			
-			try (Statement st = con.createStatement()) {
-				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
-				st.executeUpdate(
-				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
-    			+ "    SELECT * FROM " + temp_unions);
-			}
-			catch (CommunicationsException ex)
+			catch (java.sql.SQLException ex) // TODO: do the handling in the caller
 			{
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO structured_data_inc thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
+				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
+				unknownError();
+				rs.close();
+				return true;
 			}
-    			
+    		
 			try (Statement st = con.createStatement()) {
 				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
 				if (rs.next()) {
@@ -986,35 +938,7 @@ public class InventoryState implements AutoCloseable
 				log.severe(customer_name + " : UPDATE structured_data_base, structured_data_inc thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
-			}
-			
-/*			// Delete unneeded unions from unions_next_rank
-			try (Statement st = con.createStatement()) {
-				log.info(customer_name + " : DELETE unneeded unions FROM unions_next_rank");
-				// if superset has the same capacity as the subset keep only the superset
-				st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
-				st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions + " AS SELECT \n" 
-				+ unions_next_rank + ".set_key, "
-				+ unions_next_rank + ".set_name, "
-				+ unions_next_rank + ".capacity, " 
-				+ unions_next_rank + ".availability, " 
-				+ unions_next_rank + ".goal "
-				+ " FROM " + unions_next_rank + "\n"
-				+ " LEFT OUTER JOIN " + structured_data_base + "\n"
-				+ "      ON " + unions_next_rank + ".set_key & " + structured_data_base + ".set_key = " + structured_data_base + ".set_key \n"
-    			+ " LEFT OUTER JOIN " + unions_last_rank + "\n"
-    			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
-    			+ "      AND " + unions_last_rank + ".capacity + " + structured_data_base + ".capacity = " + unions_next_rank + ".capacity \n"
-				+ "      WHERE " + unions_next_rank + ".set_key IS NULL \n"
-				);
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : loadDynamic DELETE FROM unions_last_rank thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-*/			
+			}			
 		}
 
 		// Validate the data in DB
