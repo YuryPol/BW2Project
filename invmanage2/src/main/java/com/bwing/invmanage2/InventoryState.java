@@ -1,6 +1,8 @@
 package com.bwing.invmanage2;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.sql.CallableStatement;
@@ -63,15 +65,18 @@ public class InventoryState implements AutoCloseable
     public static final String allocation_ledger = "allocation_protocol";
     public static final String result_serving = "result_serving";
     public static final String result_serving_copy = "result_serving_copy";
-	static final String temp_unions = "temp_unions";
+    private static final String temp_unions = "temp_unions";
+	private static final String temp_unions2 = "temp_unions2";
+	private static final String temp_unions3 = "temp_unions3";
     static final String inventory_status = "inventory_status";
  
-	static final public int BITMAP_SIZE = 40; // max = 64;
-	static final public int CARDINALITY_LIMIT = 10;
-	static final public int INVENTORY_OVERLAP = 500;
-	static final public int BASE_SETS_OVERLAPS_LIMIT = 100;
-	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
-	private static final int MAX_ROW_SIZE = 3000;
+	static public int BITMAP_SIZE = 40; // max = 64;
+	static public int CARDINALITY_LIMIT = 10;
+	static public int INVENTORY_OVERLAP = 500;
+	static public int BASE_SETS_OVERLAPS_LIMIT = 100;
+	private static long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
+	private static int MAX_ROW_SIZE = 3000;
+	private static double OVERLAP_FRACTION = 0.1;
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
 	
@@ -136,7 +141,7 @@ public class InventoryState implements AutoCloseable
 		return con;
 	}
     
-    public InventoryState(String name, boolean auto) throws ClassNotFoundException, SQLException
+    public InventoryState(String name, boolean auto) throws ClassNotFoundException, SQLException, IOException
 	{
     	customer_name = name;
 		log.setLevel(Level.INFO);
@@ -147,6 +152,21 @@ public class InventoryState implements AutoCloseable
         {
         	st.execute("USE " + BWdb + customer_name);
         }
+        // Load properties
+        InputStream inventory_properties_stream = this.getClass().getClassLoader().getResourceAsStream("inventory.properties");
+        if (inventory_properties_stream == null)
+        {
+        	inventory_properties_stream = new FileInputStream("./src/main/webapp/WEB-INF/classes/inventory.properties");
+        }
+        Properties inventory_properties = new Properties();
+        inventory_properties.load(inventory_properties_stream);
+    	BITMAP_SIZE = Integer.valueOf(inventory_properties.getProperty("BITMAP_SIZE"));
+    	CARDINALITY_LIMIT = Integer.valueOf(inventory_properties.getProperty("CARDINALITY_LIMIT"));
+    	INVENTORY_OVERLAP = Integer.valueOf(inventory_properties.getProperty("INVENTORY_OVERLAP"));
+    	BASE_SETS_OVERLAPS_LIMIT = Integer.valueOf(inventory_properties.getProperty("BASE_SETS_OVERLAPS_LIMIT"));
+    	RESTART_INTERVAL = Long.valueOf(inventory_properties.getProperty("RESTART_INTERVAL")); // less than 10 minutes
+    	MAX_ROW_SIZE = Integer.valueOf(inventory_properties.getProperty("MAX_ROW_SIZE"));
+    	OVERLAP_FRACTION = Double.valueOf(inventory_properties.getProperty("OVERLAP_FRACTION"));
 	}
     
     public Connection getConnection() throws SQLException
@@ -797,7 +817,7 @@ public class InventoryState implements AutoCloseable
         
         int cnt = 0;
         int cnt_updated = 0;
-        int size = 0;
+        int insert_size = 0;
         ResultSet rs = null;
 		try (Statement st = con.createStatement()) 
 		{
@@ -852,9 +872,9 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate(addUnions);
 				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
 				if (rs.next()) {
-					size = rs.getInt(1);
+					insert_size = rs.getInt(1);
 				}
-				log.info(customer_name + " : size of " + unions_next_rank + " = " + String.valueOf(size));
+				log.info(customer_name + " : size of " + unions_next_rank + " = " + String.valueOf(insert_size));
 
 				// if superset has the same capacity as the subset keep only the superset
 				st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
@@ -873,9 +893,9 @@ public class InventoryState implements AutoCloseable
 				rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
 				if (rs.next()) 
 				{
-					size = rs.getInt(1);
+					insert_size = rs.getInt(1);
 				}
-				log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(size));
+				log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(insert_size));
 				// copy to unions_last_rank
 				st.executeUpdate("TRUNCATE " + unions_last_rank);
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
@@ -885,18 +905,36 @@ public class InventoryState implements AutoCloseable
 				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
     			+ "    SELECT * FROM " + unions_last_rank);
 				
-//				if (size > MAX_ROW_SIZE)
-//				{
-//					// Eliminate weakly overlapping unions from unions_next_rank
-//					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
-//					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions
-//					+ " AS SELECT * "
-//					+ " FROM " + unions_last_rank
-//					+ " JOIN " + unions_next_rank
-//					+ " JOIN " + structured_data_base
-//					+ "       ON  " + unions_last_rank + ".set_key ^ " + unions_next_rank + ".set_key = " + structured_data_base + ".set_key_is"
-//					+ "       AND " + unions_next_rank + ".capacity - " + unions_last_rank + ".capacity < "  + structured_data_base + ".capacity * 0.2 ");
-//				}
+				if (insert_size > MAX_ROW_SIZE)
+				{
+					log.warning(customer_name + " : Eliminating weakly overlapping unions");
+					// Eliminate weakly overlapping unions from unions_next_rank
+					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
+					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions
+					+ " AS SELECT " + unions_last_rank + ".set_key AS l_key, " + structured_data_base + ".set_key AS b_key, " 
+							        + unions_last_rank + ".capacity AS l_capacity, " + unions_next_rank + ".capacity AS n_capacity, " + structured_data_base + ".capacity AS b_capacity "
+					+ " FROM " + unions_last_rank
+					+ " JOIN " + unions_next_rank
+					+ " JOIN " + structured_data_base
+					+ "    ON  " + unions_last_rank + ".set_key ^ " + unions_next_rank + ".set_key = " + structured_data_base + ".set_key_is"
+//					+ "    AND " + unions_next_rank + ".capacity - " + unions_last_rank + ".capacity < "  + structured_data_base + ".capacity * " + String.valueOf(OVERLAP_FRACTION)
+					);
+					// Find unions to eliminate
+					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions2);
+					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions2
+					+ " AS SELECT " + temp_unions + ".n_key, " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity AS union_delta"
+					+ " FROM "  + temp_unions
+					+ " WHERE " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity < " + temp_unions + ".n_capacity * " + String.valueOf(OVERLAP_FRACTION)
+					);
+					
+					// Find sets to to extract from unions
+					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions3);
+					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions3
+					+ " AS SELECT " + temp_unions + ".n_key, " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity AS union_delta"
+					+ " FROM "  + temp_unions
+					+ " WHERE " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity < " + temp_unions + ".n_capacity * " + String.valueOf(OVERLAP_FRACTION)
+					);
+				}
 			}
 			catch (CommunicationsException ex)
 			{
