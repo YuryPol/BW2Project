@@ -58,7 +58,6 @@ public class InventoryState implements AutoCloseable
     
     // Tables
     public static final String raw_inventory = "raw_inventory";
-    public static final String raw_inventory_aggregated = "raw_inventory_full";
     static final String structured_data_inc ="structured_data_inc";
     static final String structured_data_base = "structured_data_base";
     static final String unions_last_rank = "unions_last_rank";
@@ -66,6 +65,9 @@ public class InventoryState implements AutoCloseable
     public static final String allocation_ledger = "allocation_protocol";
     public static final String result_serving = "result_serving";
     public static final String result_serving_copy = "result_serving_copy";
+    private static final String temp_unions = "temp_unions";
+	private static final String temp_to_compare = "temp_to_compare";
+	private static final String temp_to_eliminate = "temp_to_eliminate";
     static final String inventory_status = "inventory_status";
  
 	static public int BITMAP_SIZE = 40; // max = 64;
@@ -140,7 +142,7 @@ public class InventoryState implements AutoCloseable
 		return con;
 	}
     
-    public InventoryState(String name, boolean auto) throws ClassNotFoundException, SQLException
+    public InventoryState(String name, boolean auto) throws ClassNotFoundException, SQLException, IOException
 	{
     	customer_name = name;
 		log.setLevel(Level.INFO);
@@ -151,6 +153,7 @@ public class InventoryState implements AutoCloseable
         {
         	st.execute("USE " + BWdb + customer_name);
         }
+        // Load properties
         InputStream inventory_properties_stream = this.getClass().getClassLoader().getResourceAsStream("inventory.properties");
         if (inventory_properties_stream == null)
         {
@@ -256,31 +259,7 @@ public class InventoryState implements AutoCloseable
         	
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving);
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving_copy);
-        	
-        	
-        	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
-        	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
-        			+ "BEGIN "
-        			+ " UPDATE " + unions_next_rank + ", "
-        			+ " (SELECT "
-        			+ "    set_key, "
-        			+ "    SUM(capacity) as capacity, "
-        			+ "    SUM(availability) as availability "
-        			+ "  FROM ("
-        			+ "   SELECT unr1.set_key, ri.count as capacity, ri.count as availability "
-        			+ "    FROM " + unions_next_rank + " unr1"
-        			+ "    JOIN " + raw_inventory + " ri "
-        			+ "    ON unr1.set_key & ri.basesets != 0 "
-        			+ "    WHERE unr1.capacity is NULL "
-        			+ "    ) blownUp "
-        			+ "  GROUP BY set_key"
-        			+ " ) comp "
-        			+ " SET " + unions_next_rank + ".capacity = comp.capacity, "
-        			+   unions_next_rank + ".availability = comp.availability "
-        			+ " WHERE " + unions_next_rank + ".set_key = comp.set_key; "
-        			+ " END "
-        			);
-        	        	
+        	        	        	
         	st.executeUpdate("DROP FUNCTION IF EXISTS BookItemsFromIS");
         	st.executeUpdate("CREATE FUNCTION BookItemsFromIS(iset BIGINT, amount INT) "
         			+ "RETURNS BOOLEAN "
@@ -651,7 +630,6 @@ public class InventoryState implements AutoCloseable
 			tmp.setkey(highBit);
 			tmp.setname(is.getName());
 			tmp.setCriteria(is.getCriteria());
-			// tmp.setPrivateAvailablity(1);
 			base_sets.put(tmp.getkey(), tmp);
 			highBit++;
 			log.info(customer_name + " added set " + tmp.getname() + " with criteria " + tmp.getCriteria().toString());
@@ -662,39 +640,27 @@ public class InventoryState implements AutoCloseable
 			return true;
 		}			
 		
-		int max_cardinality = 0;
-		// Create segments' raw data.
+		// Create segments' raw data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSegement> base_segments = new HashMap<BitSet, BaseSegement>();
-		HashMap<BitSet, BaseSegement> base_segments_to_disribute = new HashMap<BitSet, BaseSegement>();
 		HashMap<BitSet, BaseSegement> base_segments_private = new HashMap<BitSet, BaseSegement>();
 		for (opportunity opp : inventorydata.getOpportunities())
 		{
 			// Walk through all opportunities, attribute them to base_sets and combine into base segments
 			boolean match_found = false;
-			boolean opp_cardinality_overlimit = false;
 			BaseSegement tmp = new BaseSegement(BITMAP_SIZE);
 			tmp.setCriteria(opp.getcriteria());
 			
 			for (BaseSet bs1 : base_sets.values())
 			{					
-				if (bs1.getCriteria() == null || bs1.getCriteria().size() == 0)
+				if (criteria.matches(bs1.getCriteria(), tmp.getCriteria()))
 				{
-					tmp.getkey().or(bs1.getkey());
-					match_found = true; // segment with any criteria matches base set with no criteria
-				}
-				else if (criteria.matches(bs1.getCriteria(), tmp.getCriteria()))
-				{
-					if (bs1.getkey().cardinality() == 1 && bs1.getCriteria().equals(tmp.getCriteria()))
-					{
-						bs1.setPrivateAvailablity(tmp.getcapacity());
-					}
 					tmp.getkey().or(bs1.getkey());
 					match_found = true;
 					if (tmp.getkey().cardinality() > CARDINALITY_LIMIT)
 					{
-						// overlap exceeds the limit (half of allowed number of inventory sets for now)
-						max_cardinality = tmp.getkey().cardinality();
-						opp_cardinality_overlimit = true;
+						// overlap exceeds half of allowed number of inventory sets
+						highOverlap();
+						return true;
 					}
 				}
 			}
@@ -707,10 +673,6 @@ public class InventoryState implements AutoCloseable
 				{
 					// segment matching single base set	
 					workingSet = base_segments_private;
-				}
-				else if (opp_cardinality_overlimit)
-				{
-					workingSet = base_segments_to_disribute;
 				}
 				else
 				{
@@ -726,235 +688,17 @@ public class InventoryState implements AutoCloseable
 				workingSet.put(tmp.getkey(), tmp);
 			}
 		}
-		
 		if (base_segments.isEmpty()
-				&& base_segments_to_disribute.isEmpty()
 				&& base_segments_private.isEmpty())
 		{
 			noData();
 			return true;
 		}
-		
-		// concatenate all base segments into full raw data table to use for simulation
-		HashMap<BitSet, BaseSegement> base_segments_aggregated = new HashMap<BitSet, BaseSegement>();
-		base_segments_aggregated.putAll(base_segments_private);
-		base_segments_aggregated.putAll(base_segments_to_disribute);
-		base_segments_aggregated.putAll(base_segments);		
-    	// create raw_inventory table to fill up by impressions' counts
-        try (Statement st = con.createStatement())	//TODO: replace with memory-cache
-        {
-	    	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory_aggregated);
-	    	st.executeUpdate("CREATE TABLE " + raw_inventory_aggregated 
-	    	+ " (basesets BIGINT NOT NULL, "
-	        + "count INT NOT NULL, "
-	        + "criteria VARCHAR(200) DEFAULT NULL, "
-	        + "weight BIGINT DEFAULT 0)");
-        }
-        // populate aggregated raw data with inventory sets' bitmaps
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory_aggregated 
-        		+ " SET basesets = ?, count = ?, criteria = ?, weight = ? ON DUPLICATE KEY UPDATE count = VALUES(count) + count" ))
-        {
-        	log.info(customer_name + " : INSERT INTO "  + raw_inventory_aggregated);
-	        for (BaseSegement bs1 : base_segments_aggregated.values()) {
-	        	insertStatement.setLong(1, bs1.getKeyBin()[0]);
-	        	insertStatement.setInt(2, bs1.getcapacity());
-	        	if (bs1.getCriteria() == null)
-	        	{
-		        	insertStatement.setString(3, "");	        		
-	        	}
-	        	else
-	        	{
-	        		insertStatement.setString(3, bs1.getCriteria().toString());
-	        	}
-	        	insertStatement.setLong(4, 0);
-	            insertStatement.execute();
-	        }
-        }
-
-		if (base_segments_to_disribute.size() > 0)
+		else if (base_segments.size() > INVENTORY_OVERLAP)
 		{
-			log.warning(customer_name + " : segments overlap cardinality is too high, " + Integer.toString(max_cardinality) + " for file " + readChannel.toString() + " compacting raw data");
-			// compact raw data by distributing high cardinality segments unless we must to keep them
-			for (BaseSegement to_dist : base_segments_to_disribute.values())
-			{
-				// find all base_segments included in base_segments_to_disribute, but not included into included
-				HashSet<BitSet> sets_to_increase = new HashSet<BitSet>();
-				HashSet<BitSet> subsets_to_remove = new HashSet<BitSet>();
-				// for starter find all
-				boolean include_found = false;
-				for (BaseSegement to_add : base_segments.values())
-				{
-					if (to_dist.contains(to_add)) // contained base_segments
-					{
-						if (!sets_to_increase.add(to_add.getkey())) {log.severe(customer_name + " : has a duplicate BaseSegement " + to_add.getkey().toString());} // sanity check
-						include_found = true;
-					}
-				}
-				if (!include_found)
-				{
-					// keep high cardinality segment as it is the only one in existence 
-					base_segments.put(to_dist.getkey(), to_dist);
-					continue;
-				}
-				// now remove included into included base_segments because we want to distribute only to highest rank nodes
-				BitSet superset = null;
-				BitSet subset = null;
-				for (Iterator<BitSet> superset_i = sets_to_increase.iterator(); superset_i.hasNext();)
-				{
-					superset = superset_i.next();
-					for (Iterator<BitSet> subset_i = sets_to_increase.iterator(); subset_i.hasNext();)
-					{
-						subset = subset_i.next();
-						if (BaseSegement.key_contains(superset, subset) && !superset.equals(subset))
-						{
-							subsets_to_remove.add(subset);
-						}
-					}
-				}
-				sets_to_increase.removeAll(subsets_to_remove);
-				
-				// Now find all base_segments_private included in base_segments_to_disribute and not included in base_segments
-				// so we don't do distribution for the later 
-				for (BaseSegement to_add : base_segments_private.values())
-				{
-					boolean private_include_found = false;
-					if (to_dist.contains(to_add)) 
-					{
-						// contained in base_segments_to_disribute
-						for (BaseSegement to_check : base_segments.values())
-						{
-							if (to_check.contains(to_add)) 
-							{
-								// contained in base_segments
-								private_include_found = true;
-								break; // don't add
-							}
-						}
-						if (!private_include_found)
-						{
-							sets_to_increase.add(to_add.getkey());
-						}
-					}					
-				}
-				
-				// count total capacity of base_segments to distribute between
-				int total_capacity = 0;
-				for (BitSet to_add : sets_to_increase)
-				{
-					total_capacity += base_segments.get(to_add).getcapacity();
-				}
-				// distribute high cardinality segments between others proportional to the later capacity
-				for (BitSet to_add : sets_to_increase)
-				{
-					base_segments.get(to_add).addcapacity(
-							base_segments.get(to_add).getcapacity() / total_capacity
-							* base_segments_to_disribute.get(to_dist.getkey()).getcapacity());
-				}
-			}
-		}
-		
-		// Make sure that base segments collection size does not exceed the limit
-		if (base_segments.size() > BASE_SETS_OVERLAPS_LIMIT)
-		{
-			log.warning(customer_name + " : number of overlapping segments is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString() + " compacting raw data");
-			// Distribute lower capacities, so sort by their values first
-			LinkedHashMap<BitSet, BaseSegement> sorted_base_segments = sortByComparator(base_segments, false);
-			base_segments.clear();
-			base_segments_to_disribute.clear();
-			int ind = 0;
-			// and now distribute lower capacities
-			for (Entry<BitSet, BaseSegement> entry : sorted_base_segments.entrySet())
-			{				
-				// add to distribution
-				if (ind >= BASE_SETS_OVERLAPS_LIMIT)
-				{
-					base_segments_to_disribute.put(entry.getKey(), entry.getValue());
-					log.info(customer_name + " : to distiribute segment " + entry.getKey().toString() + " capacity " + Integer.toString(entry.getValue().getcapacity()));
-				}
-				else
-				{
-					base_segments.put(entry.getKey(), entry.getValue());
-					log.info(customer_name + " : to keep segment " + entry.getKey().toString() + " capacity " + Integer.toString(entry.getValue().getcapacity()));
-				}
-				ind++;
-			}
-			
-			for (BaseSegement to_dist : base_segments_to_disribute.values())
-			{
-				// find all base_segments included in base_segments_to_disribute, but not included into included
-				HashSet<BitSet> sets_to_increase = new HashSet<BitSet>();
-				HashSet<BitSet> subsets_remove = new HashSet<BitSet>();
-				// for starter find all
-				boolean include_found = false;
-				for (BaseSegement to_add : base_segments.values())
-				{
-					if (to_dist.contains(to_add)) // contained base_segments
-					{
-						if (!sets_to_increase.add(to_add.getkey())) {log.severe(customer_name + " : has a duplicate BaseSegement " + to_add.getkey().toString());} // sanity check
-						include_found = true;
-					}
-				}
-				if (!include_found)
-				{
-					// keep high cardinality segment as it is the only one in existence 
-					base_segments.put(to_dist.getkey(), to_dist);
-					continue;
-				}
-				// now remove included into included base_segments
-				BitSet superset = null;
-				BitSet subset = null;
-				for (Iterator<BitSet> superset_i = sets_to_increase.iterator(); superset_i.hasNext();)
-				{
-					superset = superset_i.next();
-					for (Iterator<BitSet> subset_i = sets_to_increase.iterator(); subset_i.hasNext();)
-					{
-						subset = subset_i.next();
-						if (BaseSegement.key_contains(superset, subset) && !superset.equals(subset))
-						{
-							subsets_remove.add(subset);
-						}
-					}
-				}
-				sets_to_increase.removeAll(subsets_remove);
-				// find all base_segments_private included in base_segments_to_disribute and not included in base_segments
-				// so we don't do distribution for their supersets 
-				for (BaseSegement to_add : base_segments_private.values())
-				{
-					boolean private_include_found = false;
-					if (to_dist.contains(to_add)) 
-					{
-						// contained in base_segments_to_disribute
-						for (BaseSegement to_check : base_segments.values())
-						{
-							if (to_check.contains(to_add)) 
-							{
-								// contained in base_segments
-								private_include_found = true;
-								break; // don't add
-							}
-						}
-						if (!private_include_found)
-						{
-							sets_to_increase.add(to_add.getkey());
-						}
-					}					
-				}
-				
-				// count total capacity of base_segments to distribute between
-				int total_capacity = 0;
-				for (BitSet to_add : sets_to_increase)
-				{
-					total_capacity += base_segments.get(to_add).getcapacity();
-				}
-				// distribute high cardinality segments between others proportional to their capacity
-				for (BitSet to_add : sets_to_increase)
-				{
-					base_segments.get(to_add).addcapacity(
-							base_segments.get(to_add).getcapacity() 
-							* base_segments_to_disribute.get(to_dist.getkey()).getcapacity() / total_capacity);
-				}
-			}
-					
+			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+			highOverlap();
+			return true;
 		}
 		
 
@@ -964,10 +708,10 @@ public class InventoryState implements AutoCloseable
         // populate structured data with inventory sets
         try (Statement st = con.createStatement())
         {
-        	// recreate the table here for backward compatibility as we changed the schema 
+        	// recreate the tables and procedures here for backward compatibility as we changed the schema 
         	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_base);
         	st.executeUpdate("CREATE TABLE " + structured_data_base 
-        	+ " (set_key_is BIGINT DEFAULT 0, "
+        	+ " (set_key_is BIGINT DEFAULT 0, " // one bit identifying inventory set
 		    + "set_key BIGINT DEFAULT NULL, "
 		    + "set_name VARCHAR(20) DEFAULT NULL, "
 		    + "capacity INT DEFAULT NULL, "
@@ -975,8 +719,15 @@ public class InventoryState implements AutoCloseable
 		    + "private_availability INT DEFAULT NULL, " 
 		    + "goal INT DEFAULT 0, "
 		    + "criteria VARCHAR(200) DEFAULT NULL, "
-		    + "PRIMARY KEY(set_key_is))");
+		    + "PRIMARY KEY(set_key_is))");        	
         }
+        
+        // thrown The table 'unions_next_rank' is full
+//     	if (unions_next_rank.size() > max_heap_table_size = 16777216)
+//     	{
+//     		do something ;
+//     	}
+
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT IGNORE INTO "  + structured_data_base 
         		+ " SET set_key = ?, set_name = ?, set_key_is = ?, criteria = ?, private_availability = ?"))
         {
@@ -991,8 +742,11 @@ public class InventoryState implements AutoCloseable
 	        	else
 	        	{
 	        		insertStatement.setString(4, bs1.getCriteria().toString());
-	        	}	            
-	        	insertStatement.setInt(5, bs1.getPrivateAvailablity());
+	        	}
+	        	if (base_segments_private.get(bs1.getkey()) != null)
+	        		insertStatement.setInt(5, base_segments_private.get(bs1.getkey()).getcapacity());
+	        	else 
+	        		insertStatement.setInt(5, 0);
 	        	insertStatement.execute();
 	        }
         }
@@ -1049,13 +803,13 @@ public class InventoryState implements AutoCloseable
         }
         
         // start union_next_rank table
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + unions_next_rank
+        try (Statement st = con.createStatement())
+        {
+        	st.executeUpdate("INSERT INTO " + unions_next_rank
     			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
     			+ structured_data_base 
-    			+ " WHERE capacity IS NOT NULL"))
-	        {
+    			+ " WHERE capacity IS NOT NULL");
 	        	log.info(customer_name + " :  INSERT INTO " + unions_next_rank);
-	        	insertStatement.execute();        	
 	        }
 		}
 		
@@ -1064,13 +818,19 @@ public class InventoryState implements AutoCloseable
         
         int cnt = 0;
         int cnt_updated = 0;
+        int cnt_basesets = 0;
+        int insert_size = 0;
         ResultSet rs = null;
+        String query;
 		try (Statement st = con.createStatement()) 
 		{
-//			do {
 			rs = st.executeQuery("SELECT count(*) FROM " + raw_inventory);
 			if (rs.next()) {
 				cnt = rs.getInt(1);
+			}
+			rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
+			if (rs.next()) {
+				cnt_basesets = rs.getInt(1);
 			}
 		}
 		
@@ -1091,64 +851,41 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("TRUNCATE " + unions_last_rank);
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
-				// adds unions of higher rank for nodes to of structured_data_inc
+				// adds unions of higher rank for nodes to structured_data_inc
 				String addUnions = " INSERT /*IGNORE*/ INTO " + unions_next_rank
-    			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
+    			+ " SELECT "
+    			+ "    set_key, "
+    			+ "    NULL as set_name, "
+    			+ "    SUM(capacity) as capacity, "
+    			+ "    SUM(availability) as availability, "
+    			+ "    0 as goal "
+    			+ " FROM ("
+    			+ "  SELECT *, " + raw_inventory + ".count as capacity, " + raw_inventory + ".count as availability "
+    			+ "  FROM ("    			
+    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key "
     			+ "	   FROM " + unions_last_rank
     			+ "    JOIN " + structured_data_base
     			+ "	   JOIN " + raw_inventory
-    			+ "    ON  (" + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0) "
-    			+ "        AND (" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets) != 0 "
-    			+ "        AND (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
-    			+ "        AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + structured_data_base + ".set_key_is"
-    			+ "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key;";
-				st.executeUpdate(addUnions);
+    			+ "         ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0 "
+    			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 "
+    			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key "
+    			+ "   ) un_sk "
+    			+ "   JOIN " + raw_inventory 
+    			+ "   ON un_sk.set_key & " + raw_inventory + ".basesets != 0 "
+    			+ " ) un_r"
+    			+ " GROUP BY set_key"
+    			;
 				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
-			}
-    		catch (CommunicationsException ex)
-    		{			
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			catch (java.sql.SQLException ex)
-			{
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
-				unknownError();
-				rs.close();
-				return true;
-			}
-			
-			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
-				log.info(customer_name + " : {call PopulateRankWithNumbers}");
-				callStatement.executeUpdate();
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			// PopulateRankWithNumbers completed
-			
-			try (Statement st = con.createStatement()) {
-				log.info(customer_name + " : DELETE FROM unions_last_rank what is to be replaced");
-//				st.executeUpdate(
-//					"DELETE FROM " + unions_last_rank
-//    			+ "    WHERE EXISTS ("
-//    			+ "        SELECT * "
-//    			+ "        FROM " + unions_next_rank + " unr1"
-//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
-//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity)");
-				
-//				st.executeUpdate(
-//					"DELETE QUICK " + unions_last_rank + " FROM " + unions_last_rank
-//    			+ "        INNER JOIN " + unions_next_rank + " unr1"
-//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
-//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity");
-				
-				st.executeUpdate("DROP TABLE IF EXISTS toInsert");
-				st.executeUpdate("CREATE TEMPORARY TABLE toInsert AS SELECT \n" 
+				st.executeUpdate(addUnions);
+				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
+				if (rs.next()) {
+					insert_size = rs.getInt(1);
+				}
+				log.info(customer_name + " : size of " + unions_next_rank + " = " + String.valueOf(insert_size));
+
+				// if superset has the same capacity as the subset keep only the superset
+				st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
+				st.executeUpdate("CREATE /*TEMPORARY*/ TABLE " + temp_unions + " AS SELECT \n" 
 				+ unions_last_rank + ".set_key, "
 				+ unions_last_rank + ".set_name, "
 				+ unions_last_rank + ".capacity, " 
@@ -1158,30 +895,113 @@ public class InventoryState implements AutoCloseable
     			+ " LEFT OUTER JOIN " + unions_next_rank + "\n"
     			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
     			+ "      AND   " + unions_last_rank + ".capacity = " + unions_next_rank + ".capacity \n"
-				+ "      WHERE " + unions_next_rank + ".set_key IS NULL \n");
-
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : loadDynamic DELETE FROM unions_last_rank thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			// deletion unneeded nodes completed	
-	   			
-			try (Statement st = con.createStatement()) {
+				+ "      WHERE " + unions_next_rank + ".set_key IS NULL \n");				
+				// if sets in the superset don't overlap they won't make it in				
+				rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
+				if (rs.next()) 
+				{
+					insert_size = rs.getInt(1);
+				}
+				log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(insert_size));
+				// copy to unions_last_rank
+				st.executeUpdate("TRUNCATE " + unions_last_rank);
+				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
+				// deletion unneeded nodes completed	
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
+				
+				if (insert_size > MAX_ROW_SIZE && ind < cnt_basesets * CARDINALITY_TRESHHOLD)
+				{
+					//
+					// Eliminate weakly overlapping unions from unions_next_rank, reduce capacities in unions_last_rank and remove unions from structured_data_inc accordingly
+					// if there are too many rows to insert and we are still at the beginning 
+					//
+					log.warning(customer_name + " : Eliminating weakly overlapping unions");
+					
+					// Analyze the data
+					st.executeUpdate("DROP TABLE IF EXISTS " + temp_to_compare);
+					query = "CREATE /*TEMPORARY*/ TABLE " + temp_to_compare
+					+ " AS SELECT " + unions_last_rank + ".set_key AS l_key, " + structured_data_base + ".set_key AS b_key, " 
+							        + unions_last_rank + ".capacity AS l_capacity, " + unions_next_rank + ".capacity AS n_capacity, " + structured_data_base + ".capacity AS b_capacity "
+					+ " FROM " + unions_last_rank
+					+ " JOIN " + unions_next_rank
+					+ " JOIN " + structured_data_base
+					+ "    ON  " + unions_last_rank + ".set_key ^ " + unions_next_rank + ".set_key = " + structured_data_base + ".set_key_is";
+					st.executeUpdate(query);
+					log.info(customer_name + " : " + temp_to_compare + " created");
+					
+					// Find unions in unions_next_rank to eliminate. Records have next key but last capacity
+					st.executeUpdate("DROP TABLE IF EXISTS " + temp_to_eliminate);
+					st.executeUpdate("CREATE /*TEMPORARY*/ TABLE " + temp_to_eliminate 
+					+ " AS SELECT * "
+					+ " FROM "  + temp_to_compare
+					+ " WHERE " + temp_to_compare + ".n_capacity - " + temp_to_compare + ".l_capacity < " + temp_to_compare + ".n_capacity * " + String.valueOf(OVERLAP_FRACTION)
+					);
+					log.info(customer_name + " : " + temp_to_eliminate + " created");
+					
+					// Reduce unions_last_rank capacities 
+					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
+					query = "CREATE /*TEMPORARY*/ TABLE " + temp_unions + " AS SELECT \n" 
+					+ unions_last_rank + ".set_key, "
+					+ unions_last_rank + ".set_name, "
+					+ unions_last_rank + ".capacity - IF(" + temp_to_eliminate + ".l_key IS NULL, 0, l_capacity + b_capacity - n_capacity) AS capacity, " 
+					+ unions_last_rank + ".capacity - IF(" + temp_to_eliminate + ".l_key IS NULL, 0, l_capacity + b_capacity - n_capacity) AS availability, " 
+					+ unions_last_rank + ".goal "
+					+ " FROM " + unions_last_rank + "\n"
+	    			+ " LEFT OUTER JOIN " + temp_to_eliminate + "\n"
+	    			+ "      ON " + temp_to_eliminate + ".l_key = " + unions_last_rank + ".set_key \n";
+					st.executeUpdate(query);
+					// copy to unions_last_rank
+					st.executeUpdate("TRUNCATE " + unions_last_rank);
+					st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
+					log.info(customer_name + " : " + unions_last_rank + " reduced");
+					
+					// Remove lower rank unions from structured_data_inc if they are not needed anymore
+					query = "DELETE " + structured_data_inc 
+					+ " FROM " + structured_data_inc
+					+ "	INNER JOIN " + temp_to_eliminate
+					+ "     ON " + temp_to_eliminate +".n_key > " + structured_data_inc + ".set_key "
+					+ "     AND " + temp_to_eliminate + ".n_key & " + structured_data_inc + ".set_key = " + structured_data_inc + ".set_key "
+					+ "     AND " + structured_data_inc + ".capacity >= " + temp_to_eliminate + ".l_capacity";
+					// Reduce structured_data_base capacities if necessary
+					st.executeUpdate(query);
+					query = "UPDATE " + structured_data_base + ", " + structured_data_inc + " SET " 
+					+ structured_data_base + ".capacity = LEAST(" + structured_data_base + ".capacity, " + structured_data_inc + ".capacity) "
+					+ structured_data_base + ".availability = LEAST(" + structured_data_base + ".availability, " + structured_data_inc + ".availability) "
+        			+ " WHERE " + structured_data_inc + ".set_key & " + structured_data_base + ".set_key_is = " + structured_data_base + ".set_key_is";
+					st.executeUpdate(query);
+					log.info(customer_name + " : " + structured_data_inc + " compacted");
+					
+					// Remove weakly overlapping unions from unions_next_rank
+					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
+					query = "CREATE /*TEMPORARY*/ TABLE " 
+					+ temp_unions + " AS SELECT * FROM " + unions_next_rank 
+					+ " LEFT JOIN " + temp_to_eliminate
+					+ " ON " + unions_next_rank + ".set_key = " + temp_to_eliminate + ".n_key"
+					+ " WHERE " + unions_next_rank + ".set_key IS NULL";
+					st.executeUpdate(query);
+					// copy to unions_next_rank
+					st.executeUpdate("TRUNCATE " + unions_next_rank);
+					st.executeUpdate("INSERT INTO " + unions_next_rank + " SELECT * FROM " + temp_unions);					
+					log.info(customer_name + " : Removed weakly overlapping unions from " + unions_next_rank);
+				}
 				st.executeUpdate(
-				" INSERT /*IGNORE*/ INTO " + structured_data_inc
-    			+ "    SELECT * FROM toInsert");
+				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
+    			+ "    SELECT * FROM " + unions_last_rank);
 			}
 			catch (CommunicationsException ex)
 			{
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO structured_data_inc thrown " + ex.getMessage());
+				log.severe(customer_name + " : loadDynamic thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
-    			
+			catch (java.sql.SQLException ex) // TODO: do the handling in the caller
+			{
+				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
+				unknownError();
+				rs.close();
+				return true;
+			}
+    		
 			try (Statement st = con.createStatement()) {
 				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
 				if (rs.next()) {
@@ -1194,18 +1014,6 @@ public class InventoryState implements AutoCloseable
 						break;
 				}
 			}
-//			} while (cnt < cnt_updated);
-
-			try (Statement st = con.createStatement()) 
-			{
-				st.executeUpdate("DELETE FROM " + structured_data_inc + " WHERE capacity IS NULL; ");
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : DELETE FROM structured_data_inc WHERE capacity IS NULL thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
 			
 			try (Statement st = con.createStatement()) 
 			{
@@ -1213,14 +1021,14 @@ public class InventoryState implements AutoCloseable
 				+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
 				+ " WHERE " + structured_data_base + ".set_key_is & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key_is "
 				+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
-				log.info(customer_name + " : UPDATE " + structured_data_base + " with ne inserts");
+				log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same capacity");
 			}
 			catch (CommunicationsException ex)
 			{
 				log.severe(customer_name + " : UPDATE structured_data_base, structured_data_inc thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
-			}
+			}			
 		}
 
 		// Validate the data in DB
@@ -1275,24 +1083,22 @@ public class InventoryState implements AutoCloseable
         			+ " from private availability");
 			try (Statement st = con.createStatement()) 
 			{
-				st.executeUpdate("UPDATE " + structured_data_base + "SET private_availability = " + Integer.toString(private_availability - amount));
+				st.executeUpdate("UPDATE " + structured_data_base + " SET private_availability = " + Integer.toString(private_availability - amount));
 			}
 			catch (CommunicationsException ex)
 			{
 				log.severe(customer_name + " : UPDATE structured_data_base, structured_data_inc thrown " + ex.getMessage());
 				return false;
 			}
-			
+			return true;
     	}
-    	else
-    	{
-    	if (private_availability > 0)
+    	else if (private_availability > 0)
     	{
         	log.info(customer_name + " : Partially allocating for set_key_is=" + set_key_is + " amount=" + amount 
         			+ " from private availability");
 			try (Statement st = con.createStatement()) 
 			{
-				st.executeUpdate("UPDATE " + structured_data_base + "SET private_availability = 0 ");
+				st.executeUpdate("UPDATE " + structured_data_base + " SET private_availability = 0 ");
 				amount -= private_availability;
 			}
 			catch (CommunicationsException ex)
@@ -1326,7 +1132,6 @@ public class InventoryState implements AutoCloseable
 			// timeoutHandler.reconnect();
     		return false;
     	}
-    	}
     	log.info(customer_name + " : Allocation for set_key_is=" + set_key_is + " amount=" + amount + " was completed");
     	
     	try (PreparedStatement statement = con.prepareStatement(
@@ -1357,98 +1162,6 @@ public class InventoryState implements AutoCloseable
     	    	+ String.valueOf(amount)
     			);
     	return true;
-    }
-    
-    private void DistiributeSegments(HashMap<BitSet, BaseSegement> base_segments_to_disribute
-    		, HashMap<BitSet, BaseSegement> base_segments, HashMap<BitSet, BaseSegement> base_segments_private)
-    {
-		for (BaseSegement to_dist : base_segments_to_disribute.values())
-		{
-			// find all base_segments included in base_segments_to_disribute, but not included into included
-			HashSet<BitSet> sets_to_increase = new HashSet<BitSet>();
-			HashSet<BitSet> subsets_remove = new HashSet<BitSet>();
-			// for starter find all
-			boolean include_found = false;
-			for (BaseSegement to_add : base_segments.values())
-			{
-				if (to_dist.contains(to_add)) // contained base_segments
-				{
-					if (!sets_to_increase.add(to_add.getkey())) {log.severe(customer_name + " : has a duplicate shared BaseSegement " + to_add.getkey().toString());} // sanity check
-					include_found = true;
-				}
-			}
-			if (base_segments_private != null)
-			{
-				for (BaseSegement to_add : base_segments_private.values())
-				{
-					if (to_dist.contains(to_add)) // contained base_segments_private
-					{
-						if (!sets_to_increase.add(to_add.getkey())) {log.severe(customer_name + " : has a duplicate private BaseSegement " + to_add.getkey().toString());} // sanity check
-						include_found = true;
-					}
-				}				
-			}
-			else if (!include_found)
-			{
-				// keep high cardinality segment as it is the only shared one in existence 
-				base_segments.put(to_dist.getkey(), to_dist);
-				continue;
-			}
-			// now remove included into included segments
-			BitSet superset = null;
-			BitSet subset = null;
-			for (Iterator<BitSet> superset_i = sets_to_increase.iterator(); superset_i.hasNext();)
-			{
-				superset = superset_i.next();
-				for (Iterator<BitSet> subset_i = sets_to_increase.iterator(); subset_i.hasNext();)
-				{
-					subset = subset_i.next();
-					if (BaseSegement.key_contains(superset, subset) && !superset.equals(subset))
-					{
-						subsets_remove.add(subset);
-					}
-				}
-			}
-			sets_to_increase.removeAll(subsets_remove);
-			// find all base_segments_private included in base_segments_to_disribute and not included in base_segments
-			// so we don't do distribution for their supersets 
-//			for (BaseSegement to_add : base_segments_private.values())
-//			{
-//				boolean private_include_found = false;
-//				if (to_dist.contains(to_add)) 
-//				{
-//					// contained in base_segments_to_disribute
-//					for (BaseSegement to_check : base_segments.values())
-//					{
-//						if (to_check.contains(to_add)) 
-//						{
-//							// contained in base_segments
-//							private_include_found = true;
-//							break; // don't add
-//						}
-//					}
-//					if (!private_include_found)
-//					{
-//						sets_to_increase.add(to_add.getkey());
-//					}
-//				}					
-//			}
-			
-			// count total capacity of base_segments to distribute between
-			int total_capacity = 0;
-			base_segments.values().addAll(base_segments_private.values()); // ditribute between shared and private
-			for (BitSet to_add : sets_to_increase)
-			{
-				total_capacity += base_segments.get(to_add).getcapacity();
-			}
-			// distribute high cardinality segments between others proportional to their capacity
-			for (BitSet to_add : sets_to_increase)
-			{
-				base_segments.get(to_add).addcapacity(
-						base_segments.get(to_add).getcapacity() 
-						* base_segments_to_disribute.get(to_dist.getkey()).getcapacity() / total_capacity);
-			}
-		}	    	
     }
     
     private static LinkedHashMap<BitSet, BaseSegement> sortByComparator(HashMap<BitSet, BaseSegement> unsortMap, final boolean order)

@@ -24,4 +24,6 @@ Docs:
 4. Elaborate on how important it is for progammatic as by knowing availabilities in advance 
 the advertizer can devlop better strategies and target creatives to most available audiences.
 Also they can chose which audience segment to target at time frame when it is least expencieve.
+5. Paying for clicks only wastes ad space in the content as the ad may not be so interesting 
+and generate few clicks. CPM is much better.
 
