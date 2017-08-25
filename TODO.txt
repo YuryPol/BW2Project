@@ -26,4 +26,5 @@ the advertizer can devlop better strategies and target creatives to most availab
 Also they can chose which audience segment to target at time frame when it is least expencieve.
 5. Paying for clicks only wastes ad space in the content as the ad may not be so interesting 
 and generate few clicks. CPM is much better.
+6. Include rating systems to ensure the “safety” of sites into segments' definitions
 
