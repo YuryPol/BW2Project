@@ -13,6 +13,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Calendar;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,6 +39,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.utils.SystemProperty;
 import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 
 import java.sql.ResultSet;
 ;
@@ -66,8 +69,6 @@ public class InventoryState implements AutoCloseable
     public static final String result_serving = "result_serving";
     public static final String result_serving_copy = "result_serving_copy";
     private static final String temp_unions = "temp_unions";
-	private static final String temp_unions2 = "temp_unions2";
-	private static final String temp_unions3 = "temp_unions3";
     static final String inventory_status = "inventory_status";
  
 	static public int BITMAP_SIZE = 40; // max = 64;
@@ -77,6 +78,7 @@ public class InventoryState implements AutoCloseable
 	private static long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
 	private static int MAX_ROW_SIZE = 3000;
 	private static double OVERLAP_FRACTION = 0.1;
+	private static double CARDINALITY_TRESHHOLD = 0.67; // 2/3;
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
 	
@@ -194,14 +196,6 @@ public class InventoryState implements AutoCloseable
         	+ " (fake_key INT DEFAULT 1, "
         	+ " status VARCHAR(200) DEFAULT '" + Status.clean.name()
         	+ "', PRIMARY KEY(fake_key))");
-
-        	// create raw_inventory table to fill up by impressions' counts
-        	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory);
-        	st.executeUpdate("CREATE TABLE " + raw_inventory 
-        	+ " (basesets BIGINT NOT NULL, "
-            + "count INT NOT NULL, "
-            + "criteria VARCHAR(200) DEFAULT NULL, "
-            + "weight BIGINT DEFAULT 0)");
 
         	// create structured data table
         	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_inc);
@@ -646,7 +640,7 @@ public class InventoryState implements AutoCloseable
 		{
 			// Walk through all opportunities, attribute them to base_sets and combine into base segments
 			boolean match_found = false;
-			BaseSegement tmp = new BaseSegement(BITMAP_SIZE);
+			BaseSegement tmp = new BaseSegement();
 			tmp.setCriteria(opp.getcriteria());
 			
 			for (BaseSet bs1 : base_sets.values())
@@ -657,7 +651,7 @@ public class InventoryState implements AutoCloseable
 					match_found = true;
 					if (tmp.getkey().cardinality() > CARDINALITY_LIMIT)
 					{
-						// overlap exceeds half of allowed number of inventory sets
+						// overlap exceeds allowed number of inventory sets
 						highOverlap();
 						return true;
 					}
@@ -668,6 +662,9 @@ public class InventoryState implements AutoCloseable
 				// put it either into shared, private or distributed collection
 				HashMap<BitSet, BaseSegement> workingSet;
 				int capacity = opp.getCount();
+				if (capacity <= 0)
+					continue; // ignore empty or invalid opportunities 
+				
 				if (tmp.getkey().cardinality() == 1)
 				{
 					// segment matching single base set	
@@ -687,19 +684,93 @@ public class InventoryState implements AutoCloseable
 				workingSet.put(tmp.getkey(), tmp);
 			}
 		}
+		long complexity;
 		if (base_segments.isEmpty()
 				&& base_segments_private.isEmpty())
 		{
 			noData();
 			return true;
 		}
-		else if (base_segments.size() > INVENTORY_OVERLAP)
+		else if ((complexity = getComplexity(base_segments)) > INVENTORY_OVERLAP)
 		{
-			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
-			highOverlap();
-			return true;
+			log.warning(customer_name + " : segments overlap is too high, complexity = " + complexity + ""
+					+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+//			highOverlap();
+//			return true;
+			
+			// Now we need reduce the complexity by distributing small segments
+			// weight them
+			int minCapacity = Integer.MAX_VALUE;
+			for ( Entry<BitSet, BaseSegement> tmp : base_segments.entrySet()) {
+				minCapacity = (tmp.getValue().getcapacity() < minCapacity) ? tmp.getValue().getcapacity() : minCapacity;
+			}
+			double weights[] = new double[base_segments.size()];
+			int ind = 0;
+			for ( Entry<BitSet, BaseSegement> tmp : base_segments.entrySet()) {
+				tmp.getValue().setweight(minCapacity);
+				weights[ind++] = tmp.getValue().getweight();
+			}
+			// find segments to distribute and re-pack the base sets
+			Percentile percentile = new Percentile();
+			percentile.setData(weights);
+			double threshold = percentile.evaluate(25); // weight threshold for distribution
+			log.info("percentile = " + threshold);
+			ArrayList<BitSet> toRemove = new ArrayList<BitSet>();
+			HashMap<BitSet, BaseSegement> base_segments_tmp = new HashMap<BitSet, BaseSegement>();
+			int toDistCapacityTotal = 0;
+			int distCapacityTotal = 0;
+			for ( Entry<BitSet, BaseSegement> tmp : base_segments.entrySet()) {
+				if (tmp.getValue().getweight() < threshold) {
+					// list for removal
+					toRemove.add(tmp.getKey());
+					// and distribute to private segments
+					int distCount = tmp.getKey().cardinality();
+					int distCapacity = tmp.getValue().getcapacity();
+					int index = 0;
+					if (distCapacity / distCount <= 0)
+						continue; // not enough to distribute
+					toDistCapacityTotal += distCapacity;
+					while ((index = tmp.getKey().nextSetBit(index)) != -1) {
+						BitSet bs = new BitSet();
+						bs.set(index);
+						BaseSegement bsp = base_segments_private.get(bs);
+						if (bsp == null) {
+							// create new private segment
+							bsp = new BaseSegement();
+							bsp.setcapacity(distCapacity / distCount);
+							bsp.setkeybit(index);
+							base_segments_private.put(bsp.getkey(), bsp);
+						}
+						else {
+							// add the segment to existing private segment
+							bsp.addcapacity(distCapacity / distCount);
+						}
+						index++;
+						distCapacityTotal += distCapacity / distCount;
+					}
+				}
+				else {
+					base_segments_tmp.put(tmp.getKey(), tmp.getValue());
+				}
+			}
+			log.info("distributed = " + distCapacityTotal + " out of " + toDistCapacityTotal);
+			base_segments.clear();
+			base_segments = base_segments_tmp;
 		}
 		
+		// now check complexity again
+		ArrayList<HashMap<BitSet, BaseSegement>> base_segments_instances = new ArrayList<HashMap<BitSet, BaseSegement>>();
+		if ((complexity = getComplexity(base_segments)) > INVENTORY_OVERLAP) {
+			log.warning(customer_name + " : after distribution of small segments the overlap is still too high, complexity = " + complexity + ""
+					+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+			// break into clusters
+			base_segments_instances = BuildClusters.getClusters(base_segments
+					, (int) (complexity / INVENTORY_OVERLAP + 1), 10);
+		}
+		else {
+			// go ahead with just one
+			base_segments_instances.add(base_segments);
+		}
 
 		//
 		// Populate all tables 
@@ -750,6 +821,18 @@ public class InventoryState implements AutoCloseable
 	        }
         }
         
+    	// create raw_inventory table to fill up by impressions' counts
+        try (Statement st = con.createStatement())
+        {
+	    	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory);
+	    	st.executeUpdate("CREATE TABLE " + raw_inventory 
+	    	+ " (basesets BIGINT NOT NULL, "
+	    	+ "basepart  BIGINT NOT NULL, "
+	        + "count INT NOT NULL, "
+	        + "criteria VARCHAR(200) DEFAULT NULL, "
+	        + "weight BIGINT DEFAULT 0)");
+        }
+
         // populate raw data with inventory sets' bitmaps
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory 
         		+ " SET basesets = ?, count = ?, criteria = ?, weight = ? ON DUPLICATE KEY UPDATE count = VALUES(count) + count" ))
@@ -817,6 +900,7 @@ public class InventoryState implements AutoCloseable
         
         int cnt = 0;
         int cnt_updated = 0;
+        int cnt_basesets = 0;
         int insert_size = 0;
         ResultSet rs = null;
 		try (Statement st = con.createStatement()) 
@@ -824,6 +908,10 @@ public class InventoryState implements AutoCloseable
 			rs = st.executeQuery("SELECT count(*) FROM " + raw_inventory);
 			if (rs.next()) {
 				cnt = rs.getInt(1);
+			}
+			rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
+			if (rs.next()) {
+				cnt_basesets = rs.getInt(1);
 			}
 		}
 		
@@ -878,7 +966,7 @@ public class InventoryState implements AutoCloseable
 
 				// if superset has the same capacity as the subset keep only the superset
 				st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
-				st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions + " AS SELECT \n" 
+				st.executeUpdate("CREATE /*TEMPORARY*/ TABLE " + temp_unions + " AS SELECT \n" 
 				+ unions_last_rank + ".set_key, "
 				+ unions_last_rank + ".set_name, "
 				+ unions_last_rank + ".capacity, " 
@@ -901,44 +989,24 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
 				// deletion unneeded nodes completed	
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
+				
+				if (insert_size > MAX_ROW_SIZE && ind < cnt_basesets * CARDINALITY_TRESHHOLD)
+				{
+					//
+					// Eliminate weakly overlapping unions from unions_next_rank, reduce capacities in unions_last_rank and remove unions from structured_data_inc accordingly
+					// if there are too many rows to insert and we are still at the beginning 
+					//
+				}
+    		}
+			try (Statement st = con.createStatement()) {
+				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
 				st.executeUpdate(
 				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
-    			+ "    SELECT * FROM " + unions_last_rank);
-				
-				if (insert_size > MAX_ROW_SIZE)
-				{
-					log.warning(customer_name + " : Eliminating weakly overlapping unions");
-					// Eliminate weakly overlapping unions from unions_next_rank
-					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
-					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions
-					+ " AS SELECT " + unions_last_rank + ".set_key AS l_key, " + structured_data_base + ".set_key AS b_key, " 
-							        + unions_last_rank + ".capacity AS l_capacity, " + unions_next_rank + ".capacity AS n_capacity, " + structured_data_base + ".capacity AS b_capacity "
-					+ " FROM " + unions_last_rank
-					+ " JOIN " + unions_next_rank
-					+ " JOIN " + structured_data_base
-					+ "    ON  " + unions_last_rank + ".set_key ^ " + unions_next_rank + ".set_key = " + structured_data_base + ".set_key_is"
-//					+ "    AND " + unions_next_rank + ".capacity - " + unions_last_rank + ".capacity < "  + structured_data_base + ".capacity * " + String.valueOf(OVERLAP_FRACTION)
-					);
-					// Find unions to eliminate
-					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions2);
-					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions2
-					+ " AS SELECT " + temp_unions + ".n_key, " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity AS union_delta"
-					+ " FROM "  + temp_unions
-					+ " WHERE " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity < " + temp_unions + ".n_capacity * " + String.valueOf(OVERLAP_FRACTION)
-					);
-					
-					// Find sets to to extract from unions
-					st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions3);
-					st.executeUpdate("CREATE TEMPORARY TABLE " + temp_unions3
-					+ " AS SELECT " + temp_unions + ".n_key, " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity AS union_delta"
-					+ " FROM "  + temp_unions
-					+ " WHERE " + temp_unions + ".n_capacity - " + temp_unions + ".l_capacity < " + temp_unions + ".n_capacity * " + String.valueOf(OVERLAP_FRACTION)
-					);
-				}
+    			+ "    SELECT * FROM toInsert");
 			}
 			catch (CommunicationsException ex)
 			{
-				log.severe(customer_name + " : loadDynamic DELETE FROM unions_last_rank thrown " + ex.getMessage());
+				log.severe(customer_name + " : loadDynamic thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
 			}
@@ -1143,6 +1211,34 @@ public class InventoryState implements AutoCloseable
         }
 
         return sortedMap;
+    }
+    
+    // Returns Complexity of the base set
+    private static long getComplexity(HashMap<BitSet, BaseSegement> base_segments)
+    {
+    	Set<BitSet> base_seg_set = base_segments.keySet();    	
+    	Iterator<BitSet> bs_it = base_seg_set.iterator();
+    	long complexity = 0;    	
+    	BitSet bs_and = new BitSet(BITMAP_SIZE);
+    	BitSet bs_or = new BitSet(BITMAP_SIZE);
+    	bs_and.set(0, BITMAP_SIZE);
+   	
+        while (bs_it.hasNext()) 
+        {
+        	BitSet bs = bs_it.next();
+        	bs_and.and(bs); // find bits set to 1
+        	bs_or.or(bs);   // find bits set to 0
+        }
+        bs_and.xor(bs_or);  // find all varying bits
+    	
+        bs_it = base_seg_set.iterator();
+        while (bs_it.hasNext()) 
+        {
+        	BitSet bs = bs_it.next();
+        	bs.xor(bs_and);
+        	complexity += bs.cardinality(); // accumulate differences
+        }
+    	return complexity;
     }
     
     @Override

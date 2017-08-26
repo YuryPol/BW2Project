@@ -17,6 +17,7 @@ public class BaseSegement {
 
 	private criteria this_criteria;
 	private int capacity = 0;
+	private int weight = 1;
 	private BitSet key;
 
 	BaseSegement() {
@@ -24,13 +25,11 @@ public class BaseSegement {
 		key = new BitSet();
 	}
 	
-	public BaseSegement(int i) {
-		this_criteria = new criteria();
-		key = new BitSet(i);
-	}
-
-	public void setkey(int index) {
+	public void setkeybit(int index) {
 		key.set(index);
+	}
+	public void setkey(BitSet key) {
+		this.key = key;
 	}
 	public BitSet getkey() {
 		return key;
@@ -51,6 +50,13 @@ public class BaseSegement {
 	};
 	public void addcapacity(int cp) {
 		capacity += cp;
+	};
+	
+	public void setweight(int minCapacity) {
+		weight = capacity / minCapacity;
+	};
+	public int getweight() {
+		return weight;
 	};
 	
 	boolean contains(BaseSegement another)
