@@ -1,9 +1,14 @@
 package com.bwing.invmanage2;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 /**
  * 
@@ -20,6 +25,42 @@ public class BaseSegement {
 	private int weight = 1;
 	private BitSet key;
 
+	public static boolean key_contains(BitSet superset, BitSet subset)
+	{
+		// super set contains sub set
+		BitSet tmp = (BitSet) superset.clone();
+		tmp.or(subset);
+		return (tmp.equals(superset));
+	}
+	
+	public static int getBitsCounts(HashMap<BitSet, BaseSegement> bss, double bcnts[], BufferedWriter bwTXT) throws IOException
+	{
+		StringBuilder sb = new StringBuilder(bcnts.length);
+		if (InventoryState.DEBUG) {
+			char[] filler = new char[bcnts.length];
+			Arrays.fill(filler, ' ');
+			sb.append(filler);
+		}
+		BitSet accumulative = new BitSet();
+		for (Entry<BitSet, BaseSegement> bs : bss.entrySet()) {
+			accumulative.or(bs.getKey());
+			int index = 0;
+			while (true) {
+				index = bs.getKey().nextSetBit(index);
+				if (index == -1)
+					break; // no more set bits
+				if (InventoryState.DEBUG)
+					sb.setCharAt(index, '*');
+				++bcnts[index++] ;
+			}
+			if (InventoryState.DEBUG) {
+				sb.append('\n');
+				bwTXT.write(sb.toString());
+			}
+		}
+		return accumulative.cardinality();
+	}
+
 	BaseSegement() {
 		this_criteria = new criteria();
 		key = new BitSet();
@@ -28,6 +69,7 @@ public class BaseSegement {
 	public void setkeybit(int index) {
 		key.set(index);
 	}
+	
 	public void setkey(BitSet key) {
 		this.key = key;
 	}
@@ -96,14 +138,6 @@ public class BaseSegement {
 	    return BitSet.valueOf(words);
 	}
 	
-	public static boolean key_contains(BitSet superset, BitSet subset)
-	{
-		// super set contains sub set
-		BitSet tmp = (BitSet) superset.clone();
-		tmp.or(subset);
-		return (tmp.equals(superset));
-	}
-
 	public int compareTo(BaseSegement another) {
 		// Compare capacities
 		if (this.key.cardinality() > another.key.cardinality())

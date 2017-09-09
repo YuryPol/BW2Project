@@ -46,7 +46,7 @@ public class AllocationTest {
 				if (file_name.equals("..\\Test.json"))
 				{
 			        Random rand = new Random();
-					int inventorysets_count = rand.nextInt(InventoryState.BITMAP_SIZE -5) + 5;
+					int inventorysets_count = rand.nextInt(InventoryState.BITMAP_MAX_SIZE -5) + 5;
 					int segments_count = rand.nextInt(5000 - 10) + 10;
 					int max_segment_count = rand.nextInt(500);
 

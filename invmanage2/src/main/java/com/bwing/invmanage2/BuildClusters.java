@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Logger;
 
 import org.apache.commons.math3.ml.clustering.CentroidCluster;
 import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer;
@@ -16,6 +17,7 @@ import org.apache.commons.math3.ml.clustering.DoublePoint;
 
 public class BuildClusters {
 	private static RandomGenerator random;
+    private static final Logger log = Logger.getLogger(BuildClusters.class.getName());
 
 	public static ArrayList<HashMap<BitSet, BaseSegement>> getClusters(HashMap<BitSet, BaseSegement> base_segments, int K, int maxIterations) {
 		random = new JDKRandomGenerator();
@@ -30,6 +32,7 @@ public class BuildClusters {
 				points.add(dp);  // ads a point as many times as its weight
 			}
 		}
+		log.info("Total points = " + points.size() + " in " + base_segments.size() + " base segments.");
 
 		// generate clusters
 		KMeansPlusPlusClusterer<DoublePointBS> clusterer = new KMeansPlusPlusClusterer<DoublePointBS>(K, maxIterations,
@@ -40,13 +43,14 @@ public class BuildClusters {
 		ArrayList<HashMap<BitSet, BaseSegement>> base_segmens_list = new ArrayList<HashMap<BitSet, BaseSegement>>();
 		int clasterIndex = 0;
 		for (CentroidCluster<DoublePointBS> cluster : clusters) {
-			System.out.println("cluster # " + clasterIndex + "with " + cluster.getPoints().size() + " points\n");
+			log.info("cluster # " + clasterIndex + " with " + cluster.getPoints().size() + " points\n");
 			HashMap<BitSet, BaseSegement> base_segments_tmp = new HashMap<BitSet, BaseSegement>();
 			for (DoublePointBS pt : cluster.getPoints()) {
 				BaseSegement tmp = getBaseSegement(pt);
 				base_segments_tmp.put(tmp.getkey(), tmp);
 			}
 			base_segmens_list.add(base_segments_tmp);
+			clasterIndex++;
 		}
 
 		return base_segmens_list;
@@ -56,9 +60,11 @@ public class BuildClusters {
 		int bps[] = new int[bs.size()];
 		int index = 0;
 
-		while (index != -1) {
+		while (true) {
 			index = bs.nextSetBit(index);
-			bps[index] = 1;
+			if (index == -1)
+				break; // no more set bits
+			bps[index++] = 1;
 		}
 		DoublePointBS db = new DoublePointBS(bps, bs, capacity);
 		return db;

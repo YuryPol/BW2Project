@@ -1,6 +1,8 @@
 package com.bwing.invmanage2;
 
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
@@ -38,6 +40,8 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.utils.SystemProperty;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Ints;
 import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 
@@ -71,7 +75,8 @@ public class InventoryState implements AutoCloseable
     private static final String temp_unions = "temp_unions";
     static final String inventory_status = "inventory_status";
  
-	static public int BITMAP_SIZE = 40; // max = 64;
+    static public boolean DEBUG = false;
+	static public int BITMAP_MAX_SIZE = 40; // max = 64;
 	static public int CARDINALITY_LIMIT = 10;
 	static public int INVENTORY_OVERLAP = 500;
 	static public int BASE_SETS_OVERLAPS_LIMIT = 100;
@@ -162,7 +167,8 @@ public class InventoryState implements AutoCloseable
         }
         Properties inventory_properties = new Properties();
         inventory_properties.load(inventory_properties_stream);
-    	BITMAP_SIZE = Integer.valueOf(inventory_properties.getProperty("BITMAP_SIZE"));
+        DEBUG = Boolean.valueOf(inventory_properties.getProperty("DEBUG"));
+    	BITMAP_MAX_SIZE = Integer.valueOf(inventory_properties.getProperty("BITMAP_MAX_SIZE"));
     	CARDINALITY_LIMIT = Integer.valueOf(inventory_properties.getProperty("CARDINALITY_LIMIT"));
     	INVENTORY_OVERLAP = Integer.valueOf(inventory_properties.getProperty("INVENTORY_OVERLAP"));
     	BASE_SETS_OVERLAPS_LIMIT = Integer.valueOf(inventory_properties.getProperty("BASE_SETS_OVERLAPS_LIMIT"));
@@ -587,15 +593,16 @@ public class InventoryState implements AutoCloseable
 			wrongFile();
 			return true;
 		}
-		if (inventorydata.getSegments().length > BITMAP_SIZE)
+		if (inventorydata.getSegments().length > BITMAP_MAX_SIZE)
 		{
-			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than bitmap can handle " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than bitmap can handle " + String.valueOf(BITMAP_MAX_SIZE) + ") inventory sets in " + readChannel.toString());
 			manySegmens();
 			return true;
 		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
+		int bitmap_size = inventorydata.getSegments().length;
 		for (segment is : inventorydata.getSegments())
 		{
 			log.info(customer_name + " processing segment " + is.getName() + " with criteria " + is.getCriteria().toString());
@@ -619,7 +626,7 @@ public class InventoryState implements AutoCloseable
 			if (match_found)
 				continue; // skip repeated set
 			
-			BaseSet tmp = new BaseSet(BITMAP_SIZE);
+			BaseSet tmp = new BaseSet(bitmap_size);
 			tmp.setkey(highBit);
 			tmp.setname(is.getName());
 			tmp.setCriteria(is.getCriteria());
@@ -691,7 +698,7 @@ public class InventoryState implements AutoCloseable
 			noData();
 			return true;
 		}
-		else if ((complexity = getComplexity(base_segments)) > INVENTORY_OVERLAP)
+		else if ((complexity = getComplexity(base_segments, bitmap_size)) > INVENTORY_OVERLAP)
 		{
 			log.warning(customer_name + " : segments overlap is too high, complexity = " + complexity + ""
 					+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
@@ -760,7 +767,7 @@ public class InventoryState implements AutoCloseable
 		
 		// now check complexity again
 		ArrayList<HashMap<BitSet, BaseSegement>> base_segments_instances = new ArrayList<HashMap<BitSet, BaseSegement>>();
-		if ((complexity = getComplexity(base_segments)) > INVENTORY_OVERLAP) {
+		if ((complexity = getComplexity(base_segments, bitmap_size)) > INVENTORY_OVERLAP) {
 			log.warning(customer_name + " : after distribution of small segments the overlap is still too high, complexity = " + complexity + ""
 					+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
 			// break into clusters
@@ -771,6 +778,58 @@ public class InventoryState implements AutoCloseable
 			// go ahead with just one
 			base_segments_instances.add(base_segments);
 		}
+		
+		// compact bit set
+		int instance = 0;
+		// to write visual representation 
+		FileWriter fwTXT = new FileWriter("base_segments_instance." + instance + ".txt");
+		BufferedWriter bwTXT = new BufferedWriter(fwTXT);
+		bwTXT.write("Visualize instnaces as they are broken into clusters\n");
+		for (HashMap<BitSet, BaseSegement>  base_segments_instance : base_segments_instances) {
+			if ((complexity = getComplexity(base_segments_instance, bitmap_size)) > INVENTORY_OVERLAP) {
+				double[]bcnts = new double[bitmap_size];;
+				int bitsSet = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
+				log.info(bitsSet + " bits were set in instance " + instance + " at the start");
+				bwTXT.write(bitsSet + " bits were set in instance " + instance + " at the start\n");
+				// find threshold to clear bits
+				ArrayList<Double> bcntsList = new ArrayList<Double>();
+				for (double bcnt : bcnts) {
+					if (bcnt > 0)
+						bcntsList.add(bcnt);
+				}
+				Percentile percentile = new Percentile();
+				double[] bcnts_values = Doubles.toArray(bcntsList);
+				percentile.setData(bcnts_values);
+				double threshold = percentile.evaluate(25); // threshold for compacting
+				log.info("threshold count for compacting = " + threshold);
+				// create mask
+				BitSet mask = new BitSet();
+				int index = 0;
+				for (double bcnt : bcnts) {
+					if (bcnt > threshold)
+						mask.set(index);
+					index++;
+				}
+
+				// clear bits with low counts
+				HashMap<BitSet, BaseSegement>  base_segments_instance_new = new HashMap<BitSet, BaseSegement>();
+				for (Entry<BitSet, BaseSegement> bs : base_segments_instance.entrySet()) {
+					bs.getKey().and(mask);
+					bs.getValue().getkey().and(mask);
+					if (base_segments_instance_new.putIfAbsent(bs.getKey(), bs.getValue()) != null) {
+						base_segments_instance_new.get(bs.getKey()).addcapacity(bs.getValue().getcapacity());
+					};
+				}
+				base_segments_instance = base_segments_instance_new;
+				// Now visualize new instance
+				BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
+				log.info(bitsSet + " bits were set in instance " + instance + " at the end");
+				bwTXT.write(bitsSet + " bits were set in instance " + instance + " at the end\n");
+			}
+			instance++;
+		}
+		bwTXT.close();
+		fwTXT.close();
 
 		//
 		// Populate all tables 
@@ -1214,14 +1273,14 @@ public class InventoryState implements AutoCloseable
     }
     
     // Returns Complexity of the base set
-    private static long getComplexity(HashMap<BitSet, BaseSegement> base_segments)
+    private static long getComplexity(HashMap<BitSet, BaseSegement> base_segments, int bitmap_size)
     {
     	Set<BitSet> base_seg_set = base_segments.keySet();    	
     	Iterator<BitSet> bs_it = base_seg_set.iterator();
     	long complexity = 0;    	
-    	BitSet bs_and = new BitSet(BITMAP_SIZE);
-    	BitSet bs_or = new BitSet(BITMAP_SIZE);
-    	bs_and.set(0, BITMAP_SIZE);
+    	BitSet bs_and = new BitSet(bitmap_size);
+    	BitSet bs_or = new BitSet(bitmap_size);
+    	bs_and.set(0, bitmap_size);
    	
         while (bs_it.hasNext()) 
         {
