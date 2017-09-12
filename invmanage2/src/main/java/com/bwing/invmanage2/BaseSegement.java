@@ -2,6 +2,7 @@ package com.bwing.invmanage2;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.CharBuffer;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -35,27 +36,34 @@ public class BaseSegement {
 	
 	public static int getBitsCounts(HashMap<BitSet, BaseSegement> bss, double bcnts[], BufferedWriter bwTXT) throws IOException
 	{
-		StringBuilder sb = new StringBuilder(bcnts.length);
-		if (InventoryState.DEBUG) {
-			char[] filler = new char[bcnts.length];
+		CharBuffer cb = CharBuffer.allocate(bcnts.length + 1);
+		char[] filler = new char[bcnts.length];
+		if (InventoryState.DEBUG && bwTXT != null) {
 			Arrays.fill(filler, ' ');
-			sb.append(filler);
 		}
+		
 		BitSet accumulative = new BitSet();
 		for (Entry<BitSet, BaseSegement> bs : bss.entrySet()) {
 			accumulative.or(bs.getKey());
-			int index = 0;
-			while (true) {
-				index = bs.getKey().nextSetBit(index);
-				if (index == -1)
-					break; // no more set bits
-				if (InventoryState.DEBUG)
-					sb.setCharAt(index, '*');
-				++bcnts[index++] ;
+			
+			if (InventoryState.DEBUG && bwTXT != null) {
+				// clear the buffer
+				cb.rewind();
+				cb.put(filler);
+				cb.put(bcnts.length, '\n');
 			}
-			if (InventoryState.DEBUG) {
-				sb.append('\n');
-				bwTXT.write(sb.toString());
+
+			for (int index = 0; index >= 0; index++) {
+				index = bs.getKey().nextSetBit(index);
+				if (index < 0)
+					break;
+				if (InventoryState.DEBUG && bwTXT != null)
+					cb.put(index, '*');
+				++bcnts[index] ;
+			}
+			if (InventoryState.DEBUG && bwTXT != null) {
+				cb.rewind();
+				bwTXT.write(cb.toString());
 			}
 		}
 		return accumulative.cardinality();

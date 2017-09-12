@@ -776,6 +776,8 @@ public class InventoryState implements AutoCloseable
 		}
 		else {
 			// go ahead with just one
+			log.info(customer_name + " : after distribution of small segments the overlap is acceptable, complexity = " + complexity + ""
+					+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
 			base_segments_instances.add(base_segments);
 		}
 		
@@ -788,9 +790,10 @@ public class InventoryState implements AutoCloseable
 		for (HashMap<BitSet, BaseSegement>  base_segments_instance : base_segments_instances) {
 			if ((complexity = getComplexity(base_segments_instance, bitmap_size)) > INVENTORY_OVERLAP) {
 				double[]bcnts = new double[bitmap_size];;
-				int bitsSet = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
-				log.info(bitsSet + " bits were set in instance " + instance + " at the start");
-				bwTXT.write(bitsSet + " bits were set in instance " + instance + " at the start\n");
+				log.info(customer_name + " instance " + instance + " size of " + base_segments_instance.size() + " at the start");
+				int bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
+				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the start");
+				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the start\n");
 				// find threshold to clear bits
 				ArrayList<Double> bcntsList = new ArrayList<Double>();
 				for (double bcnt : bcnts) {
@@ -801,7 +804,7 @@ public class InventoryState implements AutoCloseable
 				double[] bcnts_values = Doubles.toArray(bcntsList);
 				percentile.setData(bcnts_values);
 				double threshold = percentile.evaluate(25); // threshold for compacting
-				log.info("threshold count for compacting = " + threshold);
+				log.info(customer_name + " : threshold count for compacting = " + threshold);
 				// create mask
 				BitSet mask = new BitSet();
 				int index = 0;
@@ -822,9 +825,14 @@ public class InventoryState implements AutoCloseable
 				}
 				base_segments_instance = base_segments_instance_new;
 				// Now visualize new instance
-				BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
-				log.info(bitsSet + " bits were set in instance " + instance + " at the end");
-				bwTXT.write(bitsSet + " bits were set in instance " + instance + " at the end\n");
+				bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
+				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the end");
+				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the end\n");
+			}
+			else {
+				// go ahead without compacting
+				log.info(customer_name + " : no need for compacting, complexity = " + complexity + ""
+						+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
 			}
 			instance++;
 		}
