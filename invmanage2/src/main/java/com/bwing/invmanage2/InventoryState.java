@@ -784,13 +784,13 @@ public class InventoryState implements AutoCloseable
 		// compact bit set
 		int instance = 0;
 		// to write visual representation 
-		FileWriter fwTXT = new FileWriter("base_segments_instance." + instance + ".txt");
+		FileWriter fwTXT = new FileWriter("base_segments_visualization.txt");
 		BufferedWriter bwTXT = new BufferedWriter(fwTXT);
 		bwTXT.write("Visualize instnaces as they are broken into clusters\n");
 		for (HashMap<BitSet, BaseSegement>  base_segments_instance : base_segments_instances) {
 			if ((complexity = getComplexity(base_segments_instance, bitmap_size)) > INVENTORY_OVERLAP) {
 				double[]bcnts = new double[bitmap_size];;
-				log.info(customer_name + " instance " + instance + " size of " + base_segments_instance.size() + " at the start");
+				bwTXT.write("\nprocessing instance # " + instance + "\n");
 				int bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
 				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the start");
 				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the start\n");
@@ -827,7 +827,7 @@ public class InventoryState implements AutoCloseable
 				// Now visualize new instance
 				bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
 				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the end");
-				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the end\n");
+				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the end\n\n");
 			}
 			else {
 				// go ahead without compacting

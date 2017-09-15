@@ -36,7 +36,7 @@ public class BaseSegement {
 	
 	public static int getBitsCounts(HashMap<BitSet, BaseSegement> bss, double bcnts[], BufferedWriter bwTXT) throws IOException
 	{
-		CharBuffer cb = CharBuffer.allocate(bcnts.length + 1);
+		CharBuffer cb = CharBuffer.allocate(bcnts.length);
 		char[] filler = new char[bcnts.length];
 		if (InventoryState.DEBUG && bwTXT != null) {
 			Arrays.fill(filler, ' ');
@@ -50,7 +50,7 @@ public class BaseSegement {
 				// clear the buffer
 				cb.rewind();
 				cb.put(filler);
-				cb.put(bcnts.length, '\n');
+//				cb.put(bcnts.length, '\n');
 			}
 
 			for (int index = 0; index >= 0; index++) {
@@ -63,7 +63,7 @@ public class BaseSegement {
 			}
 			if (InventoryState.DEBUG && bwTXT != null) {
 				cb.rewind();
-				bwTXT.write(cb.toString());
+				bwTXT.write(cb.toString() + "|" + bs.getValue().getcapacity() + "\n");
 			}
 		}
 		return accumulative.cardinality();
