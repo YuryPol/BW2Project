@@ -788,52 +788,53 @@ public class InventoryState implements AutoCloseable
 		BufferedWriter bwTXT = new BufferedWriter(fwTXT);
 		bwTXT.write("Visualize instnaces as they are broken into clusters\n");
 		for (HashMap<BitSet, BaseSegement>  base_segments_instance : base_segments_instances) {
-			if ((complexity = getComplexity(base_segments_instance, bitmap_size)) > INVENTORY_OVERLAP) {
-				double[]bcnts = new double[bitmap_size];;
-				bwTXT.write("\nprocessing instance # " + instance + "\n");
-				int bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
-				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the start");
-				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the start\n");
-				// find threshold to clear bits
-				ArrayList<Double> bcntsList = new ArrayList<Double>();
-				for (double bcnt : bcnts) {
-					if (bcnt > 0)
-						bcntsList.add(bcnt);
-				}
-				Percentile percentile = new Percentile();
-				double[] bcnts_values = Doubles.toArray(bcntsList);
-				percentile.setData(bcnts_values);
-				double threshold = percentile.evaluate(25); // threshold for compacting
-				log.info(customer_name + " : threshold count for compacting = " + threshold);
-				// create mask
-				BitSet mask = new BitSet();
-				int index = 0;
-				for (double bcnt : bcnts) {
-					if (bcnt > threshold)
-						mask.set(index);
-					index++;
-				}
-
-				// clear bits with low counts
-				HashMap<BitSet, BaseSegement>  base_segments_instance_new = new HashMap<BitSet, BaseSegement>();
-				for (Entry<BitSet, BaseSegement> bs : base_segments_instance.entrySet()) {
-					bs.getKey().and(mask);
-					bs.getValue().getkey().and(mask);
-					if (base_segments_instance_new.putIfAbsent(bs.getKey(), bs.getValue()) != null) {
-						base_segments_instance_new.get(bs.getKey()).addcapacity(bs.getValue().getcapacity());
-					};
-				}
-				base_segments_instance = base_segments_instance_new;
-				// Now visualize new instance
-				bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
-				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the end");
-				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the end\n\n");
-			}
-			else {
-				// go ahead without compacting
-				log.info(customer_name + " : no need for compacting, complexity = " + complexity + ""
-						+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
-			}
+			bwTXT.write("\nprocessing instance # " + instance + "\n");
+			double[]bcnts = new double[bitmap_size];
+			int bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
+//			if ((complexity = getComplexity(base_segments_instance, bitmap_size)) > INVENTORY_OVERLAP) {
+//				bwTXT.write("\nprocessing instance # " + instance + "\n");
+//				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the start");
+//				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the start\n");
+//				// find threshold to clear bits
+//				ArrayList<Double> bcntsList = new ArrayList<Double>();
+//				for (double bcnt : bcnts) {
+//					if (bcnt > 0)
+//						bcntsList.add(bcnt);
+//				}
+//				Percentile percentile = new Percentile();
+//				double[] bcnts_values = Doubles.toArray(bcntsList);
+//				percentile.setData(bcnts_values);
+//				double threshold = percentile.evaluate(25); // threshold for compacting
+//				log.info(customer_name + " : threshold count for compacting = " + threshold);
+//				// create mask
+//				BitSet mask = new BitSet();
+//				int index = 0;
+//				for (double bcnt : bcnts) {
+//					if (bcnt > threshold)
+//						mask.set(index);
+//					index++;
+//				}
+//
+//				// clear bits with low counts
+//				HashMap<BitSet, BaseSegement>  base_segments_instance_new = new HashMap<BitSet, BaseSegement>();
+//				for (Entry<BitSet, BaseSegement> bs : base_segments_instance.entrySet()) {
+//					bs.getKey().and(mask);
+//					bs.getValue().getkey().and(mask);
+//					if (base_segments_instance_new.putIfAbsent(bs.getKey(), bs.getValue()) != null) {
+//						base_segments_instance_new.get(bs.getKey()).addcapacity(bs.getValue().getcapacity());
+//					};
+//				}
+//				base_segments_instance = base_segments_instance_new;
+//				// Now visualize new instance
+//				bitsSetCnt = BaseSegement.getBitsCounts(base_segments_instance, bcnts, bwTXT);
+//				log.info(customer_name + " : " + bitsSetCnt + " bits were set in instance " + instance + " size of " + base_segments_instance.size() + " at the end");
+//				bwTXT.write(bitsSetCnt + " bits were set in instance " + instance + " at the end\n\n");
+//			}
+//			else {
+//				// go ahead without compacting
+//				log.info(customer_name + " : no need for compacting, complexity = " + complexity + ""
+//						+ ", base segments size = " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
+//			}
 			instance++;
 		}
 		bwTXT.close();
@@ -1293,8 +1294,8 @@ public class InventoryState implements AutoCloseable
         while (bs_it.hasNext()) 
         {
         	BitSet bs = bs_it.next();
-        	bs_and.and(bs); // find bits set to 1
-        	bs_or.or(bs);   // find bits set to 0
+        	bs_and.and(bs); // find bits always set to 1
+        	bs_or.or(bs);   // find bits always set to 0
         }
         bs_and.xor(bs_or);  // find all varying bits
     	
@@ -1302,7 +1303,7 @@ public class InventoryState implements AutoCloseable
         while (bs_it.hasNext()) 
         {
         	BitSet bs = bs_it.next();
-        	bs.xor(bs_and);
+        	bs.and(bs_and);
         	complexity += bs.cardinality(); // accumulate differences
         }
     	return complexity;
