@@ -116,7 +116,7 @@ public class RunSimualation {
         st.executeUpdate("DROP TABLE IF EXISTS " + InventoryState.result_serving);
         log.info(customer_name + " : " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
         		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));
-        if (missed_count > served_count / 100 && served_count > 1000)
+        if (missed_count > served_count / 100 && served_count > 100)
         {
         	log.severe(customer_name + " : too many mssies");
         	return false;

@@ -61,10 +61,10 @@
         		%>
 	            <p>Enter identifying information to create user account</p>
                 <form action="/" method="post">
-                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
-                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
-                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
-                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
+                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" /></div>
+                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" /></div>
+                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" /></div>
+                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" /></div>
                 <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/> This will be used to identify your dataset</div>
                 <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
                 <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->
@@ -88,10 +88,10 @@
                     %>
                     <p>Organization <%=company%> already exists, try another organization name</p>
 	                <form action="/" method="post">
-	                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
-	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
-	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
-	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
+	                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" /></div>
+	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" /></div>
+	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" /></div>
+	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" /></div>
 	                <div>Organization <input type="text" name="company" value="${fn:escapeXml(company)}" required/> This will be used to identify your dataset</div>
 	                <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
 	                <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->                
@@ -126,7 +126,7 @@
             // registered user
             String customer_name = iuser.theCustomer.get().company;
             %>
-            <p>Logged in as <%=iuser.user_first_name%> <%=iuser.user_last_name %> from <%=iuser.theCustomer.get().company %></p>
+            <p>Logged in as <%= gUser.getNickname()%> from <%=iuser.theCustomer.get().company %></p>
             <%
             pageContext.setAttribute("customer_name", customer_name);
             	
@@ -138,10 +138,10 @@
 	                <p>Enter identifying information to create account for secondary user with whom you share your organization's data</p>
 	                <form action="/" method="post">
                     <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
-	                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
-	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
-	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
-	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
+	                <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" /></div>
+	                <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" /></div>
+	                <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" /></div>
+	                <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" /></div>
 	                <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
 	                <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->
 	                </form>
@@ -164,10 +164,10 @@
                         <p>Please correct wrong data</p>
 	                    <form action="/" method="post">
 	                    <div>g-mail for login<input type="email" name="email" value="${fn:escapeXml(email)}" required/></div>
-	                    <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" required/></div>
-	                    <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" required/></div>
-	                    <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" required/></div>
-	                    <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" required/></div>
+	                    <div>Contact email<input type="email" name="bis_email" value="${fn:escapeXml(bis_email)}" /></div>
+	                    <div>First name <input type="text" name="first_name" value="${fn:escapeXml(first_name)}" /></div>
+	                    <div>Last name <input type="text" name="last_name" value="${fn:escapeXml(last_name)}" /></div>
+	                    <div>Phone number <input type="tel" name="phone" value="${fn:escapeXml(phone)}" /></div>
 	                    <input type="hidden" name="mode" value="<%=UIhelper.Mode.user_data_submited.toString()%>"/>
 	                    <input type="submit" value="Create Account"/> <!-- By creating the account you accept the Terms of Service below -->
 	                    </form>

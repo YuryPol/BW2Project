@@ -1,6 +1,8 @@
 package com.bwing.invmanage2;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.sql.CallableStatement;
@@ -16,7 +18,9 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -54,11 +58,18 @@ public class InventoryState implements AutoCloseable
     public static final String allocation_ledger = "allocation_protocol";
     public static final String result_serving = "result_serving";
     public static final String result_serving_copy = "result_serving_copy";
+    private static final String temp_unions = "temp_unions";
     static final String inventory_status = "inventory_status";
  
-	static final public int BITMAP_SIZE = 20; // max = 64;
-	static final public int INVENTORY_OVERLAP = 250;
-	private static final long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
+    static public boolean DEBUG = false;
+	static public int BITMAP_MAX_SIZE = 40; // max = 64;
+	static public int CARDINALITY_LIMIT = 10;
+	static public int INVENTORY_OVERLAP = 500;
+	static public int BASE_SETS_OVERLAPS_LIMIT = 100;
+	private static long RESTART_INTERVAL = 600000 - 10000; // less than 10 minutes
+	private static int MAX_ROW_SIZE = 3000;
+	private static double OVERLAP_FRACTION = 0.1;
+	private static double CARDINALITY_TRESHHOLD = 0.67; // 2/3;
 	
 	private TimeoutHandler timeoutHandler = new TimeoutHandler();
 	
@@ -123,7 +134,7 @@ public class InventoryState implements AutoCloseable
 		return con;
 	}
     
-    public InventoryState(String name, boolean auto) throws ClassNotFoundException, SQLException
+    public InventoryState(String name, boolean auto) throws ClassNotFoundException, SQLException, IOException
 	{
     	customer_name = name;
 		log.setLevel(Level.INFO);
@@ -134,6 +145,21 @@ public class InventoryState implements AutoCloseable
         {
         	st.execute("USE " + BWdb + customer_name);
         }
+        InputStream inventory_properties_stream = this.getClass().getClassLoader().getResourceAsStream("inventory.properties");
+        if (inventory_properties_stream == null)
+        {
+        	inventory_properties_stream = new FileInputStream("./src/main/webapp/WEB-INF/classes/inventory.properties");
+        }
+        Properties inventory_properties = new Properties();
+        inventory_properties.load(inventory_properties_stream);
+        DEBUG = Boolean.valueOf(inventory_properties.getProperty("DEBUG"));
+    	BITMAP_MAX_SIZE = Integer.valueOf(inventory_properties.getProperty("BITMAP_MAX_SIZE"));
+    	CARDINALITY_LIMIT = Integer.valueOf(inventory_properties.getProperty("CARDINALITY_LIMIT"));
+    	INVENTORY_OVERLAP = Integer.valueOf(inventory_properties.getProperty("INVENTORY_OVERLAP"));
+    	BASE_SETS_OVERLAPS_LIMIT = Integer.valueOf(inventory_properties.getProperty("BASE_SETS_OVERLAPS_LIMIT"));
+    	RESTART_INTERVAL = Long.valueOf(inventory_properties.getProperty("RESTART_INTERVAL")); // less than 10 minutes
+    	MAX_ROW_SIZE = Integer.valueOf(inventory_properties.getProperty("MAX_ROW_SIZE"));
+    	OVERLAP_FRACTION = Double.valueOf(inventory_properties.getProperty("OVERLAP_FRACTION"));
 	}
     
     public Connection getConnection() throws SQLException
@@ -163,12 +189,6 @@ public class InventoryState implements AutoCloseable
         	+ "', PRIMARY KEY(fake_key))");
 
         	// create raw_inventory table to fill up by impressions' counts
-        	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory);
-        	st.executeUpdate("CREATE TABLE " + raw_inventory 
-        	+ " (basesets BIGINT NOT NULL, "
-            + "count INT NOT NULL, "
-            + "criteria VARCHAR(200) DEFAULT NULL, "
-            + "weight BIGINT DEFAULT 0)");
 
         	// create structured data table
         	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_inc);
@@ -305,7 +325,7 @@ public class InventoryState implements AutoCloseable
         }
     }
     
-    public void clear() throws SQLException
+    public void clear()
     {
     	// Truncate all tables
         try (Statement st = con.createStatement())
@@ -317,7 +337,11 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("TRUNCATE " + unions_next_rank);
         	st.executeUpdate("TRUNCATE " + allocation_ledger);
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
-         }
+        }
+        catch (SQLException ex)
+        {
+        	log.severe(customer_name + " : " + ex.getMessage());
+        }
     }
     
     public boolean hasData() throws SQLException
@@ -562,7 +586,7 @@ public class InventoryState implements AutoCloseable
     		return false;
     }
    
-    public boolean loadDynamic(ReadableByteChannel readChannel, boolean reloadable) throws JsonParseException, JsonMappingException, IOException, SQLException, ClassNotFoundException, InterruptedException
+    public boolean loadDynamic(ReadableByteChannel readChannel, boolean reloadable) throws IOException, SQLException, ClassNotFoundException, InterruptedException
     {
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
@@ -577,21 +601,22 @@ public class InventoryState implements AutoCloseable
 		{
 			inventorydata= mapper.readValue(Channels.newInputStream(readChannel), InventroryData.class);
 		}
-		catch (Exception ex)
+		catch (JsonParseException | JsonMappingException ex)
 		{
 			log.severe(customer_name + " : There was an excetption " + ex.getMessage());
 			wrongFile();
 			return true;
 		}
-		if (inventorydata.getSegments().length > BITMAP_SIZE)
+		if (inventorydata.getSegments().length > BITMAP_MAX_SIZE)
 		{
-			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than bitmap can handle " + String.valueOf(BITMAP_SIZE) + ") inventory sets in " + readChannel.toString());
+			log.severe(customer_name + " : There are " + String.valueOf(inventorydata.getSegments().length) + " (more than bitmap can handle " + String.valueOf(BITMAP_MAX_SIZE) + ") inventory sets in " + readChannel.toString());
 			manySegmens();
 			return true;
 		}
 		// Create inventory sets data. TODO: write into DB from the start
 		HashMap<BitSet, BaseSet> base_sets = new HashMap<BitSet, BaseSet>();			
 		int highBit = 0;
+		int bitmap_size = inventorydata.getSegments().length;
 		for (segment is : inventorydata.getSegments())
 		{
 			log.info(customer_name + " processing segment " + is.getName() + " with criteria " + is.getCriteria().toString());
@@ -615,7 +640,7 @@ public class InventoryState implements AutoCloseable
 			if (match_found)
 				continue; // skip repeated set
 			
-			BaseSet tmp = new BaseSet(BITMAP_SIZE);
+			BaseSet tmp = new BaseSet(bitmap_size);
 			tmp.setkey(highBit);
 			tmp.setname(is.getName());
 			tmp.setCriteria(is.getCriteria());
@@ -634,31 +659,21 @@ public class InventoryState implements AutoCloseable
 		for (opportunity opp : inventorydata.getOpportunities())
 		{
 			boolean match_found = false;
-			BaseSegement tmp = new BaseSegement(BITMAP_SIZE);
+			BaseSegement tmp = new BaseSegement();
 			tmp.setCriteria(opp.getcriteria());
 			
 			for (BaseSet bs1 : base_sets.values())
 			{					
-				if (bs1.getCriteria() == null && tmp.getCriteria() == null)
+				if (criteria.matches(bs1.getCriteria(), tmp.getCriteria()))
 				{
 					tmp.getkey().or(bs1.getkey());
 					match_found = true;
-				}
-				else if (bs1.getCriteria() == null)
-				{
-					// because tmp.criteria isn't null no need to compare
-					continue;
-				}
-				else if (criteria.matches(bs1.getCriteria(), tmp.getCriteria()))
-				{
-					tmp.getkey().or(bs1.getkey());
-					if (tmp.getkey().cardinality() > BITMAP_SIZE / 2)
+					if (tmp.getkey().cardinality() > CARDINALITY_LIMIT)
 					{
 						// overlap exceeds half of allowed number of inventory sets
 						highOverlap();
 						return true;
 					}
-					match_found = true;
 				}
 			}
 			if (match_found) 
@@ -678,17 +693,25 @@ public class InventoryState implements AutoCloseable
 			noData();
 			return true;
 		}
-		else if (base_segments.size() > INVENTORY_OVERLAP)
-		{
-			log.severe(customer_name + " : segments overlap is too high, " + Integer.toString(base_segments.size()) + " for file " + readChannel.toString());
-			highOverlap();
-			return true;
-		}
 
 		//
 		// Populate all tables 
 		//
         // populate structured data with inventory sets
+        try (Statement st = con.createStatement())
+        {
+        	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_base);
+        	st.executeUpdate("CREATE TABLE " + structured_data_base 
+        	+ " (set_key_is BIGINT DEFAULT 0, " // one bit identifying inventory set
+		    + "set_key BIGINT DEFAULT NULL, "
+		    + "set_name VARCHAR(20) DEFAULT NULL, "
+		    + "capacity INT DEFAULT NULL, "
+		    + "availability INT DEFAULT NULL, " 
+//		    + "private_availability INT DEFAULT NULL, " 
+		    + "goal INT DEFAULT 0, "
+		    + "criteria VARCHAR(200) DEFAULT NULL, "
+		    + "PRIMARY KEY(set_key_is))");        	
+        }
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT IGNORE INTO "  + structured_data_base 
         		+ " SET set_key = ?, set_name = ?, set_key_is = ?, criteria = ?"))
         {
@@ -708,6 +731,15 @@ public class InventoryState implements AutoCloseable
 	        }
         }
         
+        try (Statement st = con.createStatement())
+        {
+	    	st.executeUpdate("DROP TABLE IF EXISTS " + raw_inventory);
+	    	st.executeUpdate("CREATE TABLE " + raw_inventory 
+	    	+ " (basesets BIGINT NOT NULL, "
+	        + "count INT NOT NULL, "
+	        + "criteria VARCHAR(200) DEFAULT NULL, "
+	        + "weight BIGINT DEFAULT 0)");
+        }
         // populate raw data with inventory sets' bitmaps
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO "  + raw_inventory 
         		+ " SET basesets = ?, count = ?, criteria = ?, weight = ? ON DUPLICATE KEY UPDATE count = VALUES(count) + count" ))
@@ -746,16 +778,16 @@ public class InventoryState implements AutoCloseable
         {
             // adds capacities and availabilities to structured base segments       	
         	st.executeUpdate("UPDATE "
-        			+ structured_data_base + " AS sdbW, "
-        			+ " (SELECT set_key, SUM(ri.count) AS capacity, SUM(ri.count) AS availability FROM "
-        			+ structured_data_base + " AS sdbR "
+        			+ structured_data_base
+        			+ ", (SELECT set_key, SUM(" + raw_inventory + ".count) AS capacity, SUM(" + raw_inventory + ".count) AS availability FROM "
+        			+ structured_data_base
         			+ " JOIN " 
-        			+ raw_inventory + " AS ri "
-        			+ " ON set_key & ri.basesets != 0 "
+        			+ raw_inventory 
+        			+ " ON set_key & " + raw_inventory + ".basesets != 0 "
         			+ " GROUP BY set_key) comp "
-        			+ " SET sdbW.capacity = comp.capacity, "
-        			+ " sdbW.availability = comp.availability "
-        			+ " WHERE sdbW.set_key = comp.set_key");
+        			+ " SET " + structured_data_base + ".capacity = comp.capacity, "
+        			+ structured_data_base + ".availability = comp.availability "
+        			+ " WHERE " + structured_data_base + ".set_key = comp.set_key");
         	log.info(customer_name + " : UPDATE " + structured_data_base);
         	
 //        	// populate inventory sets table
@@ -768,14 +800,14 @@ public class InventoryState implements AutoCloseable
         }
         
         // start union_next_rank table
-        try (PreparedStatement insertStatement = con.prepareStatement("INSERT INTO " + unions_next_rank
+        try (Statement st = con.createStatement())
+        {
+        	st.executeUpdate("INSERT INTO " + unions_next_rank
 //        		+ " SELECT * FROM structured_data_inc"))
     			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
     			+ structured_data_base 
-    			+ " WHERE capacity IS NOT NULL"))
-	        {
+    			+ " WHERE capacity IS NOT NULL");
 	        	log.info(customer_name + " :  INSERT INTO " + unions_next_rank);
-	        	insertStatement.execute();        	
 	        }
 		}
 		
@@ -784,6 +816,8 @@ public class InventoryState implements AutoCloseable
         
         int cnt = 0;
         int cnt_updated = 0;
+        int cnt_basesets = 0;
+        int insert_size = 0;
         ResultSet rs = null;
 		try (Statement st = con.createStatement()) 
 		{
@@ -791,6 +825,10 @@ public class InventoryState implements AutoCloseable
 			rs = st.executeQuery("SELECT count(*) FROM " + raw_inventory);
 			if (rs.next()) {
 				cnt = rs.getInt(1);
+			}
+			rs = st.executeQuery("SELECT count(*) FROM " + structured_data_base);
+			if (rs.next()) {
+				cnt_basesets = rs.getInt(1);
 			}
 		}
 		
@@ -813,62 +851,42 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
 				// adds unions of higher rank for nodes to of structured_data_inc
 				String addUnions = " INSERT /*IGNORE*/ INTO " + unions_next_rank
-    			+ "    SELECT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key, NULL, NULL, NULL, 0 "
+    			+ " SELECT "
+    			+ "    set_key, "
+    			+ "    NULL as set_name, "
+    			+ "    SUM(capacity) as capacity, "
+    			+ "    SUM(availability) as availability, "
+    			+ "    0 as goal "
+    			+ " FROM ("
+    			+ "  SELECT *, " + raw_inventory + ".count as capacity, " + raw_inventory + ".count as availability "
+    			+ "  FROM ("    			
+    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key "
     			+ "	   FROM " + unions_last_rank
     			+ "    JOIN " + structured_data_base
     			+ "	   JOIN " + raw_inventory
-    			+ "    ON  (" + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0) "
-    			+ "        AND (" + unions_last_rank + ".set_key & " + raw_inventory + ".basesets) != 0 "
-    			+ "        AND (" + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key) != " + unions_last_rank + ".set_key "
-    			+ "        AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + structured_data_base + ".set_key_is"
-    			+ "    GROUP BY " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key;";
-				st.executeUpdate(addUnions);
+    			+ "         ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0 "
+    			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 "
+    			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key "
+    			+ "   ) un_sk "
+    			+ "   JOIN " + raw_inventory 
+    			+ "   ON un_sk.set_key & " + raw_inventory + ".basesets != 0 "
+    			+ " ) un_r"
+    			+ " GROUP BY set_key"
+    			;
 				log.info(customer_name + " : iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
-			}
-    		catch (CommunicationsException ex)
-    		{			
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
+				st.executeUpdate(addUnions);
+				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
+				if (rs.next()) {
+					insert_size = rs.getInt(1);
 			}
-			catch (java.sql.SQLException ex)
-			{
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
-				unknownError();
-				rs.close();
-				return true;
-			}
+				log.info(customer_name + " : size of " + unions_next_rank + " = " + String.valueOf(insert_size));
+
 			
-			try (CallableStatement callStatement = con.prepareCall("{CALL PopulateRankWithNumbers}")) {
-				log.info(customer_name + " : {call PopulateRankWithNumbers}");
-				callStatement.executeUpdate();
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : loadDynamic PopulateRankWithNumbers thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			// PopulateRankWithNumbers completed
-			
-			try (Statement st = con.createStatement()) {
-				log.info(customer_name + " : DELETE FROM unions_last_rank what is to be replaced");
-//				st.executeUpdate(
-//					"DELETE FROM " + unions_last_rank
-//    			+ "    WHERE EXISTS ("
-//    			+ "        SELECT * "
-//    			+ "        FROM " + unions_next_rank + " unr1"
-//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
-//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity)");
+				// if superset has the same capacity as the subset keep only the superset
 				
-//				st.executeUpdate(
-//					"DELETE QUICK " + unions_last_rank + " FROM " + unions_last_rank
-//    			+ "        INNER JOIN " + unions_next_rank + " unr1"
-//    			+ "        WHERE (" + unions_last_rank + ".set_key & unr1.set_key) = " + unions_last_rank + ".set_key "
-//    			+ "        AND " + unions_last_rank + ".capacity = unr1.capacity");
-				
-				st.executeUpdate("DROP TABLE IF EXISTS toInsert");
-				st.executeUpdate("CREATE TEMPORARY TABLE toInsert AS SELECT \n" 
+				st.executeUpdate("DROP TABLE IF EXISTS " + temp_unions);
+				st.executeUpdate("CREATE /*TEMPORARY*/ TABLE " + temp_unions + " AS SELECT \n" 
 				+ unions_last_rank + ".set_key, "
 				+ unions_last_rank + ".set_name, "
 				+ unions_last_rank + ".capacity, " 
@@ -879,27 +897,32 @@ public class InventoryState implements AutoCloseable
     			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
     			+ "      AND   " + unions_last_rank + ".capacity = " + unions_next_rank + ".capacity \n"
 				+ "      WHERE " + unions_next_rank + ".set_key IS NULL \n");
-
+				rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
+				if (rs.next()) 
+				{
+					insert_size = rs.getInt(1);
 			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : loadDynamic DELETE FROM unions_last_rank thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			// deletion unneeded nodes completed	
-	   			
-			try (Statement st = con.createStatement()) {
+				log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(insert_size));
+				st.executeUpdate("TRUNCATE " + unions_last_rank);
+				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);
+	   			
 				st.executeUpdate(
-				" INSERT /*IGNORE*/ INTO " + structured_data_inc
-    			+ "    SELECT * FROM toInsert");
+				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
+    			+ "    SELECT * FROM temp_unions");
 			}
 			catch (CommunicationsException ex)
 			{
-				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO structured_data_inc thrown " + ex.getMessage());
+				log.severe(customer_name + " : loadDynamic thrown " + ex.getMessage());
 	    		// Reconnect back because the exception closed the connection.
 				timeoutHandler.reconnect();
+			}
+			catch (java.sql.SQLException ex) // TODO: do the handling in the caller
+			{
+				log.severe(customer_name + " : loadDynamic INSERT /*IGNORE*/ INTO " + unions_next_rank + " thrown " + ex.getMessage());
+				unknownError();
+				rs.close();
+				return true;
 			}
     			
 			try (Statement st = con.createStatement()) {
@@ -914,26 +937,14 @@ public class InventoryState implements AutoCloseable
 						break;
 				}
 			}
-//			} while (cnt < cnt_updated);
-
-			try (Statement st = con.createStatement()) 
-			{
-				st.executeUpdate("DELETE FROM " + structured_data_inc + " WHERE capacity IS NULL; ");
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : DELETE FROM structured_data_inc WHERE capacity IS NULL thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			
+						
 			try (Statement st = con.createStatement()) 
 			{
 				st.executeUpdate("UPDATE " + structured_data_base + "," + structured_data_inc
 				+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
 				+ " WHERE " + structured_data_base + ".set_key_is & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key_is "
 				+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
-				log.info(customer_name + " : UPDATE " + structured_data_base + " with ne inserts");
+				log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same capacity");
 			}
 			catch (CommunicationsException ex)
 			{
@@ -963,8 +974,9 @@ public class InventoryState implements AutoCloseable
     	}
     	
     	long set_key_is = 0;
-    	long capacity = 0;
-    	long availability = 0;
+    	int capacity = 0;
+    	int availability = 0;
+    	int private_availability = 0;
     	int structured_data_size = 0;
     	try (Statement statement = con.createStatement())
     	{
@@ -1044,6 +1056,30 @@ public class InventoryState implements AutoCloseable
     	return true;
     }
     
+    private static long getComplexity(HashMap<BitSet, BaseSegement> base_segments, int bitmap_size)
+    {
+    	Set<BitSet> base_seg_set = base_segments.keySet();    	
+    	Iterator<BitSet> bs_it = base_seg_set.iterator();
+    	long complexity = 0;    	
+    	BitSet bs_and = new BitSet(bitmap_size);
+    	BitSet bs_or = new BitSet(bitmap_size);
+    	bs_and.set(0, bitmap_size);
+        while (bs_it.hasNext()) 
+        {
+        	BitSet bs = bs_it.next();
+        	bs_and.and(bs); // find bits always set to 1
+        	bs_or.or(bs);   // find bits always set to 0
+        }
+        bs_and.xor(bs_or);  // find all varying bits
+        bs_it = base_seg_set.iterator();
+        while (bs_it.hasNext()) 
+        {
+        	BitSet bs = bs_it.next();
+        	bs.and(bs_and);
+        	complexity += bs.cardinality(); // accumulate differences
+        }
+    	return complexity;
+    }
     
     @Override
     public void close() throws SQLException
