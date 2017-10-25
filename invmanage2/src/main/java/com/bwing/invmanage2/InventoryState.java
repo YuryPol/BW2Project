@@ -184,9 +184,19 @@ public class InventoryState implements AutoCloseable
         	// create status table 
         	st.executeUpdate("DROP TABLE IF EXISTS " + inventory_status);
         	st.executeUpdate("CREATE TABLE " + inventory_status 
-        	+ " (fake_key INT DEFAULT 1, "
+//        	+ " (fake_key INT DEFAULT 1, "
         	+ " status VARCHAR(200) DEFAULT '" + Status.clean.name()
-        	+ "', PRIMARY KEY(fake_key))");
+//        	+ "', PRIMARY KEY(fake_key))"
+        	);
+        }
+    }
+    
+        	
+    public void clear() throws SQLException
+    {
+    	// Recreate all tables
+        try (Statement st = con.createStatement())
+        {
 
         	// create raw_inventory table to fill up by impressions' counts
 
@@ -321,28 +331,28 @@ public class InventoryState implements AutoCloseable
         			+ "   END IF; "
         			+ "END "
         			);
-//        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.loaded.name() + "')");
+        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
         }
     }
     
-    public void clear()
-    {
-    	// Truncate all tables
-        try (Statement st = con.createStatement())
-        {
-        	st.executeUpdate("TRUNCATE " + raw_inventory);
-        	st.executeUpdate("TRUNCATE " + structured_data_inc);
-        	st.executeUpdate("TRUNCATE " + structured_data_base);
-        	st.executeUpdate("TRUNCATE " + unions_last_rank);
-        	st.executeUpdate("TRUNCATE " + unions_next_rank);
-        	st.executeUpdate("TRUNCATE " + allocation_ledger);
-        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
-        }
-        catch (SQLException ex)
-        {
-        	log.severe(customer_name + " : " + ex.getMessage());
-        }
-    }
+//    public void clear()
+//    {
+//    	// Truncate all tables
+//        try (Statement st = con.createStatement())
+//        {
+//        	st.executeUpdate("TRUNCATE " + raw_inventory);
+//        	st.executeUpdate("TRUNCATE " + structured_data_inc);
+//        	st.executeUpdate("TRUNCATE " + structured_data_base);
+//        	st.executeUpdate("TRUNCATE " + unions_last_rank);
+//        	st.executeUpdate("TRUNCATE " + unions_next_rank);
+//        	st.executeUpdate("TRUNCATE " + allocation_ledger);
+//        	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
+//        }
+//        catch (SQLException ex)
+//        {
+//        	log.severe(customer_name + " : " + ex.getMessage());
+//        }
+//    }
     
     public boolean hasData() throws SQLException
     {

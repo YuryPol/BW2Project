@@ -114,11 +114,11 @@
 	   	       }	
 	   	       invState.close();
 	           response.setIntHeader("Refresh", 5);
-	           log.info("Inventory: " + customer_name + ". Totally served " + total_served_count + " impressions out of allocated " + total_goal + " impressions, or " 
+	           log.info("Inventory: " + customer_name + ". Totally served " + total_served_count + " impressions out of allocated " + total_goal + " impressions, or ~" 
 	                   + Math.round((total_served_count*100.0)/total_goal));
 	           %>
 	           </table>
-	           <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%> %</p>
+	           <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or ~<%=Math.round((total_served_count*100.0)/total_goal)%> %</p>
                <br>               
 	           <form action="/" method="get">
 	           Return to start page: <input type="submit" value="Return" />
@@ -172,11 +172,11 @@
                     <%
                }    
                invState.close();
-               log.info("Inventory: " + customer_name + ". Totally served " + total_served_count + " impressions out of allocated " + total_goal + " impressions, or " 
+               log.info("Inventory: " + customer_name + ". Totally served " + total_served_count + " impressions out of allocated " + total_goal + " impressions, or ~" 
                + Math.round((total_served_count*100.0)/total_goal));
                %>
                </table>
-               <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or <%=Math.round((total_served_count*100.0)/total_goal)%>%</p>
+               <p>Totally served <%=total_served_count%> impressions out of allocated <%=total_goal%> impressions, or ~<%=Math.round((total_served_count*100.0)/total_goal)%>%</p>
                <br>               
                <form action="/" method="get">
                Return to start page: <input type="submit" value="Return" />
