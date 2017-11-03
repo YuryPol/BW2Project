@@ -79,9 +79,61 @@ ON structured_data_base.set_key_is & raw_inventory.basesets != 0
    GROUP BY structured_data_base.set_key_is | unions_last_rank.set_key;
    
    
+SELECT DISTINCT unions_last_rank.set_key  FROM unions_last_rank 
+ LEFT OUTER JOIN unions_next_rank
+ ON unions_last_rank.set_key & unions_next_rank.set_key = unions_last_rank.set_key
+ AND   unions_last_rank.capacity = unions_next_rank.capacity;
+ 
    
-   
-   
-   
-   
-   
+ SELECT 
+    set_key, 
+    NULL as set_name, 
+    SUM(capacity) as capacity, 
+    SUM(availability) as availability, 
+    0 as goal 
+ FROM (
+  SELECT *, raw_inventory.count as capacity, raw_inventory.count as availability 
+  FROM (
+    SELECT DISTINCT structured_data_base.set_key_is | unions_last_rank.set_key as set_key 
+       FROM unions_last_rank    JOIN structured_data_base      JOIN raw_inventory         ON  structured_data_base.set_key_is & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key_is | unions_last_rank.set_key > unions_last_rank.set_key 
+   ) un_sk 
+   JOIN raw_inventory   ON un_sk.set_key & raw_inventory.basesets != 0 
+ ) un_r
+ GROUP BY set_key
+ 
+SELECT  
+lpad(bin(unions_last_rank.set_key), 20, '0'), lpad(bin(unions_next_rank.set_key), 20, '0')  
+FROM unions_last_rank
+JOIN unions_next_rank
+      ON unions_last_rank.set_key & unions_next_rank.set_key = unions_last_rank.set_key 
+      AND unions_last_rank.capacity = unions_next_rank.capacity 
+      AND unions_next_rank.set_key IS NOT NULL
+;
+
+ -- INSERT /*IGNORE*/ INTO unions_next_rank 
+ SELECT 
+    set_key, 
+    NULL as set_name, 
+    SUM(capacity) as capacity, 
+    SUM(availability) as availability, 
+    0 as goal 
+ FROM (
+  SELECT *, raw_inventory.count as capacity, raw_inventory.count as availability 
+  FROM (
+    SELECT DISTINCT structured_data_base.set_key_is | unions_last_rank.set_key as set_key 
+       FROM unions_last_rank    
+       JOIN structured_data_base      
+       JOIN raw_inventory         
+       ON  structured_data_base.set_key_is & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key_is | unions_last_rank.set_key > unions_last_rank.set_key 
+   ) un_sk 
+   JOIN raw_inventory   
+   ON un_sk.set_key & raw_inventory.basesets != 0 
+   AND un_sk.set_key IN(null,0) 
+ ) un_r 
+ GROUP BY set_key
+
+ 
