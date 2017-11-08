@@ -60,6 +60,7 @@ public class InventoryState implements AutoCloseable
     public static final String result_serving = "result_serving";
     public static final String result_serving_copy = "result_serving_copy";
     private static final String ex_inc_unions = "ex_inc_unions";
+    private static final String ex_inc_unions1 = "ex_inc_unions1";
     private static final String temp_unions = "temp_unions";
     static final String inventory_status = "inventory_status";
  
@@ -772,7 +773,10 @@ public class InventoryState implements AutoCloseable
         	log.info(customer_name + " : UPDATE " + structured_data_base);        	
         }
         
-        // start union_next_rank table
+        //
+        // Build necessary unions only, layer by layer
+        //
+        // first layer in union_next_rank table
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("INSERT INTO " + unions_next_rank
@@ -866,14 +870,13 @@ public class InventoryState implements AutoCloseable
 			
 				// ---
 				// for all supersets that has the same capacity as the subset:
-				//		drop the subset
-				// 		add all rank+1 supersets of the superset
+				//		drop the subset and add superset
 				// 		repeat
 				// ---
 				// check for superset has the same capacity as the subset
 				st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions);
 				queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions + " AS SELECT \n" // TODO: make the table temporary
-				+ unions_last_rank + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key "
+				+ unions_last_rank + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key, " + unions_next_rank + ".capacity \n"
 				+ " FROM " + unions_last_rank + "\n"
     			+ " JOIN " + unions_next_rank + "\n"
     			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
@@ -882,7 +885,18 @@ public class InventoryState implements AutoCloseable
 				int row_cnt = st.executeUpdate(queryString);
 				if (row_cnt > 0)
 				{					
-					// keep only rows of lower than in next rank capacity
+					// find highest supersets that of the same capacity
+					st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions1);
+					queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions1 + " AS SELECT \n"
+					+ ex_inc_unions + ".l_key, " 
+					+ " BIT_OR(" + ex_inc_unions + ".n_key) AS n_key, "
+					+ ex_inc_unions + ".capacity \n"
+					+ " FROM " + ex_inc_unions 
+					+ " GROUP BY " + ex_inc_unions + ".l_key, " + ex_inc_unions + ".capacity "
+					;
+					row_cnt = st.executeUpdate(queryString);							
+							
+					// keep only rows with capacity lower than in next rank
 					st.executeUpdate("TRUNCATE " + temp_unions);
 					queryString = "INSERT /*IGNORE*/ INTO " + temp_unions + " SELECT " 
 					+ unions_last_rank + ".set_key, "
@@ -895,6 +909,7 @@ public class InventoryState implements AutoCloseable
 	    			+ "      ON " + unions_last_rank + ".set_key = " + ex_inc_unions + ".l_key \n"
 					+ "      WHERE " + ex_inc_unions + ".l_key IS NULL \n";
 					st.executeUpdate(queryString);
+					
 					rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
 					if (rs.next()) 
 					{
@@ -903,23 +918,35 @@ public class InventoryState implements AutoCloseable
 					log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(insert_size));
 					// Finalize for insertion into structured_data_inc
 					st.executeUpdate("TRUNCATE " + unions_last_rank);
-					st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
+					if (insert_size > 0)
+						st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
 					
 					// recreate supersets only for sets of the same as their subsets  capacity
-					st.executeUpdate("TRUNCATE " + temp_unions);
-					queryString = " INSERT IGNORE INTO " + temp_unions + " SELECT "
-					+ unions_next_rank + ".set_key, "
-					+ unions_next_rank + ".set_name, "
-					+ unions_next_rank + ".capacity, " 
-					+ unions_next_rank + ".availability, " 
-					+ unions_next_rank + ".goal \n"
-	    			+ " FROM " + unions_next_rank + " \n"
-	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
-	    			+ "      ON " + unions_next_rank + ".set_key = " + ex_inc_unions + ".n_key \n"
-					+ "      AND " + unions_next_rank + ".set_key IS NOT NULL \n";
-	    			;
-					log.info(customer_name + " : second iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
+					st.executeUpdate("TRUNCATE " + unions_next_rank);
+					// and add highest unions that of the same capacity ????
+					queryString = "INSERT /*IGNORE*/ INTO " + unions_next_rank + " SELECT DISTINCT " 
+					+ ex_inc_unions1 + ".n_key AS set_key, "
+					+ "NULL AS set_name, "
+					+ ex_inc_unions1 + ".capacity, " 
+					+ ex_inc_unions1 + ".capacity AS availability, " 
+					+ " 0 AS goal "
+					+ " FROM " + ex_inc_unions1 + "\n";
 					st.executeUpdate(queryString);
+					
+//					queryString = " INSERT IGNORE INTO " + temp_unions + " SELECT "
+//					+ unions_next_rank + ".set_key, "
+//					+ unions_next_rank + ".set_name, "
+//					+ unions_next_rank + ".capacity, " 
+//					+ unions_next_rank + ".availability, " 
+//					+ unions_next_rank + ".goal \n"
+//	    			+ " FROM " + unions_next_rank + " \n"
+//	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
+//	    			+ "      ON " + unions_next_rank + ".set_key = " + ex_inc_unions + ".n_key \n"
+//					+ "      AND " + unions_next_rank + ".set_key IS NOT NULL \n";
+//	    			;
+//					log.info(customer_name + " : second iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
+//					st.executeUpdate(queryString);
+					
 					rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
 					if (rs.next())
 						insert_size = rs.getInt(1);					
@@ -933,7 +960,7 @@ public class InventoryState implements AutoCloseable
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
 				st.executeUpdate(
 				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
-    			+ "    SELECT * FROM unions_last_rank");
+    			+ "    SELECT * FROM " + unions_last_rank);
 			}
 			catch (CommunicationsException ex)
 			{
