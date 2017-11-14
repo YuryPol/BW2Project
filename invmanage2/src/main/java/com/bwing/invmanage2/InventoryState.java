@@ -777,6 +777,7 @@ public class InventoryState implements AutoCloseable
         // Build necessary unions only, layer by layer
         //
         // first layer in union_next_rank table
+        // this is done once so later we can pick up on task re-launch with unions_next_rank at any step
         try (Statement st = con.createStatement())
         {
         	st.executeUpdate("INSERT INTO " + unions_next_rank
@@ -784,11 +785,12 @@ public class InventoryState implements AutoCloseable
     			+ structured_data_base 
     			+ " WHERE capacity IS NOT NULL");
 	        	log.info(customer_name + " :  INSERT INTO " + unions_next_rank);
-	        }
+	    }
 		}
 		else
 		{
 			// TODO: bail out because another user could be doing the loading. Currently we rely on UI to prevent the interference.
+			// For now if it is another launch of the task just keep going
 			log.warning(customer_name + " : Loading was the process, while we tried again, could happend when the task restarted");
 		}
 		
@@ -814,8 +816,7 @@ public class InventoryState implements AutoCloseable
 		}
 		
 		log.info(customer_name + " : Starting filling up the tables");
-		int ind = 0;
-		boolean done_with_it = false;
+		int iteration = 0;
 		String queryString = null;
         do 
 		{
@@ -827,7 +828,7 @@ public class InventoryState implements AutoCloseable
             {
             	log.severe(customer_name + " : Restarting the loading inventory after " + interval.toString() + " msec. to avoid timeout");
             	rs.close();
-            	return true;
+            	return false;
             }	            	
         	
     		try (Statement st = con.createStatement()) {
@@ -859,11 +860,13 @@ public class InventoryState implements AutoCloseable
     			+ " ) un_r\n"
     			+ " GROUP BY set_key\n"
     			;
-				log.info(customer_name + " : iteration = " +  String.valueOf(ind++) + " INSERT /*IGNORE*/ INTO unions_next_rank");
+				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT /*IGNORE*/ INTO unions_next_rank");
 				st.executeUpdate(queryString);
 				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
 				if (rs.next())
 					insert_size = rs.getInt(1);
+				if (insert_size == 0)
+					break; // no more unions
 				
 				log.info(customer_name + " : size of " + unions_next_rank + " = " + String.valueOf(insert_size));
 
@@ -921,6 +924,17 @@ public class InventoryState implements AutoCloseable
 					if (insert_size > 0)
 						st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
 					
+					log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
+					st.executeUpdate(
+					" INSERT IGNORE INTO " + structured_data_inc // we do need IGNORE, inserts should be of higher rank but they may be inserted before
+	    			+ "    SELECT * FROM " + unions_last_rank);
+									
+					rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
+					if (rs.next()) {
+						cnt_updated = rs.getInt(1);
+					}
+					log.info(customer_name + " : cnt=" + String.valueOf(cnt) + ", cnt_updated=" + String.valueOf(cnt_updated));
+					
 					// recreate supersets only for sets of the same as their subsets  capacity
 					st.executeUpdate("TRUNCATE " + unions_next_rank);
 					// and add highest unions that of the same capacity ????
@@ -932,35 +946,15 @@ public class InventoryState implements AutoCloseable
 					+ " 0 AS goal "
 					+ " FROM " + ex_inc_unions1 + "\n";
 					st.executeUpdate(queryString);
-					
-//					queryString = " INSERT IGNORE INTO " + temp_unions + " SELECT "
-//					+ unions_next_rank + ".set_key, "
-//					+ unions_next_rank + ".set_name, "
-//					+ unions_next_rank + ".capacity, " 
-//					+ unions_next_rank + ".availability, " 
-//					+ unions_next_rank + ".goal \n"
-//	    			+ " FROM " + unions_next_rank + " \n"
-//	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
-//	    			+ "      ON " + unions_next_rank + ".set_key = " + ex_inc_unions + ".n_key \n"
-//					+ "      AND " + unions_next_rank + ".set_key IS NOT NULL \n";
-//	    			;
-//					log.info(customer_name + " : second iteration = " +  String.valueOf(ind) + " INSERT /*IGNORE*/ INTO unions_next_rank");
-//					st.executeUpdate(queryString);
-					
-					rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
+					rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);					
 					if (rs.next())
-						insert_size = rs.getInt(1);					
-					log.info(customer_name + " : corrected size of " + unions_next_rank + " = " + String.valueOf(insert_size));					
+					{
+						insert_size = rs.getInt(1);
+						log.info(customer_name + " : corrected size of " + unions_next_rank + " = " + String.valueOf(insert_size));	
+						if (insert_size == 0)
+							break;
+					}
 				}
-				else
-				{
-					done_with_it = true;
-				}
-				
-				log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
-				st.executeUpdate(
-				" INSERT /*IGNORE*/ INTO " + structured_data_inc // we don't need IGNORE as inserts should be of higher rank
-    			+ "    SELECT * FROM " + unions_last_rank);
 			}
 			catch (CommunicationsException ex)
 			{
@@ -974,39 +968,24 @@ public class InventoryState implements AutoCloseable
 //				unknownError();
 //				rs.close();
 //				return true;
-//			}
-    			
-			try (Statement st = con.createStatement()) {
-				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
-				if (rs.next()) {
-					cnt_updated = rs.getInt(1);
-				}
-				log.info(customer_name + " : cnt=" + String.valueOf(cnt) + ", cnt_updated=" + String.valueOf(cnt_updated));
-				rs = st.executeQuery("SELECT count(*) FROM " + unions_next_rank);
-				if (rs.next()) {
-					if (rs.getInt(1) == 0)
-						break;
-				}
-			}
-						
-			try (Statement st = con.createStatement()) 
-			{
-				st.executeUpdate("UPDATE " + structured_data_base + "," + structured_data_inc
-				+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
-				+ " WHERE " + structured_data_base + ".set_key_is & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key_is "
-				+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
-				log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same capacity");
-			}
-			catch (CommunicationsException ex)
-			{
-				log.severe(customer_name + " : UPDATE structured_data_base, structured_data_inc thrown " + ex.getMessage());
-	    		// Reconnect back because the exception closed the connection.
-				timeoutHandler.reconnect();
-			}
-			
-			if (done_with_it)
-				break;
+//			}    			
 		} while (true);
+
+        // update base table with keys of supersets of the same capacity
+		try (Statement st = con.createStatement()) 
+		{
+			st.executeUpdate("UPDATE " + structured_data_base + "," + structured_data_inc
+			+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
+			+ " WHERE " + structured_data_base + ".set_key_is & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key_is "
+			+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
+			log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same capacity");
+		}
+		catch (CommunicationsException ex)
+		{
+			log.severe(customer_name + " : UPDATE structured_data_base, structured_data_inc thrown " + ex.getMessage());
+    		// Reconnect back because the exception closed the connection.
+			timeoutHandler.reconnect();
+		}
 
 		// Validate the data in DB
         loaded();
