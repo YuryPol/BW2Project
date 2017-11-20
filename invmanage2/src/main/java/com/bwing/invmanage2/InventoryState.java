@@ -187,9 +187,7 @@ public class InventoryState implements AutoCloseable
         	// create status table 
         	st.executeUpdate("DROP TABLE IF EXISTS " + inventory_status);
         	st.executeUpdate("CREATE TABLE " + inventory_status 
-//        	+ " (fake_key INT DEFAULT 1, "
-        	+ " status VARCHAR(200) DEFAULT '" + Status.clean.name()
-//        	+ "', PRIMARY KEY(fake_key))"
+        	+ " (status VARCHAR(200) DEFAULT '" + Status.clean.name() + "')"
         	);
         }
     }
@@ -298,10 +296,10 @@ public class InventoryState implements AutoCloseable
         			+ "READS SQL DATA "
         			+ "BEGIN "
         			+ "    DECLARE cnt INT; "
-        			+ "    SELECT availability INTO cnt FROM structured_data_base WHERE set_key_is = iset; "
+        			+ "    SELECT availability INTO cnt FROM " + structured_data_base + " WHERE set_key_is = iset; "
         			+ "    IF cnt >= amount AND amount > 0 "
         			+ "    THEN "
-        			+ "     UPDATE structured_data_base "
+        			+ "     UPDATE " + structured_data_base
         			+ "     SET availability=availability-amount, goal=goal+amount "
         			+ "     WHERE set_key_is = iset; "
         			+ "     RETURN TRUE; "
@@ -316,27 +314,17 @@ public class InventoryState implements AutoCloseable
         			+ "BEGIN "
         			+ "IF BookItemsFromIS(iset, amount) "
         			+ "   THEN "
-        			+ "     UPDATE structured_data_inc "
+        			+ "     UPDATE " + structured_data_inc
         			+ "        SET availability = availability - amount "
         			+ "        WHERE (set_key & iset) = iset; "
-        			// this is a first attempt to clean the structured data. It takes too much time
-//        			+ "     DELETE FROM structured_data_inc WHERE set_key = ANY ( "
-//        			+ "       SELECT set_key FROM ( "
-//        			+ "          SELECT sd1.set_key "
-//        			+ "          FROM structured_data_inc sd1 JOIN structured_data_inc sd2 "
-//        			+ "          ON sd2.set_key > sd1.set_key "
-//        			+ "          AND sd2.set_key & sd1.set_key = sd1.set_key "
-//        			+ "          AND sd1.availability >= sd2.availability) AS stmp "
-//        			+ "       ); "
-					// This is a second attempt to clean the structured data. It takes too much time
-					+ "     DELETE sd1 FROM structured_data_inc sd1 "
-					+ "		INNER JOIN structured_data_inc sd2 "
+ 					+ "     DELETE sd1 FROM " + structured_data_inc + " sd1 "
+					+ "		INNER JOIN " + structured_data_inc + " sd2 "
 					+ "          ON sd2.set_key > sd1.set_key "
 					+ "          AND sd2.set_key & sd1.set_key = sd1.set_key "
 					+ "          AND sd1.availability >= sd2.availability; "
-        			+ "     UPDATE structured_data_base sdbR, structured_data_inc sd "
-        			+ "     SET sdbR.availability = LEAST(sdbR.availability, sd.availability) "
-        			+ "     WHERE sd.set_key & sdbR.set_key_is = sdbR.set_key_is; "
+        			+ "     UPDATE " + structured_data_base + " , " + structured_data_inc
+        			+ "     SET " + structured_data_base + ".availability = LEAST(" + structured_data_base + ".availability, " + structured_data_inc + ".availability) "
+        			+ "     WHERE " + structured_data_inc + ".set_key & " + structured_data_base + ".set_key_is = " + structured_data_base + ".set_key_is; "
         			+ "     SELECT TRUE INTO result; "
         			+ "   ELSE "
         			+ "     SELECT FALSE INTO result; "
@@ -797,27 +785,42 @@ public class InventoryState implements AutoCloseable
 		// We can restart from here 
 		loadinvalid();
         
-        int cnt = 0;
-        int cnt_updated = 0;
-        int insert_size = 0;
         ResultSet rs = null;
 		try (Statement st = con.createStatement()) 
 		{
 			rs = st.executeQuery("SELECT count(*) FROM " + raw_inventory);
 			if (rs.next()) {
-				cnt = rs.getInt(1);
-			}
-			else {
-				log.severe(customer_name + " : no data");
-				rs.close();
-				st.close();
-				return false;
+				if (rs.getInt(1) == 0)
+				{
+					log.severe(customer_name + " : no data");
+					rs.close();
+					st.close();
+					return false;
+				}
 			}
 		}
 		
 		log.info(customer_name + " : Starting filling up the tables");
+		
+		if (!AdjustInventory(reloadable, startTime))
+			return false;
+
+
+		// Validate the data in DB
+        loaded();
+
+		return true;
+	}
+    
+    boolean AdjustInventory(boolean reloadable, Long startTime) throws SQLException, ClassNotFoundException, InterruptedException
+    {
 		int iteration = 0;
-		String queryString = null;
+		int insert_size = 0;
+		int cnt = 0;
+		int cnt_updated = 0;
+    	String queryString;
+        ResultSet rs = null;
+    	
         do 
 		{
         	// making sure we are not affected by task timeout
@@ -837,20 +840,20 @@ public class InventoryState implements AutoCloseable
 				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
 				// build new layer with unions of higher rank 
-				queryString = " INSERT /*IGNORE*/ INTO " + unions_next_rank
+				queryString = "INSERT IGNORE INTO " + unions_next_rank + "\n"
+				+ "SELECT un.set_key, NULL AS set_name, un.capacity, un.capacity - " + "SUM(" + structured_data_base + ".goal) AS availability,\n"
+				+ "SUM(" + structured_data_base + ".goal) as goal\n"
+				+ "FROM (\n"
     			+ " SELECT \n"
     			+ "    set_key, \n"
-    			+ "    NULL as set_name, \n"
-    			+ "    SUM(capacity) as capacity, \n"
-    			+ "    SUM(availability) as availability, \n"
-    			+ "    0 as goal \n"
+    			+ "    SUM(capacity) as capacity \n"
     			+ " FROM (\n"
-    			+ "  SELECT *, " + raw_inventory + ".count as capacity, " + raw_inventory + ".count as availability \n"
+    			+ "  SELECT *, " + raw_inventory + ".count as capacity " 
     			+ "  FROM (\n"    			
     			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key \n"
-    			+ "	   FROM " + unions_last_rank
-    			+ "    JOIN " + structured_data_base
-    			+ "	   JOIN " + raw_inventory
+    			+ "	   FROM " + unions_last_rank + "\n"
+    			+ "    JOIN " + structured_data_base + "\n"
+    			+ "	   JOIN " + raw_inventory + "\n"
     			+ "         ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0 \n"
     			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 \n"
     			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key \n"
@@ -858,7 +861,10 @@ public class InventoryState implements AutoCloseable
     			+ "   JOIN " + raw_inventory 
     			+ "   ON un_sk.set_key & " + raw_inventory + ".basesets != 0 \n"
     			+ " ) un_r\n"
-    			+ " GROUP BY set_key\n"
+    			+ " GROUP BY set_key) un\n"
+    			+ "JOIN " + structured_data_base + " \n"
+    			+ "ON " + structured_data_base + ".set_key & un.set_key != 0 \n"
+    			+ "GROUP BY un.set_key \n"
     			;
 				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT /*IGNORE*/ INTO unions_next_rank");
 				st.executeUpdate(queryString);
@@ -970,7 +976,7 @@ public class InventoryState implements AutoCloseable
 //				return true;
 //			}    			
 		} while (true);
-
+        
         // update base table with keys of supersets of the same capacity
 		try (Statement st = con.createStatement()) 
 		{
@@ -986,12 +992,8 @@ public class InventoryState implements AutoCloseable
     		// Reconnect back because the exception closed the connection.
 			timeoutHandler.reconnect();
 		}
-
-		// Validate the data in DB
-        loaded();
-
-		return true;
-	}
+    	return true;
+    }
     
     public boolean GetItems(String set_name, String advertiserID, int amount) throws SQLException, ClassNotFoundException, InterruptedException
     {
@@ -1056,7 +1058,11 @@ public class InventoryState implements AutoCloseable
 			// timeoutHandler.reconnect();
     		return false;
     	}
-    	log.info(customer_name + " : Allocation for set_key_is=" + set_key_is + " amount=" + amount + " was completed");    	
+    	// update structured_data_inc table
+    	
+    	log.info(customer_name + " : Allocation for set_key_is=" + set_key_is + " amount=" + amount + " was completed");
+    	
+    	// TODO: update union_next_rank table
     	
     	try (PreparedStatement statement = con.prepareStatement(
     	"INSERT INTO " + allocation_ledger + " (set_key, set_name, capacity, availability, advertiserID, goal, alloc_key) VALUES ('"
