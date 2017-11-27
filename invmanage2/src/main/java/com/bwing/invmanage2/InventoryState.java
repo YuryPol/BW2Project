@@ -322,13 +322,19 @@ public class InventoryState implements AutoCloseable
 					+ "          ON sd2.set_key > sd1.set_key "
 					+ "          AND sd2.set_key & sd1.set_key = sd1.set_key "
 					+ "          AND sd1.availability >= sd2.availability; "
-        			+ "     UPDATE " + structured_data_base + " , " + structured_data_inc
-        			+ "     SET " + structured_data_base + ".availability = LEAST(" + structured_data_base + ".availability, " + structured_data_inc + ".availability) "
-        			+ "     WHERE " + structured_data_inc + ".set_key & " + structured_data_base + ".set_key_is = " + structured_data_base + ".set_key_is; "
         			+ "     SELECT TRUE INTO result; "
         			+ "   ELSE "
         			+ "     SELECT FALSE INTO result; "
         			+ "   END IF; "
+        			+ "END "
+        			);				
+					
+        	st.executeUpdate("DROP PROCEDURE IF EXISTS UpdateBaseData");
+        	st.executeUpdate("CREATE PROCEDURE UpdateBaseData() "
+        			+ "BEGIN "
+        			+ "     UPDATE " + structured_data_base + " , " + structured_data_inc
+        			+ "     SET " + structured_data_base + ".availability = LEAST(" + structured_data_base + ".availability, " + structured_data_inc + ".availability) "
+        			+ "     WHERE " + structured_data_inc + ".set_key & " + structured_data_base + ".set_key_is = " + structured_data_base + ".set_key_is; "
         			+ "END "
         			);
         	st.executeUpdate("REPLACE INTO " + inventory_status + " VALUES(1, '" + Status.clean.name() + "')");
@@ -802,9 +808,8 @@ public class InventoryState implements AutoCloseable
 		
 		log.info(customer_name + " : Starting filling up the tables");
 		
-		if (!AdjustInventory(reloadable, startTime))
+		if (!AdjustInventory(unions_last_rank, reloadable, startTime))
 			return false;
-
 
 		// Validate the data in DB
         loaded();
@@ -812,7 +817,7 @@ public class InventoryState implements AutoCloseable
 		return true;
 	}
     
-    boolean AdjustInventory(boolean reloadable, Long startTime) throws SQLException, ClassNotFoundException, InterruptedException
+    boolean AdjustInventory(String start_data, boolean reloadable, Long startTime) throws SQLException, ClassNotFoundException, InterruptedException
     {
 		int iteration = 0;
 		int insert_size = 0;
@@ -836,8 +841,8 @@ public class InventoryState implements AutoCloseable
         	
     		try (Statement st = con.createStatement()) {
     			// save the previous layer
-				st.executeUpdate("TRUNCATE " + unions_last_rank);
-				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + unions_next_rank);
+				st.executeUpdate("TRUNCATE " + start_data);
+				st.executeUpdate("INSERT INTO " + start_data + " SELECT * FROM " + unions_next_rank);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
 				// build new layer with unions of higher rank 
 				queryString = "INSERT IGNORE INTO " + unions_next_rank + "\n"
@@ -850,13 +855,13 @@ public class InventoryState implements AutoCloseable
     			+ " FROM (\n"
     			+ "  SELECT *, " + raw_inventory + ".count as capacity " 
     			+ "  FROM (\n"    			
-    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key \n"
-    			+ "	   FROM " + unions_last_rank + "\n"
+    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + start_data + ".set_key as set_key \n"
+    			+ "	   FROM " + start_data + "\n"
     			+ "    JOIN " + structured_data_base + "\n"
     			+ "	   JOIN " + raw_inventory + "\n"
     			+ "         ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0 \n"
-    			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 \n"
-    			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key \n"
+    			+ "         AND " + start_data + ".set_key & " + raw_inventory + ".basesets != 0 \n"
+    			+ "         AND " + structured_data_base + ".set_key_is | " + start_data + ".set_key > " + start_data + ".set_key \n"
     			+ "   ) un_sk \n"
     			+ "   JOIN " + raw_inventory 
     			+ "   ON un_sk.set_key & " + raw_inventory + ".basesets != 0 \n"
@@ -885,11 +890,11 @@ public class InventoryState implements AutoCloseable
 				// check for superset has the same capacity as the subset
 				st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions);
 				queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions + " AS SELECT \n" // TODO: make the table temporary
-				+ unions_last_rank + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key, " + unions_next_rank + ".capacity \n"
-				+ " FROM " + unions_last_rank + "\n"
+				+ start_data + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key, " + unions_next_rank + ".capacity \n"
+				+ " FROM " + start_data + "\n"
     			+ " JOIN " + unions_next_rank + "\n"
-    			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
-    			+ "      AND " + unions_last_rank + ".capacity = " + unions_next_rank + ".capacity \n"
+    			+ "      ON " + start_data + ".set_key & " + unions_next_rank + ".set_key = " + start_data + ".set_key \n"
+    			+ "      AND " + start_data + ".capacity = " + unions_next_rank + ".capacity \n"
     			+ "      AND " + unions_next_rank + ".set_key IS NOT NULL";
 				int row_cnt = st.executeUpdate(queryString);
 				if (row_cnt > 0)
@@ -908,14 +913,14 @@ public class InventoryState implements AutoCloseable
 					// keep only rows with capacity lower than in next rank
 					st.executeUpdate("TRUNCATE " + temp_unions);
 					queryString = "INSERT /*IGNORE*/ INTO " + temp_unions + " SELECT " 
-					+ unions_last_rank + ".set_key, "
-					+ unions_last_rank + ".set_name, "
-					+ unions_last_rank + ".capacity, " 
-					+ unions_last_rank + ".availability, " 
-					+ unions_last_rank + ".goal "
-					+ " FROM " + unions_last_rank + "\n"
+					+ start_data + ".set_key, "
+					+ start_data + ".set_name, "
+					+ start_data + ".capacity, " 
+					+ start_data + ".availability, " 
+					+ start_data + ".goal "
+					+ " FROM " + start_data + "\n"
 	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
-	    			+ "      ON " + unions_last_rank + ".set_key = " + ex_inc_unions + ".l_key \n"
+	    			+ "      ON " + start_data + ".set_key = " + ex_inc_unions + ".l_key \n"
 					+ "      WHERE " + ex_inc_unions + ".l_key IS NULL \n";
 					st.executeUpdate(queryString);
 					
@@ -926,14 +931,14 @@ public class InventoryState implements AutoCloseable
 					}
 					log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(insert_size));
 					// Finalize for insertion into structured_data_inc
-					st.executeUpdate("TRUNCATE " + unions_last_rank);
+					st.executeUpdate("TRUNCATE " + start_data);
 					if (insert_size > 0)
-						st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
+						st.executeUpdate("INSERT INTO " + start_data + " SELECT * FROM " + temp_unions);
 					
 					log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
 					st.executeUpdate(
 					" INSERT IGNORE INTO " + structured_data_inc // we do need IGNORE, inserts should be of higher rank but they may be inserted before
-	    			+ "    SELECT * FROM " + unions_last_rank);
+	    			+ "    SELECT * FROM " + start_data);
 									
 					rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
 					if (rs.next()) {
@@ -1051,14 +1056,23 @@ public class InventoryState implements AutoCloseable
      			return false; // TODO: we probably need some diagnostic for UI
     		}
     	}
+    	// UpdateBaseData
+    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".UpdateBaseData()}"))
+    	{
+    		// UpdateBaseData can fail because of 5 msec limit on GAE connection
+    		callStatement.executeUpdate();
+    	}   	
     	catch (CommunicationsException ex)
     	{
-    		log.severe(customer_name + " : GetItemsFromSD caused an exception " + ex.getMessage());
+    		log.severe(customer_name + " : GetItemsFrom caused an exception " + ex.getMessage());
     		// Reconnect back because the exception closed the connection.
 			// timeoutHandler.reconnect();
     		return false;
     	}
     	// update structured_data_inc table
+		Calendar starting = new GregorianCalendar();
+		Long startTime = starting.getTimeInMillis();
+    	AdjustInventory(structured_data_inc, false, startTime);
     	
     	log.info(customer_name + " : Allocation for set_key_is=" + set_key_is + " amount=" + amount + " was completed");
     	

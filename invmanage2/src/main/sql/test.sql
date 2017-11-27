@@ -136,4 +136,70 @@ JOIN unions_next_rank
  ) un_r 
  GROUP BY set_key
 
+ INSERT /*IGNORE*/ INTO unions_next_rank SELECT 
+    set_key, 
+    NULL as set_name, 
+    SUM(capacity) as capacity, 
+    SUM(availability) as availability, 
+    0 as goal 
+ FROM (
+  SELECT *, raw_inventory.count as capacity, raw_inventory.count - structured_data_base.goal as availability 
+  FROM (
+    SELECT DISTINCT structured_data_base.set_key_is | unions_last_rank.set_key as set_key 
+       FROM unions_last_rank    JOIN structured_data_base      JOIN raw_inventory         ON  structured_data_base.set_key_is & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key_is | unions_last_rank.set_key > unions_last_rank.set_key 
+   ) un_sk 
+   JOIN raw_inventory   ON un_sk.set_key & raw_inventory.basesets != 0 
+ ) un_r
+ GROUP BY set_key
  
+INSERT /*IGNORE*/ INTO unions_next_rank
+SELECT un.set_key, NULL AS set_name, un.capacity, un.capacity - SUM(structured_data_base.goal) AS availability,
+SUM(structured_data_base.goal) as goal
+FROM (
+ SELECT 
+    set_key, 
+    SUM(capacity) as capacity 
+ FROM (
+  SELECT *, raw_inventory.count as capacity   FROM (
+    SELECT DISTINCT structured_data_base.set_key_is | unions_last_rank.set_key as set_key 
+       FROM unions_last_rank
+    JOIN structured_data_base
+       JOIN raw_inventory
+         ON  structured_data_base.set_key_is & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key_is | unions_last_rank.set_key > unions_last_rank.set_key 
+   ) un_sk 
+   JOIN raw_inventory   ON un_sk.set_key & raw_inventory.basesets != 0 
+ ) un_r
+ GROUP BY set_key) un
+JOIN structured_data_base 
+ON structured_data_base.set_key & un.set_key != 0 
+GROUP BY structured_data_base.set_key 
+;
+
+INSERT IGNORE INTO unions_next_rank
+SELECT un.set_key, NULL AS set_name, un.capacity, un.capacity - SUM(structured_data_base.goal) AS availability,
+SUM(structured_data_base.goal) as goal
+FROM (
+ SELECT 
+    set_key, 
+    SUM(capacity) as capacity 
+ FROM (
+  SELECT *, raw_inventory.count as capacity   FROM (
+    SELECT DISTINCT structured_data_base.set_key_is | unions_last_rank.set_key as set_key 
+       FROM unions_last_rank
+    JOIN structured_data_base
+       JOIN raw_inventory
+         ON  structured_data_base.set_key_is & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key_is | unions_last_rank.set_key > unions_last_rank.set_key 
+   ) un_sk 
+   JOIN raw_inventory   ON un_sk.set_key & raw_inventory.basesets != 0 
+ ) un_r
+ GROUP BY set_key)  
+ un
+JOIN structured_data_base 
+ON structured_data_base.set_key & un.set_key != 0 
+GROUP BY un.set_key 
