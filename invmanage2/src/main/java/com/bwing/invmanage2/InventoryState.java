@@ -187,8 +187,10 @@ public class InventoryState implements AutoCloseable
         	// create status table 
         	st.executeUpdate("DROP TABLE IF EXISTS " + inventory_status);
         	st.executeUpdate("CREATE TABLE " + inventory_status 
-        	+ " (status VARCHAR(200) DEFAULT '" + Status.clean.name() + "')"
-        	);
+                	+ " (fake_key INT DEFAULT 1, "
+                	+ " status VARCHAR(200) DEFAULT '" + Status.clean.name()
+                	+ "', PRIMARY KEY(fake_key))"
+         	);
         }
     }
     
