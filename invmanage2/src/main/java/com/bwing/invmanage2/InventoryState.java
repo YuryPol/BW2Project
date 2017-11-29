@@ -319,15 +319,21 @@ public class InventoryState implements AutoCloseable
         			+ "     UPDATE " + structured_data_inc
         			+ "        SET availability = availability - amount "
         			+ "        WHERE (set_key & iset) = iset; "
+         			+ "   ELSE "
+        			+ "     SELECT FALSE INTO result; "
+        			+ "   END IF; "
+        			+ "END "
+        			);				
+       			
+        	st.executeUpdate("DROP PROCEDURE IF EXISTS CleanUpSD");
+        	st.executeUpdate("CREATE PROCEDURE CleanUpSD(IN iset BIGINT, IN amount INT, OUT result BOOLEAN) "
+        			+ "BEGIN "
  					+ "     DELETE sd1 FROM " + structured_data_inc + " sd1 "
 					+ "		INNER JOIN " + structured_data_inc + " sd2 "
 					+ "          ON sd2.set_key > sd1.set_key "
 					+ "          AND sd2.set_key & sd1.set_key = sd1.set_key "
 					+ "          AND sd1.availability >= sd2.availability; "
         			+ "     SELECT TRUE INTO result; "
-        			+ "   ELSE "
-        			+ "     SELECT FALSE INTO result; "
-        			+ "   END IF; "
         			+ "END "
         			);				
 					
@@ -981,7 +987,8 @@ public class InventoryState implements AutoCloseable
 //				unknownError();
 //				rs.close();
 //				return true;
-//			}    			
+//			}
+    		start_data = unions_last_rank; // after the first pass switch back to unions_last_rank
 		} while (true);
         
         // update base table with keys of supersets of the same capacity
@@ -1058,6 +1065,15 @@ public class InventoryState implements AutoCloseable
      			return false; // TODO: we probably need some diagnostic for UI
     		}
     	}
+    	// update structured_data_inc table
+		Calendar starting = new GregorianCalendar();
+		Long startTime = starting.getTimeInMillis();
+    	AdjustInventory(structured_data_inc, false, startTime);
+    	// remove unneeded nodes
+    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
+    	{
+    		callStatement.executeUpdate();
+    	}
     	// UpdateBaseData
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".UpdateBaseData()}"))
     	{
@@ -1070,12 +1086,7 @@ public class InventoryState implements AutoCloseable
     		// Reconnect back because the exception closed the connection.
 			// timeoutHandler.reconnect();
     		return false;
-    	}
-    	// update structured_data_inc table
-		Calendar starting = new GregorianCalendar();
-		Long startTime = starting.getTimeInMillis();
-    	AdjustInventory(structured_data_inc, false, startTime);
-    	
+    	}    	
     	log.info(customer_name + " : Allocation for set_key_is=" + set_key_is + " amount=" + amount + " was completed");
     	
     	// TODO: update union_next_rank table
