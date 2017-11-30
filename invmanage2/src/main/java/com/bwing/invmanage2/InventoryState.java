@@ -816,7 +816,7 @@ public class InventoryState implements AutoCloseable
 		
 		log.info(customer_name + " : Starting filling up the tables");
 		
-		if (!AdjustInventory(unions_last_rank, reloadable, startTime))
+		if (!AdjustInventory(unions_next_rank, reloadable, startTime))
 			return false;
 
 		// Validate the data in DB
@@ -849,8 +849,8 @@ public class InventoryState implements AutoCloseable
         	
     		try (Statement st = con.createStatement()) {
     			// save the previous layer
-				st.executeUpdate("TRUNCATE " + start_data);
-				st.executeUpdate("INSERT INTO " + start_data + " SELECT * FROM " + unions_next_rank);
+				st.executeUpdate("TRUNCATE " + unions_last_rank);
+				st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + start_data);
 				st.executeUpdate("TRUNCATE " + unions_next_rank);
 				// build new layer with unions of higher rank 
 				queryString = "INSERT IGNORE INTO " + unions_next_rank + "\n"
@@ -863,13 +863,13 @@ public class InventoryState implements AutoCloseable
     			+ " FROM (\n"
     			+ "  SELECT *, " + raw_inventory + ".count as capacity " 
     			+ "  FROM (\n"    			
-    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + start_data + ".set_key as set_key \n"
-    			+ "	   FROM " + start_data + "\n"
+    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key \n"
+    			+ "	   FROM " + unions_last_rank + "\n"
     			+ "    JOIN " + structured_data_base + "\n"
     			+ "	   JOIN " + raw_inventory + "\n"
     			+ "         ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0 \n"
-    			+ "         AND " + start_data + ".set_key & " + raw_inventory + ".basesets != 0 \n"
-    			+ "         AND " + structured_data_base + ".set_key_is | " + start_data + ".set_key > " + start_data + ".set_key \n"
+    			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 \n"
+    			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key \n"
     			+ "   ) un_sk \n"
     			+ "   JOIN " + raw_inventory 
     			+ "   ON un_sk.set_key & " + raw_inventory + ".basesets != 0 \n"
@@ -879,7 +879,7 @@ public class InventoryState implements AutoCloseable
     			+ "ON " + structured_data_base + ".set_key & un.set_key != 0 \n"
     			+ "GROUP BY un.set_key \n"
     			;
-				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT /*IGNORE*/ INTO unions_next_rank");
+				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT INTO unions_next_rank");
 				st.executeUpdate(queryString);
 				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
 				if (rs.next())
@@ -898,11 +898,11 @@ public class InventoryState implements AutoCloseable
 				// check for superset has the same capacity as the subset
 				st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions);
 				queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions + " AS SELECT \n" // TODO: make the table temporary
-				+ start_data + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key, " + unions_next_rank + ".capacity \n"
-				+ " FROM " + start_data + "\n"
+				+ unions_last_rank + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key, " + unions_next_rank + ".capacity \n"
+				+ " FROM " + unions_last_rank + "\n"
     			+ " JOIN " + unions_next_rank + "\n"
-    			+ "      ON " + start_data + ".set_key & " + unions_next_rank + ".set_key = " + start_data + ".set_key \n"
-    			+ "      AND " + start_data + ".capacity = " + unions_next_rank + ".capacity \n"
+    			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
+    			+ "      AND " + unions_last_rank + ".capacity = " + unions_next_rank + ".capacity \n"
     			+ "      AND " + unions_next_rank + ".set_key IS NOT NULL";
 				int row_cnt = st.executeUpdate(queryString);
 				if (row_cnt > 0)
@@ -921,14 +921,14 @@ public class InventoryState implements AutoCloseable
 					// keep only rows with capacity lower than in next rank
 					st.executeUpdate("TRUNCATE " + temp_unions);
 					queryString = "INSERT /*IGNORE*/ INTO " + temp_unions + " SELECT " 
-					+ start_data + ".set_key, "
-					+ start_data + ".set_name, "
-					+ start_data + ".capacity, " 
-					+ start_data + ".availability, " 
-					+ start_data + ".goal "
-					+ " FROM " + start_data + "\n"
+					+ unions_last_rank + ".set_key, "
+					+ unions_last_rank + ".set_name, "
+					+ unions_last_rank + ".capacity, " 
+					+ unions_last_rank + ".availability, " 
+					+ unions_last_rank + ".goal "
+					+ " FROM " + unions_last_rank + "\n"
 	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
-	    			+ "      ON " + start_data + ".set_key = " + ex_inc_unions + ".l_key \n"
+	    			+ "      ON " + unions_last_rank + ".set_key = " + ex_inc_unions + ".l_key \n"
 					+ "      WHERE " + ex_inc_unions + ".l_key IS NULL \n";
 					st.executeUpdate(queryString);
 					
@@ -939,14 +939,14 @@ public class InventoryState implements AutoCloseable
 					}
 					log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(insert_size));
 					// Finalize for insertion into structured_data_inc
-					st.executeUpdate("TRUNCATE " + start_data);
+					st.executeUpdate("TRUNCATE " + unions_last_rank);
 					if (insert_size > 0)
-						st.executeUpdate("INSERT INTO " + start_data + " SELECT * FROM " + temp_unions);
+						st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
 					
 					log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
 					st.executeUpdate(
 					" INSERT IGNORE INTO " + structured_data_inc // we do need IGNORE, inserts should be of higher rank but they may be inserted before
-	    			+ "    SELECT * FROM " + start_data);
+	    			+ "    SELECT * FROM " + unions_last_rank);
 									
 					rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
 					if (rs.next()) {
