@@ -319,6 +319,7 @@ public class InventoryState implements AutoCloseable
         			+ "     UPDATE " + structured_data_inc
         			+ "        SET availability = availability - amount "
         			+ "        WHERE (set_key & iset) = iset; "
+        			+ "     SELECT TRUE INTO result; "
          			+ "   ELSE "
         			+ "     SELECT FALSE INTO result; "
         			+ "   END IF; "
@@ -326,14 +327,13 @@ public class InventoryState implements AutoCloseable
         			);				
        			
         	st.executeUpdate("DROP PROCEDURE IF EXISTS CleanUpSD");
-        	st.executeUpdate("CREATE PROCEDURE CleanUpSD(IN iset BIGINT, IN amount INT, OUT result BOOLEAN) "
+        	st.executeUpdate("CREATE PROCEDURE CleanUpSD() "
         			+ "BEGIN "
  					+ "     DELETE sd1 FROM " + structured_data_inc + " sd1 "
 					+ "		INNER JOIN " + structured_data_inc + " sd2 "
 					+ "          ON sd2.set_key > sd1.set_key "
 					+ "          AND sd2.set_key & sd1.set_key = sd1.set_key "
 					+ "          AND sd1.availability >= sd2.availability; "
-        			+ "     SELECT TRUE INTO result; "
         			+ "END "
         			);				
 					
@@ -839,13 +839,13 @@ public class InventoryState implements AutoCloseable
         	// making sure we are not affected by task timeout
             Calendar currentTime = new GregorianCalendar();
             Long interval = currentTime.getTimeInMillis() - startTime;
-            if (reloadable && !(SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) && 
-            		interval >= RESTART_INTERVAL)
-            {
-            	log.severe(customer_name + " : Restarting the loading inventory after " + interval.toString() + " msec. to avoid timeout");
-            	rs.close();
-            	return false;
-            }	            	
+//            if (reloadable && !(SystemProperty.environment.value() == SystemProperty.Environment.Value.Production) && 
+//            		interval >= RESTART_INTERVAL)
+//            {
+//            	log.severe(customer_name + " : Restarting the loading inventory after " + interval.toString() + " msec. to avoid timeout");
+//            	rs.close();
+//            	return false;
+//            }	            	
         	
     		try (Statement st = con.createStatement()) {
     			// save the previous layer
@@ -943,17 +943,6 @@ public class InventoryState implements AutoCloseable
 					if (insert_size > 0)
 						st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
 					
-					log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
-					st.executeUpdate(
-					" INSERT IGNORE INTO " + structured_data_inc // we do need IGNORE, inserts should be of higher rank but they may be inserted before
-	    			+ "    SELECT * FROM " + unions_last_rank);
-									
-					rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
-					if (rs.next()) {
-						cnt_updated = rs.getInt(1);
-					}
-					log.info(customer_name + " : cnt=" + String.valueOf(cnt) + ", cnt_updated=" + String.valueOf(cnt_updated));
-					
 					// recreate supersets only for sets of the same as their subsets  capacity
 					st.executeUpdate("TRUNCATE " + unions_next_rank);
 					// and add highest unions that of the same capacity ????
@@ -974,6 +963,16 @@ public class InventoryState implements AutoCloseable
 							break;
 					}
 				}
+				log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
+				st.executeUpdate(
+				" INSERT IGNORE INTO " + structured_data_inc // we do need IGNORE, inserts should be of higher rank but they may be inserted before
+    			+ "    SELECT * FROM " + unions_last_rank);
+								
+				rs = st.executeQuery("SELECT count(*) FROM " + structured_data_inc);
+				if (rs.next()) {
+					cnt_updated = rs.getInt(1);
+				}
+				log.info(customer_name + " : cnt=" + String.valueOf(cnt) + ", cnt_updated=" + String.valueOf(cnt_updated));				
 			}
 			catch (CommunicationsException ex)
 			{
@@ -988,7 +987,7 @@ public class InventoryState implements AutoCloseable
 //				rs.close();
 //				return true;
 //			}
-    		start_data = unions_last_rank; // after the first pass switch back to unions_last_rank
+    		start_data = unions_last_rank; // after the first pass switch back to unions_next_rank
 		} while (true);
         
         // update base table with keys of supersets of the same capacity
@@ -1068,7 +1067,7 @@ public class InventoryState implements AutoCloseable
     	// update structured_data_inc table
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
-    	AdjustInventory(structured_data_inc, false, startTime);
+    	AdjustInventory(unions_next_rank, false, startTime);
     	// remove unneeded nodes
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
     	{
