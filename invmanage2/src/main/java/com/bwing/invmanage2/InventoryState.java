@@ -987,7 +987,7 @@ public class InventoryState implements AutoCloseable
 //				rs.close();
 //				return true;
 //			}
-    		start_data = unions_last_rank; // after the first pass switch back to unions_next_rank
+    		start_data = unions_next_rank; // after the first pass switch back to unions_next_rank
 		} while (true);
         
         // update base table with keys of supersets of the same capacity
