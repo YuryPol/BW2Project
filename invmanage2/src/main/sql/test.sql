@@ -203,3 +203,66 @@ FROM (
 JOIN structured_data_base 
 ON structured_data_base.set_key & un.set_key != 0 
 GROUP BY un.set_key 
+
+INSERT IGNORE INTO unions_next_rank
+SELECT un.set_key, NULL AS set_name, un.capacity, un.capacity - SUM(structured_data_base.goal) AS availability,
+SUM(structured_data_base.goal) as goal
+FROM (
+ SELECT 
+    set_key, 
+    SUM(capacity) as capacity 
+ FROM (
+  SELECT *, raw_inventory.count as capacity   
+  FROM (
+  
+  SELECT * FROM (
+    SELECT DISTINCT structured_data_base.set_key | unions_last_rank.set_key as set_key 
+	FROM unions_last_rank
+    JOIN structured_data_base
+	JOIN raw_inventory
+         ON  structured_data_base.set_key & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key | unions_last_rank.set_key > unions_last_rank.set_key) t
+	LEFT OUTER JOIN structured_data_inc
+         ON t.set_key & structured_data_inc.set_key 
+            = t.set_key 
+         WHERE structured_data_inc.set_key IS NULL 
+         
+   ) un_sk 
+   JOIN raw_inventory   ON un_sk.set_key & raw_inventory.basesets != 0 
+ ) un_r
+ GROUP BY set_key) un
+JOIN structured_data_base 
+ON structured_data_base.set_key & un.set_key != 0 
+GROUP BY un.set_key 
+
+INSERT IGNORE INTO unions_next_rank
+SELECT un.set_key, NULL AS set_name, un.capacity, un.capacity - SUM(structured_data_base.goal) AS availability,
+SUM(structured_data_base.goal) as goal
+FROM (
+ SELECT 
+    set_key, 
+    SUM(capacity) as capacity 
+ FROM (
+ 
+  SELECT *, raw_inventory.count as capacity   
+  FROM (  
+  SELECT ds.set_key FROM (
+    SELECT DISTINCT structured_data_base.set_key | unions_last_rank.set_key as set_key 
+	   FROM unions_last_rank
+    JOIN structured_data_base
+	   JOIN raw_inventory
+         ON  structured_data_base.set_key & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key | unions_last_rank.set_key > unions_last_rank.set_key) ds 
+	   LEFT OUTER JOIN structured_data_inc
+         ON ds.set_key & structured_data_inc.set_key = ds.set_key 
+         WHERE structured_data_inc.set_key IS NULL 
+   ) un_sk 
+   JOIN raw_inventory   ON un_sk.set_key & raw_inventory.basesets != 0 
+   
+ ) un_r
+ GROUP BY set_key) un
+JOIN structured_data_base 
+ON structured_data_base.set_key & un.set_key != 0 
+GROUP BY un.set_key 
