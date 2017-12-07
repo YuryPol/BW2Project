@@ -862,14 +862,17 @@ public class InventoryState implements AutoCloseable
     			+ "    SUM(capacity) as capacity \n"
     			+ " FROM (\n"
     			+ "  SELECT *, " + raw_inventory + ".count as capacity " 
-    			+ "  FROM (\n"    			
-    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key \n"
+    			+ "  FROM (SELECT ds.set_key FROM (\n"    			
+    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key | " + unions_last_rank + ".set_key as set_key \n"
     			+ "	   FROM " + unions_last_rank + "\n"
     			+ "    JOIN " + structured_data_base + "\n"
     			+ "	   JOIN " + raw_inventory + "\n"
-    			+ "         ON  " + structured_data_base + ".set_key_is & " + raw_inventory + ".basesets != 0 \n"
+     			+ "         ON  " + structured_data_base + ".set_key & " + raw_inventory + ".basesets != 0 \n"
     			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 \n"
-    			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key \n"
+    			+ "         AND " + structured_data_base + ".set_key | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key) ds \n"
+       			+ "	   LEFT OUTER JOIN " + structured_data_inc + "\n"
+    			+ "         ON ds.set_key & " + structured_data_inc + ".set_key = ds.set_key \n"
+				+ "         WHERE " + structured_data_inc + ".set_key IS NULL \n" // make sure we don't have its superset already
     			+ "   ) un_sk \n"
     			+ "   JOIN " + raw_inventory 
     			+ "   ON un_sk.set_key & " + raw_inventory + ".basesets != 0 \n"
@@ -881,6 +884,8 @@ public class InventoryState implements AutoCloseable
     			;
 				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT INTO unions_next_rank");
 				st.executeUpdate(queryString);
+				// make sure we don't have them or their supersets already
+				
 				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
 				if (rs.next())
 					insert_size = rs.getInt(1);
@@ -995,7 +1000,8 @@ public class InventoryState implements AutoCloseable
 		{
 			st.executeUpdate("UPDATE " + structured_data_base + "," + structured_data_inc
 			+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
-			+ " WHERE " + structured_data_base + ".set_key_is & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key_is "
+			+ " WHERE " + structured_data_base + ".set_key & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key "
+			+ " AND " + structured_data_base + ".set_key < " + structured_data_inc + ".set_key "
 			+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
 			log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same capacity");
 		}
