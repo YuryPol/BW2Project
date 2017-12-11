@@ -40,6 +40,11 @@ public class AllocationTest {
 			file_name = "..\\Test.json";
 		}
 		int repeats =  Integer.parseInt(args[3]);
+		boolean simulate = false;
+		if (args.length > 4 && args[4].equals("simulate"))
+		{
+			simulate = true;
+		}
 		
 		try {
 			for (int ind = 0; ind < repeats; ind++) {
@@ -48,7 +53,7 @@ public class AllocationTest {
 			        Random rand = new Random();
 					int inventorysets_count = rand.nextInt(InventoryState.BITMAP_MAX_SIZE -10) + 10; // at least 10 inventory sets
 					int segments_count = rand.nextInt(15000 - 100) + 100;
-					int max_segment_count = rand.nextInt(500);
+					int max_segment_count = rand.nextInt(500); //000 / segments_count);
 
 					InventoryGenerator.doIt(inventorysets_count, segments_count, max_segment_count);
 				}
@@ -178,10 +183,12 @@ public class AllocationTest {
 							rs.close();
 							return;
 						}
-					}
-					// TODO: Run simulation
-					if (!RunSimualation.runIt(invState, true))
+					}					
+					if (simulate 
+							// Run simulation
+							&& !RunSimualation.runIt(invState, true))
 					{
+						// exit it simulation failed
 						invState.close();
 						in.close();
 						rs.close();

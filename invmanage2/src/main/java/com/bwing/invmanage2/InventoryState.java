@@ -817,7 +817,25 @@ public class InventoryState implements AutoCloseable
 		if (!AdjustInventory(unions_next_rank, reloadable, startTime))
 			return false;
 
-		// Validate the data in DB
+    	// remove unneeded nodes
+    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
+    	{
+    		callStatement.executeUpdate();
+    	}
+    	// UpdateBaseData
+    	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".UpdateBaseData()}"))
+    	{
+    		// UpdateBaseData can fail because of 5 msec limit on GAE connection
+    		callStatement.executeUpdate();
+    	}   	
+    	catch (CommunicationsException ex)
+    	{
+    		log.severe(customer_name + " : GetItemsFrom caused an exception " + ex.getMessage());
+    		// Reconnect back because the exception closed the connection.
+			// timeoutHandler.reconnect();
+     	}    	
+
+    	// Validate the data in DB
         loaded();
 
 		return true;
@@ -861,13 +879,13 @@ public class InventoryState implements AutoCloseable
     			+ " FROM (\n"
     			+ "  SELECT *, " + raw_inventory + ".count as capacity " 
     			+ "  FROM (SELECT ds.set_key FROM (\n"    			
-    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key | " + unions_last_rank + ".set_key as set_key \n"
+    			+ "    SELECT DISTINCT " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key as set_key \n"
     			+ "	   FROM " + unions_last_rank + "\n"
     			+ "    JOIN " + structured_data_base + "\n"
     			+ "	   JOIN " + raw_inventory + "\n"
      			+ "         ON  " + structured_data_base + ".set_key & " + raw_inventory + ".basesets != 0 \n"
     			+ "         AND " + unions_last_rank + ".set_key & " + raw_inventory + ".basesets != 0 \n"
-    			+ "         AND " + structured_data_base + ".set_key | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key) ds \n"
+    			+ "         AND " + structured_data_base + ".set_key_is | " + unions_last_rank + ".set_key > " + unions_last_rank + ".set_key) ds \n"
        			+ "	   LEFT OUTER JOIN " + structured_data_inc + "\n"
     			+ "         ON ds.set_key & " + structured_data_inc + ".set_key = ds.set_key \n"
 				+ "         WHERE " + structured_data_inc + ".set_key IS NULL \n" // make sure we don't have its superset already
@@ -1000,8 +1018,8 @@ public class InventoryState implements AutoCloseable
 			+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
 			+ " WHERE " + structured_data_base + ".set_key & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key "
 			+ " AND " + structured_data_base + ".set_key < " + structured_data_inc + ".set_key "
-			+ " AND " + structured_data_base + ".capacity = " + structured_data_inc + ".capacity; ");
-			log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same capacity");
+			+ " AND " + structured_data_base + ".availability = " + structured_data_inc + ".availability; ");
+			log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same availability");
 		}
 		catch (CommunicationsException ex)
 		{

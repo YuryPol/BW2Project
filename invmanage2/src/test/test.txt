@@ -1,20 +1,12 @@
-mysql> select set_key_is, lpad(bin(set_key), 10, '0') as set_key, set_name, capa
-city, availability, goal from structured_data_base;
-+------------+------------+--------------+----------+--------------+---------+
-| set_key_is | set_key    | set_name     | capacity | availability | goal    |
-+------------+------------+--------------+----------+--------------+---------+
-|          1 | 0000000001 | highrollers  |   760000 |            0 |  760000 |10000, 300000
-|          2 | 0000000010 | soccermoms   |   560000 |            0 |  560000 |500000
-|          4 | 0100000100 | boyscouts    |   160000 |            0 |  160000 |60000
-|          8 | 0100001010 | millennials  |  1780000 |            0 | 1100000 |1000000
-|         16 | 0000010000 | eeasterners  |  2910000 |            0 | 1920000 |2560000
-|         32 | 1000010000 | westerners   |  1490000 |            0 |  620000 |100000,,590000
-|         64 | 1001000010 | young women  |   740000 |            0 |  180000 |, 100000,,20000
-|        128 | 0010000000 | farmers      |    10000 |            0 |   10000 |, 10000
-|        256 | 0100000000 | boys         |   120000 |            0 |       0 |
-|        512 | 1001000010 | girls        |   740000 |            0 |       0 |, 40000
-|       1024 | 1000000000 | Californians |   660000 |            0 |       0 |
-|       2048 | 1000000000 | gamers       |     NULL |         NULL |       0 |
-|       4096 | 1000000000 | investors    |   860000 |            0 |       0 |
-+------------+------------+--------------+----------+--------------+---------+
-13 rows in set (0.00 sec)
+Test parameters
+		String file_name = args[0];
+		String customer_name = args[1];
+		if (args.length > 2 && args[2].equals("only"))
+		int repeats =  Integer.parseInt(args[3]);
+		if (args.length > 3 && args[3].equals("simulate"))
+
+Random data, test org, 1 pass, no simulationi:
+""
+test
+""
+1
