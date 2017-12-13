@@ -1089,6 +1089,17 @@ public class InventoryState implements AutoCloseable
     	// update structured_data_inc table
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
+		
+		// Skim inventory
+		try (Statement st = con.createStatement()) {
+			// save the previous layer
+			st.executeUpdate("TRUNCATE " + unions_next_rank);
+			// Skim structured_data_inc 
+			String queryString = "INSERT IGNORE INTO " + unions_next_rank + "\n"
+					+ "SELECT * FROM " + structured_data_inc 
+					+ " WHERE ";
+		}
+		
     	AdjustInventory(unions_next_rank, false, startTime);
     	// remove unneeded nodes
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
