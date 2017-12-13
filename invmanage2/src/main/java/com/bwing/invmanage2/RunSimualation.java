@@ -116,6 +116,16 @@ public class RunSimualation {
         st.executeUpdate("DROP TABLE IF EXISTS " + InventoryState.result_serving);
         log.info(customer_name + " : " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())
         		+ " : served_count=" +  String.valueOf(served_count) + ", missed_count=" + String.valueOf(missed_count));
+        
+        PreparedStatement totalInventoryStatement = con.prepareStatement("select max(weight) from " + InventoryState.raw_inventory);
+        rs = totalInventoryStatement.executeQuery();
+        if (!rs.next())
+        {
+        	log.warning(customer_name + " : no raw data ");
+        	return true; // no raw data
+        }
+        int totalInventory = Math.abs(rs.getInt(1));
+        log.info(customer_name + " : out of total inventory " + String.valueOf(totalInventory));
         if (missed_count > served_count / 100 && served_count > 100)
         {
         	log.severe(customer_name + " : too many mssies");
