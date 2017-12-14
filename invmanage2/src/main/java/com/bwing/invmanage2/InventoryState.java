@@ -1089,7 +1089,7 @@ public class InventoryState implements AutoCloseable
     	// update structured_data_inc table
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
-    	AdjustInventory(unions_next_rank, false, startTime);
+    	AdjustInventory(structured_data_inc, false, startTime);
     	// remove unneeded nodes
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
     	{

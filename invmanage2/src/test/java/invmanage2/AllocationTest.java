@@ -110,7 +110,7 @@ public class AllocationTest {
 						int total_capacity = rs.getInt(1);
 						if (total_capacity < totalGoal + total_availability) 
 						{
-							log.severe("There is a problem with capacity, goal, availability");
+							log.severe("There is a problem with capacity, goal, availability on repeat #" + ind);
 							log.severe(Integer.toString(total_capacity) + ", " + Integer.toString(totalGoal) + ", "
 									+ Integer.toString(total_availability));
 							invState.close();
@@ -123,7 +123,7 @@ public class AllocationTest {
 						int total_inventory = rs.getInt(1);
 						if (total_inventory < totalGoal)
 						{
-							log.severe("There is a problem with inventory, goal");
+							log.severe("There is a problem with inventory, goalon on repeat #" + ind);
 							log.severe(Integer.toString(total_inventory) + ", " + Integer.toString(totalGoal));
 							invState.close();
 							in.close();
@@ -133,18 +133,13 @@ public class AllocationTest {
 
 						rs = st.executeQuery(
 								"SELECT set_name, capacity, availability, goal FROM structured_data_base WHERE availability < 0");
-						boolean somethingwrong = false;
 						while (rs.next()) 
 						{
-							somethingwrong = true;
 							String set_name = rs.getString(1);
 							int capacity = rs.getInt(2);
 							int availability = rs.getInt(3);
 							log.severe(set_name + " with capacity " + Integer.toString(capacity) 
-							+ " have negative availability=" + Integer.toString(availability));
-						}
-						if (somethingwrong)
-						{
+							+ " have negative availability=" + Integer.toString(availability) + " on repeat #" + Integer.toString(ind));
 							invState.close();
 							in.close();
 							rs.close();
@@ -176,7 +171,7 @@ public class AllocationTest {
 							log.severe("name, capacity, goal, availability");
 							do {
 								log.severe(rs.getString(1) + " , " + Integer.toString(rs.getInt(2)) + " , "
-										+ Integer.toString(rs.getInt(3)) + " , " + Integer.toString(rs.getInt(4)));
+										+ Integer.toString(rs.getInt(3)) + " , " + Integer.toString(rs.getInt(4)) +  "on repeat #" + Integer.toString(ind));
 							} while (rs.next());
 							invState.close();
 							in.close();
@@ -188,7 +183,8 @@ public class AllocationTest {
 							// Run simulation
 							&& !RunSimualation.runIt(invState, true))
 					{
-						// exit it simulation failed
+						log.severe(" on repeat #" + Integer.toString(ind));
+						// exit if simulation failed
 						invState.close();
 						in.close();
 						rs.close();
