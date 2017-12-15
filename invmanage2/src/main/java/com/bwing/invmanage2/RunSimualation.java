@@ -126,9 +126,9 @@ public class RunSimualation {
         }
         int totalInventory = Math.abs(rs.getInt(1));
         log.info(customer_name + " : out of total inventory " + String.valueOf(totalInventory));
-        if (missed_count > served_count / 100 && served_count > 100)
+        if (missed_count > served_count / 50 && served_count > 100)
         {
-        	log.severe(customer_name + " : too many mssies");
+        	log.severe(customer_name + " : too many mssies, or more than " + String.valueOf(missed_count * 100 / totalInventory) + "% of total");
         	return false;
         }        	
         else

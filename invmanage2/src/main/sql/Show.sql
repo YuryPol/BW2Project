@@ -7,6 +7,8 @@ call GetItemsFromSD(
 
 select lpad(bin(set_key), 20, '0') as set_key, set_name, capacity, availability, goal from unions_next_rank;
 
+select lpad(bin(set_key), 20, '0') as set_key, set_name, capacity, availability, goal from structured_data_inc;
+
 select lpad(bin(basesets), 20, '0') as basesets, count from raw_inventory order by basesets;
 
 select lpad(bin(l_key), 20, '0') as l_key, lpad(bin(n_key), 20, '0') as n_key, capacity from ex_inc_unions;
