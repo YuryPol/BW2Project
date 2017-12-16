@@ -778,13 +778,16 @@ public class InventoryState implements AutoCloseable
         //
         // first layer in union_next_rank table
         // this is done once so later we can pick up on task re-launch with unions_next_rank at any step
+		String queryString = "INSERT IGNORE INTO " + structured_data_inc + "\n"
+		+ "SELECT ri1.basesets, NULL, " + "SUM(ri2.count), SUM(ri2.count), 0 \n"
+		+ " FROM " + raw_inventory + " ri1 \n"
+		+ "	JOIN " + raw_inventory + " ri2\n"
+		+ " ON ri1.basesets & ri2.basesets > 0 AND ri1.basesets >= ri2.basesets \n"
+		+ "GROUP BY ri1.basesets \n"
+		;
         try (Statement st = con.createStatement())
         {
-        	st.executeUpdate("INSERT INTO " + unions_next_rank
-    			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
-    			+ structured_data_base 
-    			+ " WHERE capacity IS NOT NULL");
-	        	log.info(customer_name + " :  INSERT INTO " + unions_next_rank);
+        	st.executeUpdate(queryString);
 	    }
 		}
 		else
@@ -814,7 +817,7 @@ public class InventoryState implements AutoCloseable
 		
 		log.info(customer_name + " : Starting filling up the tables");
 		
-		if (!AdjustInventory(unions_next_rank, reloadable, startTime))
+		if (!AdjustInventory(structured_data_inc, reloadable, startTime))
 			return false;
 
     	// remove unneeded nodes
