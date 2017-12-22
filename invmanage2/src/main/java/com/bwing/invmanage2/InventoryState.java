@@ -778,16 +778,21 @@ public class InventoryState implements AutoCloseable
         //
         // first layer in union_next_rank table
         // this is done once so later we can pick up on task re-launch with unions_next_rank at any step
-		String queryString = "INSERT IGNORE INTO " + structured_data_inc + "\n"
-		+ "SELECT ri1.basesets, NULL, " + "SUM(ri2.count), SUM(ri2.count), 0 \n"
-		+ " FROM " + raw_inventory + " ri1 \n"
-		+ "	JOIN " + raw_inventory + " ri2\n"
-		+ " ON ri1.basesets & ri2.basesets > 0 AND ri1.basesets >= ri2.basesets \n"
-		+ "GROUP BY ri1.basesets \n"
-		;
+//		String queryString = "INSERT IGNORE INTO " + structured_data_inc + "\n"
+//		+ "SELECT ri1.basesets, NULL, " + "SUM(ri2.count), SUM(ri2.count), 0 \n"
+//		+ " FROM " + raw_inventory + " ri1 \n"
+//		+ "	JOIN " + raw_inventory + " ri2\n"
+//		+ " ON ri1.basesets & ri2.basesets > 0 AND ri1.basesets >= ri2.basesets \n"
+//		+ "GROUP BY ri1.basesets \n"
+//		;
         try (Statement st = con.createStatement())
         {
-        	st.executeUpdate(queryString);
+        	st.executeUpdate("INSERT INTO " + unions_next_rank
+    			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
+    			+ structured_data_base 
+    			+ " WHERE capacity IS NOT NULL");
+	        	log.info(customer_name + " :  INSERT INTO " + unions_next_rank);
+//        	st.executeUpdate(queryString);
 	    }
 		}
 		else
@@ -817,7 +822,7 @@ public class InventoryState implements AutoCloseable
 		
 		log.info(customer_name + " : Starting filling up the tables");
 		
-		if (!AdjustInventory(structured_data_inc, reloadable, startTime))
+		if (!AdjustInventory(unions_next_rank, reloadable, startTime))
 			return false;
 
     	// remove unneeded nodes
@@ -919,30 +924,31 @@ public class InventoryState implements AutoCloseable
 				//		drop the subset and add superset
 				// 		repeat
 				// ---
-				// check for superset has the same capacity as the subset
+				// check for superset has the same availability as the subset
 				st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions);
 				queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions + " AS SELECT \n" // TODO: make the table temporary
-				+ unions_last_rank + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key, " + unions_next_rank + ".capacity \n"
+				+ unions_last_rank + ".set_key as l_key, " + unions_next_rank + ".set_key as n_key, " + unions_next_rank + ".capacity, " + unions_next_rank + ".availability \n"
 				+ " FROM " + unions_last_rank + "\n"
     			+ " JOIN " + unions_next_rank + "\n"
     			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
-    			+ "      AND " + unions_last_rank + ".capacity = " + unions_next_rank + ".capacity \n"
+    			+ "      AND " + unions_last_rank + ".availability = " + unions_next_rank + ".availability \n"
     			+ "      AND " + unions_next_rank + ".set_key IS NOT NULL";
 				int row_cnt = st.executeUpdate(queryString);
 				if (row_cnt > 0)
 				{					
-					// find highest supersets that of the same capacity
+					// find highest supersets that of the same availability
 					st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions1);
 					queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions1 + " AS SELECT \n"
 					+ ex_inc_unions + ".l_key, " 
 					+ " BIT_OR(" + ex_inc_unions + ".n_key) AS n_key, "
+					+ ex_inc_unions + ".availability, \n"
 					+ ex_inc_unions + ".capacity \n"
 					+ " FROM " + ex_inc_unions 
-					+ " GROUP BY " + ex_inc_unions + ".l_key, " + ex_inc_unions + ".capacity "
+					+ " GROUP BY " + ex_inc_unions + ".l_key, " + ex_inc_unions + ".availability "
 					;
 					row_cnt = st.executeUpdate(queryString);							
 							
-					// keep only rows with capacity lower than in next rank
+					// keep only rows with availability lower than in next rank
 					st.executeUpdate("TRUNCATE " + temp_unions);
 					queryString = "INSERT /*IGNORE*/ INTO " + temp_unions + " SELECT " 
 					+ unions_last_rank + ".set_key, "
@@ -974,7 +980,7 @@ public class InventoryState implements AutoCloseable
 					+ ex_inc_unions1 + ".n_key AS set_key, "
 					+ "NULL AS set_name, "
 					+ ex_inc_unions1 + ".capacity, " 
-					+ ex_inc_unions1 + ".capacity AS availability, " 
+					+ ex_inc_unions1 + ".availability AS availability, " 
 					+ " 0 AS goal "
 					+ " FROM " + ex_inc_unions1 + "\n";
 					st.executeUpdate(queryString);
@@ -1014,7 +1020,7 @@ public class InventoryState implements AutoCloseable
     		start_data = unions_next_rank; // after the first pass switch back to unions_next_rank
 		} while (true);
         
-        // update base table with keys of supersets of the same capacity
+        // update base table with keys of supersets of the same availability
 		try (Statement st = con.createStatement()) 
 		{
 			st.executeUpdate("UPDATE " + structured_data_base + "," + structured_data_inc
