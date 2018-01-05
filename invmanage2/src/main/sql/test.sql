@@ -138,7 +138,7 @@ FROM (
     ) ds 
 	LEFT OUTER JOIN structured_data_inc
        ON ds.set_key & structured_data_inc.set_key = ds.set_key 
-       WHERE structured_data_inc.set_key IS NULL -- make sure we don't have them already
+       WHERE structured_data_inc.set_key IS NULL -- make sure we don't have them already. Shouldn't we rely on INSERT IGNORE?
    
    ) un_sk 
    JOIN raw_inventory   
@@ -149,8 +149,8 @@ FROM (
  
  ) un
 JOIN structured_data_base 
-ON structured_data_base.set_key & un.set_key != 0 
-GROUP BY un.set_key 
+ON structured_data_base.set_key_is & un.set_key != 0 
+GROUP BY un.set_key, un.capacity 
 
 
 --  ---
@@ -159,6 +159,7 @@ GROUP BY un.set_key
 --  		repeat
 --  ---
 --  check for superset has the same availability as the subset
+--  build ex_inc_unions table
 SELECT 
 unions_last_rank.set_key as l_key, unions_next_rank.set_key as n_key, unions_next_rank.capacity, unions_next_rank.availability 
  FROM unions_last_rank
@@ -167,21 +168,13 @@ unions_last_rank.set_key as l_key, unions_next_rank.set_key as n_key, unions_nex
       AND unions_last_rank.availability = unions_next_rank.availability 
       AND unions_next_rank.set_key IS NOT NULL
 
-SELECT DISTINCT lpad(bin(un1.set_key), 20, '0'), un1.capacity
-FROM unions_next_rank un1
-JOIN unions_next_rank un2
-ON un1.set_key & un2.set_key > 0
-AND un1.set_key != un2.set_key
-AND un1.capacity = un2.capacity
-ORDER BY capacity;
+-- find highest supersets that of the same availability
+-- buld ex_inc_unions1 table
+SELECT 
+ex_inc_unions.l_key,  BIT_OR(ex_inc_unions.n_key) AS n_key
+, ex_inc_unions.availability, ex_inc_unions.capacity 
+FROM ex_inc_unions 
+GROUP BY ex_inc_unions.l_key, ex_inc_unions.availability, ex_inc_unions.capacity
 
-SELECT BIT_OR(un1.set_key), un1.capacity
-FROM unions_next_rank un1
-JOIN unions_next_rank un2
-ON un1.set_key & un2.set_key > 0
-AND un1.set_key != un2.set_key
-AND un1.capacity = un2.capacity
-GROUP BY un1.capacity
-ORDER BY capacity;
 
       

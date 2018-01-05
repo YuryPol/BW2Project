@@ -106,7 +106,7 @@ public class InventoryState implements AutoCloseable
 		{
 			// Local MySQL instance to use during development.
 			Class.forName("com.mysql.jdbc.Driver"); // can't find the class
-			url = "jdbc:mysql://localhost:3306?user=root&password=IraAnna12";
+			url = "jdbc:mysql://localhost:3306?user=root&password=IraAnna12&autoReconnect=true&useSSL=false";
 		}
 
 //	    if (System
@@ -871,6 +871,7 @@ public class InventoryState implements AutoCloseable
 //            	return false;
 //            }	            	
         	
+//          build new layer with unions of higher rank  
     		try (Statement st = con.createStatement()) {
     			// save the previous layer
 				st.executeUpdate("TRUNCATE " + unions_last_rank);
@@ -903,8 +904,8 @@ public class InventoryState implements AutoCloseable
     			+ " ) un_r\n"
     			+ " GROUP BY set_key) un\n"
     			+ "JOIN " + structured_data_base + " \n"
-    			+ "ON " + structured_data_base + ".set_key & un.set_key != 0 \n"
-    			+ "GROUP BY un.set_key \n"
+    			+ "ON " + structured_data_base + ".set_key_is & un.set_key != 0 \n"
+    			+ "GROUP BY un.set_key, un.capacity \n"
     			;
 				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT INTO unions_next_rank");
 				st.executeUpdate(queryString);
@@ -944,7 +945,7 @@ public class InventoryState implements AutoCloseable
 					+ ex_inc_unions + ".availability, \n"
 					+ ex_inc_unions + ".capacity \n"
 					+ " FROM " + ex_inc_unions 
-					+ " GROUP BY " + ex_inc_unions + ".l_key, " + ex_inc_unions + ".availability "
+					+ " GROUP BY " + ex_inc_unions + ".l_key, " + ex_inc_unions + ".availability, " + ex_inc_unions + ".capacity \n"
 					;
 					row_cnt = st.executeUpdate(queryString);							
 							
@@ -960,8 +961,7 @@ public class InventoryState implements AutoCloseable
 	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
 	    			+ "      ON " + unions_last_rank + ".set_key = " + ex_inc_unions + ".l_key \n"
 					+ "      WHERE " + ex_inc_unions + ".l_key IS NULL \n";
-					st.executeUpdate(queryString);
-					
+					st.executeUpdate(queryString);					
 					rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
 					if (rs.next()) 
 					{
@@ -974,7 +974,12 @@ public class InventoryState implements AutoCloseable
 						st.executeUpdate("INSERT INTO " + unions_last_rank + " SELECT * FROM " + temp_unions);
 					
 					// recreate supersets only for sets of the same as their subsets  capacity
-					st.executeUpdate("TRUNCATE " + unions_next_rank);
+					// st.executeUpdate("TRUNCATE " + unions_next_rank);
+					// delete all supersets but of the highest rank 
+					queryString = "DELETE " + unions_next_rank + " FROM " + unions_next_rank 
+					+ " JOIN " + ex_inc_unions
+					+ "\n ON " + ex_inc_unions + ".n_key & " + unions_next_rank + ".set_key = " + unions_next_rank + ".set_key";
+					st.executeUpdate(queryString);
 					// and add highest unions that of the same capacity ????
 					queryString = "INSERT /*IGNORE*/ INTO " + unions_next_rank + " SELECT DISTINCT " 
 					+ ex_inc_unions1 + ".n_key AS set_key, "
@@ -1096,9 +1101,9 @@ public class InventoryState implements AutoCloseable
     		}
     	}
     	// update structured_data_inc table
-		Calendar starting = new GregorianCalendar();
-		Long startTime = starting.getTimeInMillis();
-    	AdjustInventory(structured_data_inc, false, startTime);
+//		Calendar starting = new GregorianCalendar();
+//		Long startTime = starting.getTimeInMillis();
+////    	AdjustInventory(structured_data_inc, false, startTime);
     	// remove unneeded nodes
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
     	{
