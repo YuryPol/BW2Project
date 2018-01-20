@@ -127,13 +127,13 @@ FROM (
   
   SELECT ds.set_key FROM (
   
-    SELECT DISTINCT structured_data_base.set_key_is | unions_last_rank.set_key as set_key -- new unions to add
+    SELECT DISTINCT structured_data_base.set_key | unions_last_rank.set_key as set_key -- new unions to add
 	FROM unions_last_rank
     JOIN structured_data_base
 	JOIN raw_inventory
          ON  structured_data_base.set_key & raw_inventory.basesets != 0 
          AND unions_last_rank.set_key & raw_inventory.basesets != 0 -- overlapping
-         AND structured_data_base.set_key_is | unions_last_rank.set_key > unions_last_rank.set_key -- and of higher rank
+         AND structured_data_base.set_key | unions_last_rank.set_key > unions_last_rank.set_key -- and of higher rank
          
     ) ds 
 	LEFT OUTER JOIN structured_data_inc
@@ -149,7 +149,7 @@ FROM (
  
  ) un
 JOIN structured_data_base 
-ON structured_data_base.set_key_is & un.set_key != 0 
+ON structured_data_base.set_key & un.set_key != 0 
 GROUP BY un.set_key, un.capacity 
 
 
@@ -166,7 +166,7 @@ unions_last_rank.set_key as l_key, unions_next_rank.set_key as n_key, unions_nex
  JOIN unions_next_rank
       ON unions_last_rank.set_key & unions_next_rank.set_key = unions_last_rank.set_key 
       AND unions_last_rank.availability = unions_next_rank.availability 
-      AND unions_next_rank.set_key IS NOT NULL
+      AND unions_next_rank.set_key > unions_last_rank.set_key 
 
 -- find highest supersets that of the same availability
 -- buld ex_inc_unions1 table
