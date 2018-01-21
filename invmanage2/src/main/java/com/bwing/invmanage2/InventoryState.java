@@ -1000,6 +1000,9 @@ public class InventoryState implements AutoCloseable
 //					}
 				}
 				}
+				else {
+					keep_going = false;
+				}
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
 				st.executeUpdate(
 				" INSERT IGNORE INTO " + structured_data_inc // we do need IGNORE, inserts should be of higher rank but they may be inserted before ??
