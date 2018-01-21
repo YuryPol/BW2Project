@@ -857,6 +857,7 @@ public class InventoryState implements AutoCloseable
 		int cnt_updated = 0;
     	String queryString;
         ResultSet rs = null;
+        boolean keep_going = true;
     	
         do 
 		{
@@ -914,9 +915,9 @@ public class InventoryState implements AutoCloseable
 				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
 				if (rs.next())
 					insert_size = rs.getInt(1);
-				if (insert_size == 0)
-					break; // no more unions
-				
+				if (insert_size != 0)
+//					break; // no more unions
+				{				
 				log.info(customer_name + " : size of " + unions_next_rank + " = " + String.valueOf(insert_size));
 
 			
@@ -998,6 +999,7 @@ public class InventoryState implements AutoCloseable
 //							break;
 //					}
 				}
+				}
 				log.info(customer_name + " : INSERT INTO " + structured_data_inc);	   			
 				st.executeUpdate(
 				" INSERT IGNORE INTO " + structured_data_inc // we do need IGNORE, inserts should be of higher rank but they may be inserted before ??
@@ -1023,7 +1025,7 @@ public class InventoryState implements AutoCloseable
 //				return true;
 //			}
     		start_data = unions_next_rank; // after the first pass switch back to unions_next_rank
-		} while (true);
+		} while (keep_going);
         
         // update base table with keys of supersets of the same availability
 		try (Statement st = con.createStatement()) 
