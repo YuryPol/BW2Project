@@ -853,6 +853,7 @@ public class InventoryState implements AutoCloseable
     {
 		int iteration = 0;
 		int insert_size = 0;
+		int row_cnt = 0;
 		int cnt = 0;
 		int cnt_updated = 0;
     	String queryString;
@@ -909,7 +910,7 @@ public class InventoryState implements AutoCloseable
     			+ "GROUP BY un.set_key, un.capacity \n"
     			;
 				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT INTO unions_next_rank");
-				st.executeUpdate(queryString);
+				row_cnt = st.executeUpdate(queryString);
 				// make sure we don't have them or their supersets already
 				
 				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
@@ -935,7 +936,7 @@ public class InventoryState implements AutoCloseable
     			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
     			+ "      AND " + unions_last_rank + ".availability = " + unions_next_rank + ".availability \n"
     			+ "      AND " + unions_next_rank + ".set_key > " + unions_last_rank + ".set_key";
-				int row_cnt = st.executeUpdate(queryString);
+				row_cnt = st.executeUpdate(queryString);
 				if (row_cnt > 0)
 				{					
 					// find highest supersets that of the same availability
@@ -962,7 +963,7 @@ public class InventoryState implements AutoCloseable
 	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
 	    			+ "      ON " + unions_last_rank + ".set_key = " + ex_inc_unions + ".l_key \n"
 					+ "      WHERE " + ex_inc_unions + ".l_key IS NULL \n";
-					st.executeUpdate(queryString);					
+					row_cnt = st.executeUpdate(queryString);					
 					rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
 					if (rs.next()) 
 					{
@@ -989,7 +990,7 @@ public class InventoryState implements AutoCloseable
 //					+ ex_inc_unions1 + ".availability, " 
 //					+ " 0 AS goal " // TODO: change to SUM(goal)
 //					+ " FROM " + ex_inc_unions1 + "\n";
-//					st.executeUpdate(queryString);
+//					row_cnt = st.executeUpdate(queryString);
 //					rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);					
 //					if (rs.next())
 //					{
@@ -998,6 +999,9 @@ public class InventoryState implements AutoCloseable
 //						if (insert_size == 0)
 //							break;
 //					}
+				}
+				else {
+					keep_going = false;
 				}
 				}
 				else {
@@ -1106,9 +1110,9 @@ public class InventoryState implements AutoCloseable
     		}
     	}
     	// update structured_data_inc table
-//		Calendar starting = new GregorianCalendar();
-//		Long startTime = starting.getTimeInMillis();
-////    	AdjustInventory(structured_data_inc, false, startTime);
+		Calendar starting = new GregorianCalendar();
+		Long startTime = starting.getTimeInMillis();
+    	AdjustInventory(structured_data_inc, false, startTime);
     	// remove unneeded nodes
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
     	{
