@@ -60,7 +60,7 @@ public class InventoryState implements AutoCloseable
     public static final String result_serving = "result_serving";
     public static final String result_serving_copy = "result_serving_copy";
     private static final String ex_inc_unions = "ex_inc_unions";
-//    private static final String ex_inc_unions1 = "ex_inc_unions1";
+    private static final String ex_inc_unions1 = "ex_inc_unions1";
     private static final String temp_unions = "temp_unions";
     static final String inventory_status = "inventory_status";
  
@@ -853,7 +853,6 @@ public class InventoryState implements AutoCloseable
     {
 		int iteration = 0;
 		int insert_size = 0;
-		int row_cnt = 0;
 		int cnt = 0;
 		int cnt_updated = 0;
     	String queryString;
@@ -910,12 +909,9 @@ public class InventoryState implements AutoCloseable
     			+ "GROUP BY un.set_key, un.capacity \n"
     			;
 				log.info(customer_name + " : iteration = " +  String.valueOf(iteration++) + " INSERT INTO unions_next_rank");
-				row_cnt = st.executeUpdate(queryString);
+				insert_size = st.executeUpdate(queryString);
 				// make sure we don't have them or their supersets already
 				
-				rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);
-				if (rs.next())
-					insert_size = rs.getInt(1);
 				if (insert_size != 0)
 //					break; // no more unions
 				{				
@@ -936,8 +932,8 @@ public class InventoryState implements AutoCloseable
     			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
     			+ "      AND " + unions_last_rank + ".availability = " + unions_next_rank + ".availability \n"
     			+ "      AND " + unions_next_rank + ".set_key > " + unions_last_rank + ".set_key";
-				row_cnt = st.executeUpdate(queryString);
-				if (row_cnt > 0)
+				insert_size = st.executeUpdate(queryString);
+				if (insert_size > 0)
 				{					
 					// find highest supersets that of the same availability
 //					st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions1);
@@ -963,12 +959,7 @@ public class InventoryState implements AutoCloseable
 	    			+ " LEFT OUTER JOIN " + ex_inc_unions + "\n"
 	    			+ "      ON " + unions_last_rank + ".set_key = " + ex_inc_unions + ".l_key \n"
 					+ "      WHERE " + ex_inc_unions + ".l_key IS NULL \n";
-					row_cnt = st.executeUpdate(queryString);					
-					rs = st.executeQuery("SELECT COUNT(*) FROM " + temp_unions);
-					if (rs.next()) 
-					{
-						insert_size = rs.getInt(1);
-					}
+					insert_size = st.executeUpdate(queryString);					
 					log.info(customer_name + " : size of " + temp_unions + " = " + String.valueOf(insert_size));
 					// Finalize for insertion into structured_data_inc
 					st.executeUpdate("TRUNCATE " + unions_last_rank);
