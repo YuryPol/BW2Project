@@ -931,21 +931,21 @@ public class InventoryState implements AutoCloseable
     			+ " JOIN " + unions_next_rank + "\n"
     			+ "      ON " + unions_last_rank + ".set_key & " + unions_next_rank + ".set_key = " + unions_last_rank + ".set_key \n"
     			+ "      AND " + unions_last_rank + ".availability = " + unions_next_rank + ".availability \n"
-    			+ "      AND " + unions_next_rank + ".set_key > " + unions_last_rank + ".set_key";
+    			+ "      AND BIT_COUNT(" + unions_next_rank + ".set_key) = BIT_COUNT(" + unions_last_rank + ".set_key) + 1";
 				insert_size = st.executeUpdate(queryString);
 				if (insert_size > 0)
 				{					
 					// find highest supersets that of the same availability
-//					st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions1);
-//					queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions1 + " AS SELECT \n"
-//					+ ex_inc_unions + ".l_key, " 
-//					+ " BIT_OR(" + ex_inc_unions + ".n_key) AS n_key, "
-//					+ ex_inc_unions + ".availability, \n" // TODO: correct for SUM(goal)
-//					+ ex_inc_unions + ".capacity \n"
-//					+ " FROM " + ex_inc_unions 
-//					+ " GROUP BY " + ex_inc_unions + ".l_key, " + ex_inc_unions + ".availability, " + ex_inc_unions + ".capacity \n"
-//					;
-//					row_cnt = st.executeUpdate(queryString);							
+					st.executeUpdate("DROP TABLE IF EXISTS " + ex_inc_unions1);
+					queryString = "CREATE /*TEMPORARY*/ TABLE " + ex_inc_unions1 + " AS SELECT \n"
+					+ ex_inc_unions + ".l_key, " 
+					+ " BIT_OR(" + ex_inc_unions + ".n_key) AS n_key, "
+					+ ex_inc_unions + ".availability, \n" // TODO: correct for SUM(goal)
+					+ ex_inc_unions + ".capacity \n"
+					+ " FROM " + ex_inc_unions 
+					+ " GROUP BY " + ex_inc_unions + ".l_key, " + ex_inc_unions + ".availability, " + ex_inc_unions + ".capacity \n"
+					;
+					insert_size = st.executeUpdate(queryString);							
 							
 					// keep only rows with availability lower than in next rank
 					st.executeUpdate("TRUNCATE " + temp_unions);
@@ -969,27 +969,23 @@ public class InventoryState implements AutoCloseable
 					// recreate supersets only for sets of the same as their subsets  capacity
 					// st.executeUpdate("TRUNCATE " + unions_next_rank);
 					// delete all supersets but of the highest rank 
-//					queryString = "DELETE " + unions_next_rank + " FROM " + unions_next_rank 
-//					+ " JOIN " + ex_inc_unions1
-//					+ "\n ON " + ex_inc_unions1 + ".n_key & " + unions_next_rank + ".set_key = " + unions_next_rank + ".set_key";
-//					st.executeUpdate(queryString);
-//					// and add highest unions that of the same capacity ????
-//					queryString = "INSERT /*IGNORE*/ INTO " + unions_next_rank + " SELECT DISTINCT " 
-//					+ ex_inc_unions1 + ".n_key AS set_key, "
-//					+ "NULL AS set_name, "
-//					+ ex_inc_unions1 + ".capacity, " 
-//					+ ex_inc_unions1 + ".availability, " 
-//					+ " 0 AS goal " // TODO: change to SUM(goal)
-//					+ " FROM " + ex_inc_unions1 + "\n";
-//					row_cnt = st.executeUpdate(queryString);
-//					rs = st.executeQuery("SELECT COUNT(*) FROM " + unions_next_rank);					
-//					if (rs.next())
-//					{
-//						insert_size = rs.getInt(1);
-//						log.info(customer_name + " : corrected size of " + unions_next_rank + " = " + String.valueOf(insert_size));	
-//						if (insert_size == 0)
-//							break;
-//					}
+					queryString = "DELETE " + unions_next_rank + " FROM " + unions_next_rank 
+					+ " JOIN " + ex_inc_unions1
+					+ "\n ON " + ex_inc_unions1 + ".n_key & " + unions_next_rank + ".set_key = " + unions_next_rank + ".set_key";
+					st.executeUpdate(queryString);
+					// and add highest unions that of the same capacity ????
+					queryString = "INSERT /*IGNORE*/ INTO " + unions_next_rank + " SELECT DISTINCT " 
+					+ ex_inc_unions1 + ".n_key AS set_key, "
+					+ "NULL AS set_name, "
+					+ ex_inc_unions1 + ".capacity, " 
+					+ ex_inc_unions1 + ".availability, " 
+					+ " 0 AS goal " // TODO: change to SUM(goal)
+					+ " FROM " + ex_inc_unions1 + "\n";
+					insert_size = st.executeUpdate(queryString);
+					log.info(customer_name + " : corrected size of " + unions_next_rank + " = "
+							+ String.valueOf(insert_size));
+					if (insert_size == 0)
+						break;
 				}
 				else {
 					keep_going = false;
