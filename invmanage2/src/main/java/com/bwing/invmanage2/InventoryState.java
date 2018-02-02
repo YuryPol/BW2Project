@@ -211,18 +211,6 @@ public class InventoryState implements AutoCloseable
     	    + "goal INT DEFAULT 0, "
     	    + "PRIMARY KEY(set_key))");        	
         	
-        	// create inventory sets table
-        	st.executeUpdate("DROP TABLE IF EXISTS " + structured_data_base);
-        	st.executeUpdate("CREATE TABLE " + structured_data_base 
-        	+ " (set_key_is BIGINT DEFAULT 0, "
-		    + "set_key BIGINT DEFAULT NULL, "
-		    + "set_name VARCHAR(20) DEFAULT NULL, "
-		    + "capacity INT DEFAULT NULL, "
-		    + "availability INT DEFAULT NULL, " 
-		    + "goal INT DEFAULT 0, "
-		    + "criteria VARCHAR(200) DEFAULT NULL, "
-		    + "PRIMARY KEY(set_key_is))");
-
         	// create temporary table to insert next rank rows
         	st.executeUpdate("DROP TABLE IF EXISTS " + unions_last_rank);
         	st.executeUpdate("CREATE TABLE " +  unions_last_rank
@@ -692,6 +680,7 @@ public class InventoryState implements AutoCloseable
 //		    + "private_availability INT DEFAULT NULL, " 
 		    + "goal INT DEFAULT 0, "
 		    + "criteria VARCHAR(200) DEFAULT NULL, "
+		    + "overlap BIGINT DEFAULT 0, "
 		    + "PRIMARY KEY(set_key_is))");        	
         }
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT IGNORE INTO "  + structured_data_base 
@@ -761,14 +750,15 @@ public class InventoryState implements AutoCloseable
             // adds capacities and availabilities to structured base segments       	
         	st.executeUpdate("UPDATE "
         			+ structured_data_base
-        			+ ", (SELECT set_key, SUM(" + raw_inventory + ".count) AS capacity, SUM(" + raw_inventory + ".count) AS availability FROM "
+        			+ ", (SELECT set_key, SUM(" + raw_inventory + ".count) AS capacity, SUM(" + raw_inventory + ".count) AS availability, BIT_AND(" + raw_inventory + ".basesets) AS overlap FROM "
         			+ structured_data_base
         			+ " JOIN " 
         			+ raw_inventory 
         			+ " ON set_key & " + raw_inventory + ".basesets != 0 "
         			+ " GROUP BY set_key) comp "
         			+ " SET " + structured_data_base + ".capacity = comp.capacity, "
-        			+ structured_data_base + ".availability = comp.availability "
+        			+ structured_data_base + ".availability = comp.availability, "
+        			+ structured_data_base + ".overlap = comp.overlap "
         			+ " WHERE " + structured_data_base + ".set_key = comp.set_key");
         	log.info(customer_name + " : UPDATE " + structured_data_base);        	
         }
