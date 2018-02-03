@@ -254,28 +254,28 @@ public class InventoryState implements AutoCloseable
         	st.executeUpdate("DROP TABLE IF EXISTS " + result_serving_copy);
         	
         	
-        	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
-        	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
-        			+ "BEGIN "
-        			+ " UPDATE " + unions_next_rank + ", "
-        			+ " (SELECT "
-        			+ "    set_key, "
-        			+ "    SUM(capacity) as capacity, "
-        			+ "    SUM(availability) as availability "
-        			+ "  FROM ("
-        			+ "   SELECT unr1.set_key, ri.count as capacity, ri.count as availability "
-        			+ "    FROM " + unions_next_rank + " unr1"
-        			+ "    JOIN " + raw_inventory + " ri "
-        			+ "    ON unr1.set_key & ri.basesets != 0 "
-        			+ "    WHERE unr1.capacity is NULL "
-        			+ "    ) blownUp "
-        			+ "  GROUP BY set_key"
-        			+ " ) comp "
-        			+ " SET " + unions_next_rank + ".capacity = comp.capacity, "
-        			+   unions_next_rank + ".availability = comp.availability "
-        			+ " WHERE " + unions_next_rank + ".set_key = comp.set_key; "
-        			+ " END "
-        			);
+//        	st.executeUpdate("DROP PROCEDURE IF EXISTS PopulateRankWithNumbers");
+//        	st.executeUpdate("CREATE PROCEDURE PopulateRankWithNumbers() "
+//        			+ "BEGIN "
+//        			+ " UPDATE " + unions_next_rank + ", "
+//        			+ " (SELECT "
+//        			+ "    set_key, "
+//        			+ "    SUM(capacity) as capacity, "
+//        			+ "    SUM(availability) as availability "
+//        			+ "  FROM ("
+//        			+ "   SELECT unr1.set_key, ri.count as capacity, ri.count as availability "
+//        			+ "    FROM " + unions_next_rank + " unr1"
+//        			+ "    JOIN " + raw_inventory + " ri "
+//        			+ "    ON unr1.set_key & ri.basesets != 0 "
+//        			+ "    WHERE unr1.capacity is NULL "
+//        			+ "    ) blownUp "
+//        			+ "  GROUP BY set_key"
+//        			+ " ) comp "
+//        			+ " SET " + unions_next_rank + ".capacity = comp.capacity, "
+//        			+   unions_next_rank + ".availability = comp.availability "
+//        			+ " WHERE " + unions_next_rank + ".set_key = comp.set_key; "
+//        			+ " END "
+//        			);
         	        	
         	st.executeUpdate("DROP FUNCTION IF EXISTS BookItemsFromIS");
         	st.executeUpdate("CREATE FUNCTION BookItemsFromIS(iset BIGINT, amount INT) "
@@ -379,20 +379,6 @@ public class InventoryState implements AutoCloseable
         }
     }
     
-    boolean isLocked() throws SQLException // TODO: remove later
-    {
-		// Do the tables exist?
-        try (Statement st = con.createStatement())
-        {
-        	boolean rs = st.execute("SELECT count(*) FROM " + structured_data_base);
-        	return !rs;
-        }
-        catch (SQLException ex)
-        {
-        	return true;
-        }
-    }
-       
     void unlock() throws SQLException // TODO: remove later
     {
         try (Statement st = con.createStatement())
@@ -680,7 +666,7 @@ public class InventoryState implements AutoCloseable
 //		    + "private_availability INT DEFAULT NULL, " 
 		    + "goal INT DEFAULT 0, "
 		    + "criteria VARCHAR(200) DEFAULT NULL, "
-		    + "overlap BIGINT DEFAULT 0, "
+		    + "sub_of BIGINT DEFAULT 0, "
 		    + "PRIMARY KEY(set_key_is))");        	
         }
         try (PreparedStatement insertStatement = con.prepareStatement("INSERT IGNORE INTO "  + structured_data_base 
@@ -728,10 +714,15 @@ public class InventoryState implements AutoCloseable
 	        		insertStatement.setString(3, bs1.getCriteria().toString());
 	        	}
 	        	insertStatement.setLong(4, 0);
-	            insertStatement.execute();
+	            if (insertStatement.executeUpdate() == 0) 
+	    		{
+	    			log.severe(customer_name + " : no data");
+	    			return false;
+	    		}
 	        }
         }
                 
+		
         // update raw inventory with weights
         try (PreparedStatement st = con.prepareStatement("SELECT @n:=0"))
         {
@@ -750,7 +741,7 @@ public class InventoryState implements AutoCloseable
             // adds capacities and availabilities to structured base segments       	
         	st.executeUpdate("UPDATE "
         			+ structured_data_base
-        			+ ", (SELECT set_key, SUM(" + raw_inventory + ".count) AS capacity, SUM(" + raw_inventory + ".count) AS availability, BIT_AND(" + raw_inventory + ".basesets) AS overlap FROM "
+        			+ ", (SELECT set_key, SUM(" + raw_inventory + ".count) AS capacity, SUM(" + raw_inventory + ".count) AS availability, BIT_AND(" + raw_inventory + ".basesets) AS sub_of FROM "
         			+ structured_data_base
         			+ " JOIN " 
         			+ raw_inventory 
@@ -758,13 +749,13 @@ public class InventoryState implements AutoCloseable
         			+ " GROUP BY set_key) comp "
         			+ " SET " + structured_data_base + ".capacity = comp.capacity, "
         			+ structured_data_base + ".availability = comp.availability, "
-        			+ structured_data_base + ".overlap = comp.overlap "
+        			+ structured_data_base + ".sub_of = comp.sub_of "
         			+ " WHERE " + structured_data_base + ".set_key = comp.set_key");
-        	log.info(customer_name + " : UPDATE " + structured_data_base);        	
+        	log.info(customer_name + " : UPDATE " + structured_data_base);
         }
         
         //
-        // Build necessary unions only, layer by layer
+        // Build necessary unions only
         //
         // first layer in union_next_rank table
         // this is done once so later we can pick up on task re-launch with unions_next_rank at any step
@@ -775,14 +766,33 @@ public class InventoryState implements AutoCloseable
 //		+ " ON ri1.basesets & ri2.basesets > 0 AND ri1.basesets >= ri2.basesets \n"
 //		+ "GROUP BY ri1.basesets \n"
 //		;
+//        describe structued_data_inc;
+//        +--------------+-------------+------+-----+---------+
+//        | Field        | Type        | Null | Key | Default |
+//        +--------------+-------------+------+-----+---------+
+//        | set_key      | bigint(20)  | NO   | PRI | 0       |
+//        | set_name     | varchar(20) | YES  |     | NULL    |
+//        | capacity     | int(11)     | YES  |     | NULL    |
+//        | availability | int(11)     | YES  |     | NULL    |
+//        | goal         | int(11)     | YES  |     | 0       |
+//        +--------------+-------------+------+-----+---------+
         try (Statement st = con.createStatement())
         {
-        	st.executeUpdate("INSERT INTO " + unions_next_rank
-    			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
-    			+ structured_data_base 
-    			+ " WHERE capacity IS NOT NULL");
-	        	log.info(customer_name + " :  INSERT INTO " + unions_next_rank);
-//        	st.executeUpdate(queryString);
+//        	st.executeUpdate("INSERT INTO " + structured_data_inc
+//    			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
+//    			+ structured_data_base 
+//    			+ " WHERE capacity IS NOT NULL");
+//	        	log.info(customer_name + " :  INSERT INTO " + structured_data_inc);        	
+        	// Build unions for sets that include other sets, including itself
+        	st.executeUpdate("INSERT INTO " + structured_data_inc
+        			+ " SELECT BIT_OR(sup_of) set_key, set_name, capacity, capacity, goal \n"
+					+ " FROM (\n"
+        			+ " SELECT sb1.set_key, sb1.set_name, sb1.capacity, sb1.goal, sb2.set_key sup_of \n"
+					+ "		FROM " + structured_data_base + " sb1 \n"
+					+ "		JOIN " + structured_data_base + " sb2 \n"
+					+ "		ON sb1.set_key & sb2.sub_of > 0 \n"
+					+ "	) tmp \n"
+					+ "	GROUP BY set_key, set_name, capacity, goal");
 	    }
 		}
 		else
@@ -795,26 +805,12 @@ public class InventoryState implements AutoCloseable
 		// We can restart from here 
 		loadinvalid();
         
-        ResultSet rs = null;
-		try (Statement st = con.createStatement()) 
-		{
-			rs = st.executeQuery("SELECT count(*) FROM " + raw_inventory);
-			if (rs.next()) {
-				if (rs.getInt(1) == 0)
-				{
-					log.severe(customer_name + " : no data");
-					rs.close();
-					st.close();
-					return false;
-				}
-			}
-		}
-		
 		log.info(customer_name + " : Starting filling up the tables");
 		
-		if (!AdjustInventory(unions_next_rank, reloadable, startTime))
-			return false;
+//		if (!AdjustInventory(unions_next_rank, reloadable, startTime))
+//			return false;
 
+		// TODO: change all that
     	// remove unneeded nodes
     	try (CallableStatement callStatement = con.prepareCall("{call " + BWdb + customer_name + ".CleanUpSD()}"))
     	{
@@ -1017,7 +1013,7 @@ public class InventoryState implements AutoCloseable
 			st.executeUpdate("UPDATE " + structured_data_base + "," + structured_data_inc
 			+ " SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key "
 			+ " WHERE " + structured_data_base + ".set_key & " + structured_data_inc + ".set_key = " + structured_data_base + ".set_key "
-			+ " AND " + structured_data_base + ".set_key < " + structured_data_inc + ".set_key "
+			+ " AND " + structured_data_base + ".set_key < " + structured_data_inc + ".set_key " // TODO: fix that
 			+ " AND " + structured_data_base + ".availability = " + structured_data_inc + ".availability; ");
 			log.info(customer_name + " : UPDATE " + structured_data_base + " with keys of new inserts of the same availability");
 		}
