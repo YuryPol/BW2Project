@@ -123,7 +123,7 @@ public class AllocationTest {
 						int total_inventory = rs.getInt(1);
 						if (total_inventory < totalGoal)
 						{
-							log.severe("There is a problem with inventory, goalon on repeat #" + ind);
+							log.severe("There is a problem with inventory, goal on repeat #" + ind);
 							log.severe(Integer.toString(total_inventory) + ", " + Integer.toString(totalGoal));
 							invState.close();
 							in.close();

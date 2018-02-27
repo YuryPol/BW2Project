@@ -546,6 +546,7 @@ public class InventoryState implements AutoCloseable
     {
 		Calendar starting = new GregorianCalendar();
 		Long startTime = starting.getTimeInMillis();
+		String queryString;
 
 		if (!isLoadInProgress())
 		{
@@ -778,21 +779,25 @@ public class InventoryState implements AutoCloseable
 //        +--------------+-------------+------+-----+---------+
         try (Statement st = con.createStatement())
         {
-//        	st.executeUpdate("INSERT INTO " + structured_data_inc
-//    			+ " SELECT set_key, set_name, capacity, availability, goal FROM " 
-//    			+ structured_data_base 
-//    			+ " WHERE capacity IS NOT NULL");
-//	        	log.info(customer_name + " :  INSERT INTO " + structured_data_inc);        	
-        	// Build unions for sets that include other sets, including itself
-        	st.executeUpdate("INSERT INTO " + structured_data_inc
-        			+ " SELECT BIT_OR(sup_of) set_key, set_name, capacity, capacity, goal \n"
-					+ " FROM (\n"
-        			+ " SELECT sb1.set_key, sb1.set_name, sb1.capacity, sb1.goal, sb2.set_key sup_of \n"
-					+ "		FROM " + structured_data_base + " sb1 \n"
-					+ "		JOIN " + structured_data_base + " sb2 \n"
-					+ "		ON sb1.set_key & sb2.sub_of > 0 \n"
-					+ "	) tmp \n"
-					+ "	GROUP BY set_key, set_name, capacity, goal");
+        	// Add unions for sets that include other sets, including itself
+        	st.executeUpdate("INSERT IGNORE INTO " + structured_data_inc
+    			+ " SELECT BIT_OR(sup_of) set_key, set_name, capacity, availability, goal \n"
+				+ " FROM (\n"
+    			+ " SELECT sb1.set_key, sb1.set_name, sb1.capacity, sb1.availability, sb1.goal, sb2.set_key sup_of \n"
+				+ "		FROM " + structured_data_base + " sb1 \n"
+				+ "		JOIN " + structured_data_base + " sb2 \n"
+				+ "		ON sb1.set_key & sb2.sub_of > 0 \n"
+				+ "	UNION ALL \n"
+    			+ " SELECT set_key, set_name, capacity, availability, goal, set_key sup_of FROM " + structured_data_base 
+    			+ " WHERE capacity IS NOT NULL"
+				+ "	) tmp \n"
+				+ "	GROUP BY set_name, capacity, availability, goal");
+        	
+        	log.info(customer_name + " :  INSERT INTO " + structured_data_inc);
+        	
+        	st.executeUpdate("UPDATE " + structured_data_base + " , " + structured_data_inc
+				+ "     SET " + structured_data_base + ".set_key = " + structured_data_inc + ".set_key \n"
+				+ "     WHERE " + structured_data_inc + ".set_name = " + structured_data_base + ".set_name ");
 	    }
 		}
 		else

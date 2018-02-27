@@ -176,22 +176,22 @@ ex_inc_unions.l_key,  BIT_OR(ex_inc_unions.n_key) AS n_key
 FROM ex_inc_unions 
 GROUP BY ex_inc_unions.l_key, ex_inc_unions.availability, ex_inc_unions.capacity
 
-select lpad(bin(set_key), 20, '0') as set_key, set_name, capacity, availability, goal, lpad(bin(overlap), 20, '0') from structured_data_base;
+select lpad(bin(set_key), 20, '0') as set_key, set_name, capacity, availability, goal, lpad(bin(sub_of), 20, '0') from structured_data_base;
 
-SELECT lpad(bin(sb1.set_key), 20, '0') set_key, sb1.set_name, sb1.capacity, lpad(bin(sb1.overlap), 20, '0') sub_of
-, lpad(bin(sb2.overlap ^ sb1.overlap), 20, '0') sup_of
+SELECT lpad(bin(sb1.set_key), 20, '0') set_key, sb1.set_name, sb1.capacity, lpad(bin(sb1.sub_of), 20, '0') sub_of
+, lpad(bin(sb2.sub_of ^ sb1.sub_of), 20, '0') sup_of
 FROM structured_data_base sb1
 JOIN structured_data_base sb2
-ON sb1.set_key & sb2.overlap > 0
+ON sb1.set_key & sb2.sub_of > 0
 order by set_key
 ;
 
-SELECT lpad(bin(set_key), 20, '0') set_key, set_name, capacity, lpad(bin(overlap), 20, '0') sub_of, lpad(bin(BIT_OR(sup_of)), 20, '0') sup_of
+SELECT lpad(bin(set_key), 20, '0') set_key, set_name, capacity, lpad(bin(sub_of), 20, '0') sub_of, lpad(bin(BIT_OR(sup_of)), 20, '0') sup_of
 FROM (
-	SELECT sb1.set_key, sb1.set_name, sb1.capacity, sb1.overlap, sb2.set_key sup_of
+	SELECT sb1.set_key, sb1.set_name, sb1.capacity, sb1.sub_of, sb2.set_key sup_of
 	FROM structured_data_base sb1
 	JOIN structured_data_base sb2
-	ON sb1.set_key & sb2.overlap > 0
+	ON sb1.set_key & sb2.sub_of > 0
 ) tmp
 GROUP BY set_key, set_name, capacity
 ;
@@ -200,4 +200,37 @@ UPDATE structured_data_base, structured_data_inc
 SET structured_data_base.availability = LEAST(structured_data_base.availability,structured_data_inc.availability)
 WHERE structured_data_inc.set_key &structured_data_base.set_key_is =structured_data_base.set_key_is; "
 
-      
+SELECT un.set_key, NULL AS set_name, un.capacity, un.capacity - SUM(structured_data_base.goal) AS availability,
+SUM(structured_data_base.goal) as goal
+FROM (
+ SELECT 
+    set_key, 
+    SUM(capacity) as capacity 
+ FROM (
+ 
+  SELECT *, raw_inventory.count as capacity   
+  FROM (
+    SELECT ds.set_key 
+    FROM (
+    
+    SELECT DISTINCT structured_data_base.set_key | unions_last_rank.set_key as set_key 
+    FROM unions_last_rank
+    JOIN structured_data_base
+    JOIN raw_inventory
+         ON  structured_data_base.set_key & raw_inventory.basesets != 0 
+         AND unions_last_rank.set_key & raw_inventory.basesets != 0 
+         AND structured_data_base.set_key | unions_last_rank.set_key > unions_last_rank.set_key
+         
+    ) ds 
+    LEFT OUTER JOIN structured_data_inc
+         ON ds.set_key & structured_data_inc.set_key = ds.set_key 
+         WHERE structured_data_inc.set_key IS NULL 
+   ) un_sk 
+   JOIN raw_inventory   
+   ON un_sk.set_key & raw_inventory.basesets != 0 
+   
+ ) un_r
+ GROUP BY set_key) un
+JOIN structured_data_base 
+ON structured_data_base.set_key & un.set_key != 0 
+GROUP BY un.set_key, un.capacity 
